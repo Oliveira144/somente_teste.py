@@ -31,9 +31,6 @@ class AnalisePadroes:
             except:
                 resultados[nome] = False
         return resultados
-
-    # (Coloque aqui todos os métodos de padrões: _sequencia_simples, _zig_zag, etc.)
-    # Se quiser, posso colar todos eles novamente para garantir que estão certos.
     def sugestao_inteligente(self):
         analise = self.analisar_todos()
         pontuacoes = {"C": 0, "V": 0, "E": 0}
@@ -44,7 +41,6 @@ class AnalisePadroes:
             pontuacoes[codigo] += pontos
             motivos[codigo].append(motivo)
 
-        # Quebra de sequência
         if len(historico) >= 5 and historico[0] != historico[1] and all(historico[1] == historico[i] for i in range(1, 5)):
             pontuar(historico[1], 40, "Quebra de 4x1")
         elif len(historico) >= 4 and historico[0] != historico[1] and all(historico[1] == historico[i] for i in range(1, 4)):
@@ -56,48 +52,51 @@ class AnalisePadroes:
         if len(historico) >= 4 and all(historico[i] == historico[0] for i in range(4)):
             pontuar(historico[0], 30, "Sequência de 4+ detectada")
 
-        # Padrões médios
         if analise.get("Zig-Zag"):
             proxima = "C" if historico[0] == "V" else "V"
             pontuar(proxima, 15, "Padrão Zig-Zag")
+
         if analise.get("Duplas repetidas"):
             pontuar(historico[0], 20, "Duplas Repetidas")
+
         if analise.get("Empate recorrente") and historico[0] != "E":
             pontuar("E", 20, "Empate recorrente identificado")
+
         if analise.get("Padrão 'onda'") and len(historico) >= 4:
             pontuar(historico[1], 15, "Padrão de Onda")
+
         if analise.get("Padrão Escada"):
             pontuar(historico[0], 20, "Padrão Escada")
+
         if analise.get("Alternância com empate no meio"):
             proxima = "C" if historico[0] == "V" else "V"
             pontuar(proxima, 15, "Alternância com empate")
 
-        # Blocos e padrões longos
-        if analise.get("Padrão 3x1") and historico[1] == historico[2] == historico[3]:
+        if analise.get("Padrão 3x1") and historico[1:4].count(historico[1]) == 3:
             pontuar(historico[1], 25, "Padrão 3x1")
-        if analise.get("Padrão 3x3") and historico[0] == historico[1] == historico[2]:
+
+        if analise.get("Padrão 3x3") and historico[0:3].count(historico[0]) == 3:
             pontuar(historico[0], 25, "Padrão 3x3")
-        if analise.get("Padrão 4x4") and historico[0] == historico[1] == historico[2] == historico[3]:
+
+        if analise.get("Padrão 4x4") and historico[0:4].count(historico[0]) == 4:
             pontuar(historico[0], 25, "Padrão 4x4")
-        if analise.get("Padrão 4x1") and historico[0] == historico[1] == historico[2] == historico[3]:
+
+        if analise.get("Padrão 4x1") and historico[0:4].count(historico[0]) == 4:
             pontuar(historico[0], 30, "Padrão 4x1")
 
         if analise.get("Espelho"):
             pontuar(historico[0], 10, "Padrão Espelho")
 
-        # Frequência geral
         freq = self.calcular_frequencias()
         menor_freq = min(freq.values())
         for cor, valor in freq.items():
             if valor == menor_freq:
                 pontuar(cor, 10, "Menor frequência recente")
 
-        # Bônus por múltiplos padrões
         for cor in pontuacoes:
             if len(motivos[cor]) >= 2:
                 pontuar(cor, 10, "Convergência de padrões")
 
-        # Resultado final
         melhor = max(pontuacoes, key=pontuacoes.get)
         entrada_legivel = {"C": "Casa", "V": "Visitante", "E": "Empate"}[melhor]
 
@@ -110,10 +109,10 @@ class AnalisePadroes:
             "frequencias": freq,
             "ultimos_resultados": historico[:3]
         }
-# --- CONFIGURAÇÃO DO STREAMLIT ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Análise de Padrões de Jogos")
 
-# --- INICIALIZAÇÃO DO ESTADO DA SESSÃO ---
+# --- INICIALIZAÇÃO DO ESTADO ---
 if 'historico' not in st.session_state:
     st.session_state.historico = []
     st.session_state.hits = 0
@@ -155,9 +154,9 @@ def limpar():
 def bolinha_html(codigo):
     cores = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
     return f"<span style='display:inline-block; width:20px; height:20px; border-radius:50%; background-color:{cores.get(codigo, 'gray')}; margin:2px;'></span>"
-# --- TÍTULO E INSERÇÃO DE RESULTADO ---
-st.title("⚽ Análise de Padrões de Jogos")
-st.subheader("Inserir novo resultado:")
+# --- TÍTULO E BOTÕES ---
+st.title("📊 Análise de Padrões de Jogos")
+st.subheader("Inserir novo resultado")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
@@ -178,59 +177,63 @@ with col5:
 
 st.markdown("---")
 
-# --- SUGESTÃO E HISTÓRICO IMEDIATO ---
+# --- SUGESTÃO INTELIGENTE ---
 if len(st.session_state.historico) >= 9:
     app = AnalisePadroes(st.session_state.historico)
     sugestao = app.sugestao_inteligente()
-
-    st.subheader("💡 Sugestão inteligente")
+    st.subheader("💡 Sugestão Inteligente")
     st.success(f"**Sugestão:** {sugestao['entrada']}")
-    st.metric("Confiança", f"{sugestao['confianca']}%")
-    st.info("Motivos:\n- " + "\n- ".join(sugestao['motivos']))
-    st.session_state.last_suggestion_made_code = sugestao['entrada_codigo']
+    st.metric("Confiabilidade", f"{sugestao['confianca']}%")
+    st.info("Motivos:\n- " + "\n- ".join(sugestao["motivos"]))
+    st.session_state.last_suggestion_made_code = sugestao["entrada_codigo"]
     if st.session_state.g1_active:
         st.session_state.g1_attempts += 1
 
-    # Histórico visual logo abaixo da sugestão
-    st.subheader("📌 Últimos resultados (mais recente à esquerda)")
-    html_hist = "".join([bolinha_html(x) for x in st.session_state.historico])
-    st.markdown(html_hist, unsafe_allow_html=True)
-    st.caption(f"Total: {len(st.session_state.historico)} jogos")
+# --- HISTÓRICO VISUAL ---
+st.markdown("### 📌 Histórico (mais recente à esquerda)")
+bolinhas = "".join([bolinha_html(x) for x in st.session_state.historico])
+st.markdown(bolinhas, unsafe_allow_html=True)
+st.caption(f"Últimos {len(st.session_state.historico)} jogos")
 
-    # Padrões detectados
+# --- PADRÕES DETECTADOS ---
+if len(st.session_state.historico) >= 9:
     st.markdown("---")
-    st.subheader("🔍 Padrões encontrados")
-    resultados = app.analisar_todos()
+    st.subheader("🔎 Padrões Identificados")
+    resultado_padroes = app.analisar_todos()
     colA, colB = st.columns(2)
     with colA:
-        st.markdown("**Detectados:**")
-        for nome, ativo in resultados.items():
+        st.markdown("**Padrões Ativos:**")
+        for nome, ativo in resultado_padroes.items():
             if ativo:
                 st.success(f"✔️ {nome}")
     with colB:
-        st.markdown("**Não encontrados:**")
-        for nome, ativo in resultados.items():
+        st.markdown("**Não identificados:**")
+        for nome, ativo in resultado_padroes.items():
             if not ativo:
-                st.markdown(f"<span style='color: grey;'>✖️ {nome}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color: grey'>✖️ {nome}</span>", unsafe_allow_html=True)
 
-    # Frequência dos resultados
+# --- FREQUÊNCIA DE OCORRÊNCIA ---
+if len(st.session_state.historico) >= 3:
+    freq = app.calcular_frequencias()
     st.markdown("---")
-    st.subheader("📊 Frequência dos resultados")
-    st.bar_chart({"Resultado": {
-        "Casa": sugestao["frequencias"]['C'],
-        "Visitante": sugestao["frequencias"]['V'],
-        "Empate": sugestao["frequencias"]['E']
-    }})
+    st.subheader("📊 Frequência de Cores")
+    st.bar_chart({
+        "Resultado": {
+            "Casa": freq['C'],
+            "Visitante": freq['V'],
+            "Empate": freq['E']
+        }
+    })
 
-# --- ESTATÍSTICAS GERAIS ---
+# --- ESTATÍSTICAS FINAIS ---
 st.markdown("---")
-st.subheader("📈 Estatísticas de desempenho")
+st.subheader("📈 Estatísticas de Desempenho")
 total = st.session_state.hits + st.session_state.misses
 taxa = (st.session_state.hits / total * 100) if total else 0
 colX, colY, colZ = st.columns(3)
 with colX:
     st.metric("✅ Acertos", st.session_state.hits)
-    st.metric("Taxa de acerto", f"{taxa:.1f}%" if total else "0%")
+    st.metric("Taxa", f"{taxa:.1f}%" if total else "0%")
 with colY:
     st.metric("❌ Erros", st.session_state.misses)
     st.metric("G1", "Ativo" if st.session_state.g1_active else "Inativo")
