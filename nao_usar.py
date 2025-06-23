@@ -23,7 +23,7 @@ class AnalisePadroes:
             "Padrão 3x3": self._padrao_3x3,
             "Padrão 4x4": self._padrao_4x4,
             "Padrão 4x1": self._padrao_4x1,
-            "Empate em Zona de Ocorrência": self._empate_zona_ocorrencia # NOVO PADRÃO
+            "Empate em Zona de Ocorrência": self._empate_zona_ocorrencia
         }
 
     def analisar_todos(self):
@@ -145,7 +145,6 @@ class AnalisePadroes:
             if (bloco[0] == bloco[1] == bloco[2] == bloco[3] and bloco[4] != bloco[0]): return True
         return False
 
-    # --- NOVO/REFINADO MÉTODO DE PADRÃO: Empate em Zona de Ocorrência ---
     def _empate_zona_ocorrencia(self):
         empate_indices = [i for i, x in enumerate(self.historico) if x == 'E']
 
@@ -196,95 +195,75 @@ class AnalisePadroes:
     # --- MÉTODO sugestao_inteligente REFINADO ---
     def sugestao_inteligente(self):
         analise = self.analisar_todos()
-        padroes_detectados = [nome for nome, ok in analise.items() if ok]
-
+        
         sugestao_final_codigo = None
-        motivos_sugestao = []
+        motivo_principal = [] # Agora será uma lista para o motivo MAIS relevante
         confianca_base = 0 
 
         # --- Etapa 1: Prioridade Alta (Padrões de Quebra e Continuidade Fortes e Recentes) ---
 
         # 1.1 Quebra de Padrão (4x1 ou 3x1): Se o último resultado quebrou uma sequência forte
-        # Ex: CCCC V (sugere C) ou VVVV C (sugere V). O último resultado (V ou C) é historico[0]
-        # A lógica é: os 4 (ou 3) anteriores são iguais, e o mais recente é diferente.
-        # Sugerimos a cor que estava na sequência, pois a "quebra" pode ser um ponto de retorno.
-        
         if len(self.historico) >= 5:
             # 4x1 (último quebrou uma sequência de 4)
             if self.historico[0] != self.historico[1] and \
                self.historico[1] == self.historico[2] == self.historico[3] == self.historico[4]:
                 sugestao_final_codigo = self.historico[1] # Sugere a cor que dominava antes da quebra
-                motivos_sugestao.append(f"Quebra de padrão 4x1: A cor forte ({sugestao_final_codigo}) quebrou. Sugere o retorno da cor forte anterior.")
-                confianca_base += 50 
+                motivo_principal.append(f"Quebra de padrão 4x1: A cor forte ({sugestao_final_codigo}) quebrou. Sugere o retorno da cor forte anterior.")
+                confianca_base = 80 # Alta confiança para este tipo de quebra
         
         if sugestao_final_codigo is None and len(self.historico) >= 4:
             # 3x1 (último quebrou uma sequência de 3)
             if self.historico[0] != self.historico[1] and \
                self.historico[1] == self.historico[2] == self.historico[3]:
                 sugestao_final_codigo = self.historico[1] # Sugere a cor que dominava antes da quebra
-                motivos_sugestao.append(f"Quebra de padrão 3x1: A cor forte ({sugestao_final_codigo}) quebrou. Sugere o retorno da cor forte anterior.")
-                confianca_base += 45 
+                motivo_principal.append(f"Quebra de padrão 3x1: A cor forte ({sugestao_final_codigo}) quebrou. Sugere o retorno da cor forte anterior.")
+                confianca_base = 75 # Boa confiança para este tipo de quebra
 
         # 1.2 Empate em Zona de Ocorrência: Se o padrão específico do empate está ativo e forte
-        if sugestao_final_codigo is None and "Empate em Zona de Ocorrência" in padroes_detectados:
-            # Se o último resultado é Empate, reforça a ideia de que a "zona" está ativa
-            if self.historico[0] == 'E':
+        if sugestao_final_codigo is None and "Empate em Zona de Ocorrência" in analise and analise["Empate em Zona de Ocorrência"]:
+            if self.historico[0] == 'E': # Se o último resultado foi Empate e está na zona, sugere continuação
                 sugestao_final_codigo = 'E'
-                motivos_sugestao.append("Empate em Zona de Ocorrência: O último resultado foi Empate, indicando a força da zona. Sugere continuação.")
-                confianca_base += 60 # Confiança muito alta para continuar o empate em zona
-            else: # Se a zona está ativa, mas o último não foi E (sugere E como o próximo)
-                # Verifica se houve uma longa seca antes e o empate está "devendo"
-                # (Essa lógica já está contida na _empate_zona_ocorrencia, aqui é só a aplicação)
-                # Se o padrão foi detectado, mas não é uma continuação direta, então é uma aparição após seca.
-                empates_indices = [i for i, x in enumerate(self.historico) if x == 'E']
-                if len(empates_indices) == 0: # Não teve empate no histórico atual, mas o padrão detectou uma condição de "zona"
-                     sugestao_final_codigo = 'E'
-                     motivos_sugestao.append("Empate em Zona de Ocorrência: Longo período sem empates, o padrão sugere que um Empate pode surgir em breve.")
-                     confianca_base += 55
-                elif len(empates_indices) > 0 and self.historico[0] != 'E' and "Empate em Zona de Ocorrência" in padroes_detectados:
-                     # Caso a zona de ocorrência seja acionada por (ex: 3 empates nos últimos 5), mas o último não é E
-                     sugestao_final_codigo = 'E'
-                     motivos_sugestao.append("Empate em Zona de Ocorrência: Concentração de empates recentes, sugere Empate.")
-                     confianca_base += 50
+                motivo_principal.append("Empate em Zona de Ocorrência: O último resultado foi Empate, indicando a força da zona. Sugere continuação.")
+                confianca_base = 85 # Confiança muito alta para continuar o empate em zona
+            else: # Se a zona está ativa, mas o último não foi E, sugere E como o próximo
+                sugestao_final_codigo = 'E'
+                motivo_principal.append("Empate em Zona de Ocorrência: Padrão ativo, o Empate pode surgir em breve.")
+                confianca_base = 70 # Confiança um pouco menor se não for continuação direta
 
 
         # 1.3 Surf de Cor (Sequências longas e recentes): Se há uma sequência de 4+ e sugere continuação
         if sugestao_final_codigo is None and len(self.historico) >= 4 and \
            self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3]:
             sugestao_final_codigo = self.historico[0] # Sugere a continuação da sequência
-            motivos_sugestao.append(f"Continuação de Sequência (Surf de Cor) de 4+ resultados de {sugestao_final_codigo}.")
-            confianca_base += 40
+            motivo_principal.append(f"Continuação de Sequência (Surf de Cor) de 4+ resultados de {sugestao_final_codigo}.")
+            confianca_base = 65 # Boa confiança para sequências fortes
 
-        # --- Etapa 2: Prioridade Média (Outros Padrões Comuns e Equilíbrio) ---
+        # --- Etapa 2: Prioridade Média (Somente se NENHUMA sugestão foi feita na Etapa 1) ---
         if sugestao_final_codigo is None:
             # Padrão Zig-Zag (ex: C-V-C - sugere V)
             if len(self.historico) >= 3 and \
                self.historico[0] != self.historico[1] and self.historico[1] != self.historico[2] and \
                self.historico[0] == self.historico[2]: 
                 sugestao_final_codigo = self.historico[1] # Sugere o oposto do atual
-                motivos_sugestao.append(f"Padrão Zig-Zag: sugere alternância.")
-                confianca_base += 25
+                motivo_principal.append(f"Padrão Zig-Zag: sugere alternância.")
+                confianca_base = 50
 
             # Duplas repetidas (Ex: CCVV - se o mais recente é V, sugere V para continuar a dupla)
-            if sugestao_final_codigo is None and len(self.historico) >= 4:
-                # Se o padrão é CC VV e o último é V, sugere V
-                if self.historico[0] == self.historico[1] and \
+            elif len(self.historico) >= 4 and \
+                   self.historico[0] == self.historico[1] and \
                    self.historico[2] == self.historico[3] and \
-                   self.historico[0] != self.historico[2]: # Se os 4 últimos são Dupla1-Dupla1-Dupla2-Dupla2
-                    sugestao_final_codigo = self.historico[0] # Sugere a continuação da dupla atual
-                    motivos_sugestao.append(f"Padrão Duplas Repetidas: sugere a continuação da dupla atual.")
-                    confianca_base += 20
+                   self.historico[0] != self.historico[2]:
+                sugestao_final_codigo = self.historico[0] # Sugere a continuação da dupla atual
+                motivo_principal.append(f"Padrão Duplas Repetidas: sugere a continuação da dupla atual.")
+                confianca_base = 45
             
-            # Empate Recorrente (se empates estão vindo em intervalos curtos)
-            if sugestao_final_codigo is None and "Empate recorrente" in padroes_detectados:
-                # Se o último não foi E, e o padrão indica recorrência, sugere E
-                if self.historico[0] != 'E': # Só sugere se o atual não é E para tentar "pegar" o próximo
-                    sugestao_final_codigo = 'E'
-                    motivos_sugestao.append("Padrão Empate Recorrente: sugere que um Empate pode surgir em breve.")
-                    confianca_base += 20
+            # Empate Recorrente (se empates estão vindo em intervalos curtos - menos forte que Zona de Ocorrência)
+            elif "Empate recorrente" in analise and analise["Empate recorrente"] and self.historico[0] != 'E':
+                sugestao_final_codigo = 'E'
+                motivo_principal.append("Padrão Empate Recorrente: sugere que um Empate pode surgir em breve.")
+                confianca_base = 40
 
-
-        # --- Etapa 3: Prioridade Baixa (Menor Frequência - O "Catch-All") ---
+        # --- Etapa 3: Prioridade Baixa (Menor Frequência - Somente se NENHUMA sugestão foi feita antes) ---
         if sugestao_final_codigo is None:
             frequencias = self.calcular_frequencias()
             opcoes = ["V", "C", "E"]
@@ -302,28 +281,23 @@ class AnalisePadroes:
                     candidatos_menor_freq.append(op) 
 
             sugestao_final_codigo = random.choice(candidatos_menor_freq) 
-            motivos_sugestao.append(f"Sugestão baseada na menor frequência de ocorrência no histórico geral.")
-            confianca_base += 15 
+            motivo_principal.append(f"Sugestão baseada na menor frequência de ocorrência no histórico geral.")
+            confianca_base = 30 # Confiança mais baixa para esta estratégia
 
         # --- Finalização da Sugestão ---
         if sugestao_final_codigo:
             mapeamento = {"C": "Casa", "V": "Visitante", "E": "Empate"}
             entrada_legivel = mapeamento[sugestao_final_codigo]
 
-            # Filtra os motivos gerais para não repetir os já explicitados na sugestão
-            motivos_gerais_detectados = [nome for nome, ok in analise.items() if ok and nome not in [m.split(':')[0].strip() for m in motivos_sugestao]]
-            
-            todos_motivos_finais = list(set(motivos_sugestao + motivos_gerais_detectados)) 
-
-            # O cálculo da confiança final
-            bonus_por_padrao_geral = len(motivos_gerais_detectados) * 3 
-            confianca_final = min(90, max(0, confianca_base + bonus_por_padrao_geral))
+            # A confiança final é a confiança base do padrão que gerou a sugestão
+            # Não adicionamos mais bônus de outros padrões para evitar a "mistura"
+            confianca_final = min(90, max(0, confianca_base))
 
             return {
                 "sugerir": True,
                 "entrada": entrada_legivel,
                 "entrada_codigo": sugestao_final_codigo,
-                "motivos": todos_motivos_finais,
+                "motivos": motivo_principal, # Apenas o motivo principal
                 "confianca": confianca_final,
                 "frequencias": self.calcular_frequencias(),
                 "ultimos_resultados": self.historico[:3]
@@ -397,13 +371,13 @@ def get_resultado_html(resultado):
     color_map = {'C': 'red', 'V': 'blue', 'E': 'gold'}
     return f"<span style='display:inline-block; width:20px; height:20px; border-radius:50%; background-color:{color_map.get(resultado, 'gray')}; margin:2px; vertical-align:middle;'></span>"
 
-# --- CONFIGURAÇÃO DA PÁGINA STREAMLIT (SEM MUDANÇAS) ---
+# --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
 st.set_page_config(layout="wide", page_title="Análise de Padrões de Jogos")
 
 st.title("⚽ Análise de Padrões de Resultados")
 st.markdown("---")
 
-# --- CSS PARA BOTÕES COLORIDOS (SEM MUDANÇAS) ---
+# --- CSS PARA BOTÕES COLORIDOS ---
 st.markdown("""
 <style>
 /* Estilo geral para todos os botões do tipo stButton */
@@ -456,7 +430,7 @@ div.stButton > button[data-testid="stButton-Limpar Histórico"]:hover {
 """, unsafe_allow_html=True)
 
 
-# --- SEÇÃO DE INSERÇÃO DE RESULTADOS COM BOTÕES COLORIDOS (SEM MUDANÇAS VISUAIS) ---
+# --- SEÇÃO DE INSERÇÃO DE RESULTADOS COM BOTÕES COLORIDOS ---
 st.subheader("Inserir Novo Resultado")
 
 col_btn1, col_btn2, col_btn3, col_btn4, col_btn5 = st.columns(5)
@@ -490,6 +464,7 @@ if len(st.session_state.historico) >= 9:
         st.write(f"Considerando os padrões e frequências do histórico atual:")
         st.success(f"**Sugestão:** Próximo resultado provável: **{sugestao['entrada']}**")
         st.metric(label="Confiança da Sugestão", value=f"{sugestao['confianca']}%")
+        # A lista de motivos agora é 'motivo_principal' e mais concisa
         st.info(f"**Motivos:** {', '.join(sugestao['motivos'])}")
         st.markdown(f"Últimos 3 resultados analisados (mais novo à esquerda): `{', '.join(sugestao['ultimos_resultados'])}`")
         
@@ -565,7 +540,7 @@ if len(st.session_state.historico) >= 9:
 else:
     st.warning(f"A análise completa (sugestão, padrões e frequência) será exibida quando houver pelo menos 9 resultados no histórico. Resultados atuais: **{len(st.session_state.historico)}**")
 
-# --- NOVO: SEÇÃO DE RESUMO DE ACERTOS E ERROS ---
+# --- SEÇÃO DE RESUMO DE ACERTOS E ERROS ---
 st.markdown("---")
 st.subheader("📊 Resumo de Acertos e Erros")
 
@@ -587,4 +562,3 @@ with col_stats3:
 
 if total_suggestions_evaluated == 0:
     st.info("Insira resultados e aguarde as sugestões para ver o resumo de acertos/erros.")
-
