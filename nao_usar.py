@@ -2,12 +2,10 @@ import streamlit as st
 import collections
 import random
 
-# --- CLASSE ANALISEPADROES (Pequena alteração na inicialização para lidar com a ordem) ---
+# --- CLASSE ANALISEPADROES (COM NOVO PADRÃO DE EMPATE) ---
 class AnalisePadroes:
     def __init__(self, historico):
-        # NOTA IMPORTANTE: O histórico AGORA virá com o resultado mais NOVO na posição 0.
-        # A lógica dos padrões já está adaptada para ler do início ao fim (que agora é do mais novo para o mais antigo).
-        self.historico = historico[:27] # Pega os 27 primeiros (mais novos)
+        self.historico = historico[:27]
         self.padroes_ativos = {
             "Sequência (Surf de Cor)": self._sequencia_simples,
             "Zig-Zag": self._zig_zag,
@@ -23,7 +21,8 @@ class AnalisePadroes:
             "Padrão 3x1": self._padrao_3x1,
             "Padrão 3x3": self._padrao_3x3,
             "Padrão 4x4": self._padrao_4x4,
-            "Padrão 4x1": self._padrao_4x1
+            "Padrão 4x1": self._padrao_4x1,
+            "Empate em Zona de Ocorrência": self._empate_zona_ocorrencia # NOVO PADRÃO
         }
 
     def analisar_todos(self):
@@ -35,9 +34,7 @@ class AnalisePadroes:
                 resultados[nome] = False
         return resultados
 
-    # --- MÉTODOS DE VERIFICAÇÃO DE PADRÕES (COPIE E COLE TODOS AQUI) ---
-    # Eles já leem da esquerda para a direita (índice 0 em diante),
-    # então funcionarão corretamente com o novo histórico ordenado.
+    # --- MÉTODOS DE VERIFICAÇÃO DE PADRÕES (EXISTENTES) ---
     def _sequencia_simples(self):
         for i in range(len(self.historico) - 2):
             if self.historico[i] == self.historico[i+1] and self.historico[i+1] == self.historico[i+2]: return True
@@ -90,7 +87,7 @@ class AnalisePadroes:
         return False
     def _padroes_ultimos_jogos(self):
         if len(self.historico) < 5: return False
-        ultimos5 = self.historico[-5:] # Aqui ele pega os 5 mais antigos dos 27, se quiser os 5 mais novos, seria historico[:5]
+        ultimos5 = self.historico[:5]
         contador = collections.Counter(ultimos5)
         for resultado, count in contador.items():
             if count / len(ultimos5) >= 0.6: return True
@@ -116,6 +113,64 @@ class AnalisePadroes:
             if (bloco[0] == bloco[1] == bloco[2] == bloco[3] and bloco[4] != bloco[0]): return True
         return False
 
+    # --- NOVO MÉTODO DE PADRÃO: Empate em Zona de Ocorrência ---
+    def _empate_zona_ocorrencia(self):
+        # Baseado na descrição: "não aparece por muitas rodadas, tende a reaparecer em intervalos médios entre 15 e 35 rodadas – e às vezes vem em duplas."
+        
+        # 1. Verifica se houve um longo período sem empates
+        #    Vamos procurar por um trecho de histórico recente (ex: últimos 15 a 35 jogos)
+        #    onde não houve empates, seguido por um ou dois empates.
+        
+        # Consideramos o histórico em ordem do mais novo para o mais antigo (esquerda para direita)
+        # Portanto, o histórico[0] é o mais recente.
+        
+        # Encontra os índices de todos os empates no histórico atual
+        empate_indices = [i for i, x in enumerate(self.historico) if x == 'E']
+
+        # Se não houver empates suficientes para analisar a zona ou intervalo
+        if len(empate_indices) < 2:
+            # Se houver apenas 1 empate, verificamos se ele é o resultado mais recente e se os anteriores não são empates.
+            # Isso pode indicar o início de uma "zona" após um período sem.
+            if len(empate_indices) == 1 and empate_indices[0] == 0: # O empate mais recente é o atual (índice 0)
+                # Verifica se nos últimos 15 a 35 resultados anteriores não houve empates
+                # Isso significa que todos os resultados de 1 até 15 (ou até onde o histórico permitir) não são 'E'.
+                # A lógica será: se o último foi 'E' e antes dele não houve 'E' por um longo tempo.
+                for i in range(1, min(len(self.historico), 35)): # Olha até 35 resultados atrás
+                    if self.historico[i] == 'E':
+                        return False # Achou um empate recente, então não houve "longo período sem"
+                
+                # Se chegou aqui, o último é 'E' e não houve outros 'E' no intervalo considerado (15 a 35 posições anteriores)
+                return True # Encontrou um empate que pode indicar o início de uma zona após um longo período
+        
+        # Se há múltiplos empates, verifica os intervalos entre eles
+        # A distância entre dois empates (índices na lista, do mais novo ao mais antigo)
+        # representa o número de jogos ENTRE eles.
+        for i in range(len(empate_indices) - 1):
+            # A diferença entre os índices é a quantidade de resultados entre eles
+            distancia = empate_indices[i+1] - empate_indices[i] - 1 # subtrai 1 porque a distância é entre os resultados, não entre os índices
+
+            # "reaparecer em intervalos médios entre 15 e 35 rodadas"
+            # O índice 'i' é do empate mais recente, 'i+1' é do anterior a ele.
+            # Se o empate atual (índice 0) é um dos dois (i ou i+1)
+            # E a distância do próximo empate se encaixa no padrão
+            
+            # Se a distância entre o empate mais recente e o anterior está na faixa
+            if empate_indices[i] == 0: # O empate mais recente está no índice 0
+                if 15 <= distancia + 1 <= 35: # Ajuste para a contagem de "rodadas"
+                    return True
+
+        # Se o histórico atual tem empates em sequência no início (duplas) e não houve empates recentes antes
+        if len(self.historico) >= 2 and self.historico[0] == 'E' and self.historico[1] == 'E':
+            # Verifica se nos resultados anteriores (a partir do terceiro) não houve empates por um tempo
+            # Por exemplo, se tivemos EE e os últimos 15 a 35 resultados antes disso não tiveram E.
+            for i in range(2, min(len(self.historico), 35)):
+                if self.historico[i] == 'E':
+                    return False # Achou um empate recente antes da dupla
+            if len(self.historico) >= 15: # Precisa de histórico suficiente para verificar o "longo período"
+                return True # Encontrou uma dupla de empates após um possível longo período sem.
+        
+        return False # Padrão não encontrado
+        
     def calcular_frequencias(self):
         contador = collections.Counter(self.historico)
         total = len(self.historico)
@@ -135,8 +190,6 @@ class AnalisePadroes:
             entrada_sugerida = None
             min_freq = float('inf')
 
-            # Sugere a opção com menor frequência para "quebrar" o padrão,
-            # ou uma aleatória se as frequências forem iguais.
             for op in opcoes:
                 if frequencias.get(op, 0) < min_freq:
                     min_freq = frequencias.get(op, 0)
@@ -148,7 +201,6 @@ class AnalisePadroes:
             mapeamento = {"C": "Casa", "V": "Visitante", "E": "Empate"}
             entrada_legivel = mapeamento[entrada_sugerida]
 
-            # Aumenta a confiança se mais padrões forem identificados
             confianca = min(90, int((len(padroes_identificados) / len(self.padroes_ativos)) * 100) + 20)
 
             return {
@@ -158,7 +210,7 @@ class AnalisePadroes:
                 "motivos": padroes_identificados,
                 "confianca": confianca,
                 "frequencias": frequencias,
-                "ultimos_resultados": self.historico[:3] # Pega os 3 mais recentes (início da lista)
+                "ultimos_resultados": self.historico[:3]
             }
         else:
             return {
@@ -171,42 +223,35 @@ class AnalisePadroes:
                 "ultimos_resultados": self.historico[:3]
             }
 
-# --- FUNÇÕES DE INTERFACE E LÓGICA DE HISTÓRICO ---
+# --- FUNÇÕES DE INTERFACE E LÓGICA DE HISTÓRICO (SEM MUDANÇAS) ---
 
 # Inicializa o estado da sessão para armazenar o histórico
 if 'historico' not in st.session_state:
     st.session_state.historico = []
 
 def adicionar_resultado(resultado):
-    # Insere o novo resultado no INÍCIO da lista
     st.session_state.historico.insert(0, resultado)
-    # Limita o histórico a 27 resultados, removendo os mais antigos (do final)
     if len(st.session_state.historico) > 27:
-        st.session_state.historico = st.session_state.historico[:27] # Mantém os 27 mais recentes
+        st.session_state.historico = st.session_state.historico[:27]
 
 def limpar_historico():
     st.session_state.historico = []
 
 def desfazer_ultimo():
-    # Remove o primeiro item (o mais recente)
     if st.session_state.historico:
         st.session_state.historico.pop(0)
 
 def get_resultado_html(resultado):
-    """Retorna o HTML para uma bolinha colorida com base no resultado."""
-    color_map = {'C': 'red', 'V': 'blue', 'E': 'gold'} # Amarelo para Empate
+    color_map = {'C': 'red', 'V': 'blue', 'E': 'gold'}
     return f"<span style='display:inline-block; width:20px; height:20px; border-radius:50%; background-color:{color_map.get(resultado, 'gray')}; margin:2px; vertical-align:middle;'></span>"
 
-# --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
+# --- CONFIGURAÇÃO DA PÁGINA STREAMLIT (SEM MUDANÇAS) ---
 st.set_page_config(layout="wide", page_title="Análise de Padrões de Jogos")
 
 st.title("⚽ Análise de Padrões de Resultados")
 st.markdown("---")
 
-# --- CSS PARA BOTÕES COLORIDOS ---
-# Importante: Este CSS é injetado no HTML da página.
-# Ele usa IDs para direcionar botões específicos.
-# st.markdown com unsafe_allow_html=True
+# --- CSS PARA BOTÕES COLORIDOS (SEM MUDANÇAS) ---
 st.markdown("""
 <style>
 /* Estilo geral para todos os botões do tipo stButton */
@@ -259,10 +304,9 @@ div.stButton > button[data-testid="stButton-Limpar Histórico"]:hover {
 """, unsafe_allow_html=True)
 
 
-# --- SEÇÃO DE INSERÇÃO DE RESULTADOS COM BOTÕES COLORIDOS ---
+# --- SEÇÃO DE INSERÇÃO DE RESULTADOS COM BOTÕES COLORIDOS (SEM MUDANÇAS) ---
 st.subheader("Inserir Novo Resultado")
 
-# Os 'key's dos botões agora correspondem aos 'data-testid' no CSS
 col_btn1, col_btn2, col_btn3, col_btn4, col_btn5 = st.columns(5)
 
 with col_btn1:
@@ -283,29 +327,44 @@ with col_btn5:
 
 st.markdown("---")
 
-# --- EXIBIÇÃO DO HISTÓRICO ---
+# --- LÓGICA DE ANÁLISE E SUGESTÃO (REORDENADA) ---
+if len(st.session_state.historico) >= 9:
+    app_analise = AnalisePadroes(st.session_state.historico)
+    sugestao = app_analise.sugestao_inteligente()
+
+    st.header("💡 Sugestão Inteligente para o Próximo Jogo")
+
+    if sugestao['sugerir']:
+        st.write(f"Considerando os padrões e frequências do histórico atual:")
+        st.success(f"**Sugestão:** Próximo resultado provável: **{sugestao['entrada']}**")
+        st.metric(label="Confiança da Sugestão", value=f"{sugestao['confianca']}%")
+        st.info(f"**Motivos:** {', '.join(sugestao['motivos'])}")
+        st.markdown(f"Últimos 3 resultados analisados (mais novo à esquerda): `{', '.join(sugestao['ultimos_resultados'])}`")
+    else:
+        st.warning(f"**Sem sugestão:** {sugestao['motivos'][0]}")
+
+    st.markdown("---")
+
+# --- EXIBIÇÃO DO HISTÓRICO (SEM MUDANÇAS) ---
 st.subheader("Histórico de Resultados (Mais novo à esquerda)")
 
 if not st.session_state.historico:
     st.info("O histórico está vazio. Comece inserindo resultados acima.")
 else:
     historico_display = ""
-    # O loop já processa do mais novo para o mais antigo (posição 0 em diante)
     for i, resultado in enumerate(st.session_state.historico):
         historico_display += get_resultado_html(resultado)
-        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico): # Quebra a linha a cada 9 resultados
-            historico_display += "<br>" # Quebra de linha HTML
+        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
+            historico_display += "<br>" 
 
     st.markdown(historico_display, unsafe_allow_html=True)
     st.write(f"Total de resultados no histórico: **{len(st.session_state.historico)}** (máx. 27)")
 
 st.markdown("---")
 
-# --- ANÁLISE E SUGESTÃO AUTOMÁTICA ---
+# --- PADRÕES DETECTADOS E FREQUÊNCIA (SEM MUDANÇAS) ---
 if len(st.session_state.historico) >= 9:
-    # A classe AnalisePadroes agora recebe o histórico já ordenado do mais novo para o mais antigo
-    app_analise = AnalisePadroes(st.session_state.historico)
-
+    # Reusa o objeto app_analise já criado acima
     st.header("🔍 Padrões Detectados")
     padroes_encontrados = app_analise.analisar_todos()
     
@@ -330,19 +389,6 @@ if len(st.session_state.historico) >= 9:
             st.info("Todos os padrões foram encontrados!")
 
     st.markdown("---")
-    st.header("💡 Sugestão Inteligente para o Próximo Jogo")
-    sugestao = app_analise.sugestao_inteligente()
-
-    if sugestao['sugerir']:
-        st.write(f"Considerando os padrões e frequências do histórico atual:")
-        st.success(f"**Sugestão:** Próximo resultado provável: **{sugestao['entrada']}**")
-        st.metric(label="Confiança da Sugestão", value=f"{sugestao['confianca']}%")
-        st.info(f"**Motivos:** {', '.join(sugestao['motivos'])}")
-        st.markdown(f"Últimos 3 resultados analisados: `{', '.join(sugestao['ultimos_resultados'])}`")
-    else:
-        st.warning(f"**Sem sugestão:** {sugestao['motivos'][0]}")
-    
-    st.markdown("---")
     st.header("📊 Frequência dos Resultados no Histórico")
     frequencias = app_analise.calcular_frequencias()
     
@@ -356,5 +402,5 @@ if len(st.session_state.historico) >= 9:
     st.write(f"Total de jogos no histórico analisado: **{len(app_analise.historico)}**")
 
 else:
-    st.warning(f"A análise e sugestão serão exibidas quando houver pelo menos 9 resultados no histórico. Resultados atuais: **{len(st.session_state.historico)}**")
+    st.warning(f"A análise completa (sugestão, padrões e frequência) será exibida quando houver pelo menos 9 resultados no histórico. Resultados atuais: **{len(st.session_state.historico)}**")
 
