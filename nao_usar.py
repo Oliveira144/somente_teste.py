@@ -2,7 +2,6 @@ import streamlit as st
 import collections
 import random
 
-# --- Cole AQUI a classe AnalisePadroes COMPLETA que te enviei ---
 class AnalisePadroes:
     def __init__(self, historico):
         self.historico = historico[-27:]
@@ -31,13 +30,11 @@ class AnalisePadroes:
                 resultados[nome] = func()
             except Exception as e:
                 # É bom logar erros aqui para depuração
-                st.error(f"Erro ao analisar o padrão '{nome}': {e}") # Exibe no Streamlit
+                # st.error(f"Erro ao analisar o padrão '{nome}': {e}") # Pode ser muito verboso
                 resultados[nome] = False
         return resultados
 
-    # ... (TODOS OS MÉTODOS _sequencia_simples, _zig_zag, etc., e calcular_frequencias, sugestao_inteligente) ...
-    # Certifique-se de que todos os métodos da classe estejam aqui.
-
+    # --- Métodos de Verificação de Padrões (Mantenha todos os métodos aqui) ---
     def _sequencia_simples(self):
         for i in range(len(self.historico) - 2):
             if self.historico[i] == self.historico[i+1] and \
@@ -230,77 +227,83 @@ class AnalisePadroes:
             }
 
 # --- Início da Aplicação Streamlit ---
-st.set_page_config(layout="wide") # Para usar toda a largura da tela
+st.set_page_config(layout="wide")
 
 st.title("⚽ Análise de Padrões de Resultados de Jogos")
 st.markdown("---")
 
-# Exemplo de histórico (você pode substituir por uma entrada de usuário, upload de arquivo, etc.)
-historico_exemplo = ['C', 'V', 'E', 'C', 'C', 'C', 'V', 'E', 'V', 'C',
-                     'V', 'V', 'E', 'C', 'V', 'V', 'C', 'C', 'C', 'V',
-                     'E', 'C', 'C', 'C', 'V', 'V', 'C']
+# Exemplo de histórico inicial para o campo de texto
+historico_exemplo_inicial = ['C', 'V', 'E', 'C', 'C', 'C', 'V', 'E', 'V', 'C',
+                             'V', 'V', 'E', 'C', 'V', 'V', 'C', 'C', 'C', 'V',
+                             'E', 'C', 'C', 'C', 'V', 'V', 'C']
 
-# Criar um widget de entrada de texto para o histórico, se desejar.
-# st.sidebar.header("Configurações")
-# historico_input = st.sidebar.text_area(
-#     "Insira o histórico de resultados (ex: C,V,E,C,C):",
-#     value=",".join(historico_exemplo)
-# )
-# historico_processado = [r.strip().upper() for r in historico_input.split(',') if r.strip()]
+st.sidebar.header("Configurações de Entrada")
+historico_input = st.sidebar.text_area(
+    "Insira o histórico de resultados (separado por vírgulas, ex: C,V,E,C):",
+    value=",".join(historico_exemplo_inicial),
+    height=150 # Aumenta a altura do campo de texto
+)
 
-# Usar o histórico de exemplo por enquanto
-historico_processado = historico_exemplo
+# Botão para submeter o histórico
+# Ao clicar no botão, o script é re-executado.
+if st.sidebar.button("Analisar Histórico"):
+    historico_processado = [r.strip().upper() for r in historico_input.split(',') if r.strip()]
 
-if not historico_processado:
-    st.warning("Por favor, insira um histórico de resultados para análise.")
-else:
-    app_analise = AnalisePadroes(historico_processado)
-
-    st.header("🔍 Padrões Detectados")
-    padroes_encontrados = app_analise.analisar_todos()
-    
-    col1, col2 = st.columns(2) # Divide a tela em duas colunas
-
-    with col1:
-        st.subheader("Padrões Encontrados:")
-        encontrados_lista = [nome for nome, encontrado in padroes_encontrados.items() if encontrado]
-        if encontrados_lista:
-            for padrao in encontrados_lista:
-                st.success(f"✔️ {padrao}")
-        else:
-            st.info("Nenhum padrão específico detectado no momento.")
-    
-    with col2:
-        st.subheader("Padrões Não Encontrados:")
-        nao_encontrados_lista = [nome for nome, encontrado in padroes_encontrados.items() if not encontrado]
-        if nao_encontrados_lista:
-            for padrao in nao_encontrados_lista:
-                st.markdown(f"<span style='color: grey;'>✖️ {padrao}</span>", unsafe_allow_html=True)
-        else:
-            st.info("Todos os padrões foram encontrados!")
-
-
-    st.markdown("---")
-    st.header("💡 Sugestão Inteligente para o Próximo Jogo")
-    sugestao = app_analise.sugestao_inteligente()
-
-    if sugestao['sugerir']:
-        st.write(f"Considerando os padrões e frequências:")
-        st.success(f"**Sugestão:** Próximo resultado provável: **{sugestao['entrada']}**")
-        st.metric(label="Confiança da Sugestão", value=f"{sugestao['confianca']}%")
-        st.info(f"**Motivos:** {', '.join(sugestao['motivos'])}")
-        st.markdown(f"Últimos 3 resultados: `{', '.join(sugestao['ultimos_resultados'])}`")
+    if not historico_processado:
+        st.warning("Por favor, insira um histórico de resultados para análise.")
     else:
-        st.warning(f"**Sem sugestão:** {sugestao['motivos'][0]}")
-    
-    st.markdown("---")
-    st.header("📊 Frequência dos Resultados no Histórico")
-    frequencias = app_analise.calcular_frequencias()
-    
-    freq_data = {
-        "Resultado": [mapeamento_freq_legivel[t] for t in ['C', 'V', 'E']],
-        "Porcentagem": [frequencias.get(t, 0) for t in ['C', 'V', 'E']]
-    }
-    
-    st.bar_chart(freq_data, x="Resultado", y="Porcentagem")
-    st.write(f"Total de jogos no histórico analisado: **{len(app_analise.historico)}**")
+        st.write("---") # Separador visual
+
+        app_analise = AnalisePadroes(historico_processado)
+
+        st.header("🔍 Padrões Detectados")
+        padroes_encontrados = app_analise.analisar_todos()
+        
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Padrões Encontrados:")
+            encontrados_lista = [nome for nome, encontrado in padroes_encontrados.items() if encontrado]
+            if encontrados_lista:
+                for padrao in encontrados_lista:
+                    st.success(f"✔️ {padrao}")
+            else:
+                st.info("Nenhum padrão específico detectado no momento.")
+        
+        with col2:
+            st.subheader("Padrões Não Encontrados:")
+            nao_encontrados_lista = [nome for nome, encontrado in padroes_encontrados.items() if not encontrado]
+            if nao_encontrados_lista:
+                for padrao in nao_encontrados_lista:
+                    st.markdown(f"<span style='color: grey;'>✖️ {padrao}</span>", unsafe_allow_html=True)
+            else:
+                st.info("Todos os padrões foram encontrados!")
+
+
+        st.markdown("---")
+        st.header("💡 Sugestão Inteligente para o Próximo Jogo")
+        sugestao = app_analise.sugestao_inteligente()
+
+        if sugestao['sugerir']:
+            st.write(f"Considerando os padrões e frequências:")
+            st.success(f"**Sugestão:** Próximo resultado provável: **{sugestao['entrada']}**")
+            st.metric(label="Confiança da Sugestão", value=f"{sugestao['confianca']}%")
+            st.info(f"**Motivos:** {', '.join(sugestao['motivos'])}")
+            st.markdown(f"Últimos 3 resultados: `{', '.join(sugestao['ultimos_resultados'])}`")
+        else:
+            st.warning(f"**Sem sugestão:** {sugestao['motivos'][0]}")
+        
+        st.markdown("---")
+        st.header("📊 Frequência dos Resultados no Histórico")
+        frequencias = app_analise.calcular_frequencias()
+        
+        mapeamento_freq_legivel = {"C": "Casa", "V": "Visitante", "E": "Empate"}
+        freq_data = {
+            "Resultado": [mapeamento_freq_legivel[t] for t in ['C', 'V', 'E']],
+            "Porcentagem": [frequencias.get(t, 0) for t in ['C', 'V', 'E']]
+        }
+        
+        st.bar_chart(freq_data, x="Resultado", y="Porcentagem")
+        st.write(f"Total de jogos no histórico analisado: **{len(app_analise.historico)}**")
+else:
+    st.info("Insira o histórico de resultados na barra lateral e clique em 'Analisar Histórico' para começar.")
