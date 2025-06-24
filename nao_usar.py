@@ -907,18 +907,18 @@ else:
     historico_html = "<div class='history-container'>"
     historico_html += "<h4>Últimos Resultados (mais recente à esquerda):</h4>"
     
-    for i, resultado in enumerate(st.session_state.historico):
-        historico_html += get_resultado_html(resultado)
-        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
-            historico_html += "<br><br>"
-    
-    historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
-    historico_html += "</div>"
-    
-    st.markdown(historico_html, unsafe_allow_html=True)
+    historico_html = "<div class='history-container'>"
+historico_html += "<h4>Últimos Resultados (mais recente à esquerda):</h4>"
 
-st.markdown("---")
+for i, resultado in enumerate(st.session_state.historico):
+    historico_html += get_resultado_html(resultado)
+    if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
+        historico_html += "<br><br>"
 
+historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
+historico_html += "</div>"
+
+st.markdown(historico_html, unsafe_allow_html=True)
 # --- ANÁLISE PRINCIPAL ---
 if len(st.session_state.historico) >= 9:
     analyzer = AnalisePadroes(st.session_state.historico)
