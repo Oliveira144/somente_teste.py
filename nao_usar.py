@@ -1,6 +1,5 @@
 import streamlit as st
 import collections
-import r
 import streamlit as st
 import collections
 import random
