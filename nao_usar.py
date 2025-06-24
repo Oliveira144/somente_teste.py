@@ -494,4 +494,95 @@ class AnalisePadroes:
             if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
                 self.historico[i+4] != self.historico[i] and
                 self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
-                
+                self.historico[i+5] == self.historico[i+4]):
+                return True
+        return False
+
+# --- CÓDIGO STREAMLIT PARA EXIBIÇÃO ---
+
+st.set_page_config(layout="wide") # Opcional: para usar mais largura da tela
+
+st.title("Análise de Padrões Football Studio")
+
+# Simulação de histórico de resultados (substitua isso pelos seus dados reais)
+# Para fins de teste, estou gerando um histórico aleatório.
+if 'historico' not in st.session_state:
+    st.session_state.historico = collections.deque(maxlen=50) # Usar deque para performance
+
+# Adiciona alguns resultados de exemplo ao histórico
+# No seu caso real, isso viria de uma API ou outra fonte de dados
+if st.button("Adicionar Novo Resultado (Aleatório para Teste)"):
+    possiveis_resultados = ['V', 'C', 'E'] # V = Vitória (Home), C = Convidado (Away), E = Empate (Tie)
+    novo_resultado = random.choice(possiveis_resultados)
+    st.session_state.historico.appendleft(novo_resultado) # Adiciona no início para o mais recente à esquerda
+
+# Converte o deque para uma lista para a análise da classe
+historico_lista = list(st.session_state.historico)
+
+# Instancia a classe de análise
+analisador = AnalisePadroes(historico_lista)
+
+# Analisa os padrões
+padroes_encontrados = analisador.analisar_todos()
+
+# --- EXIBIÇÃO DO HISTÓRICO CORRIGIDA ---
+st.subheader("Últimos Resultados (mais recente à esquerda):")
+
+# Dicionário para mapear resultados a cores
+cores = {
+    'V': '#FF4B4B',  # Vermelho (similar ao 'C' na sua imagem, mas estou usando para 'V' = Home)
+    'C': '#007bff',  # Azul (similar ao 'V' na sua imagem, mas estou usando para 'C' = Away)
+    'E': '#6c757d'   # Cinza para Empate
+}
+
+# Inverte o histórico para que o mais recente (que foi adicionado com appendleft)
+# seja o primeiro a ser processado para exibição da esquerda para a direita.
+# No entanto, se você adiciona com append(), não precisaria inverter aqui.
+# A imagem que você mostrou tem 'V' na esquerda (mais recente) e depois 'E', 'C', etc.
+# Se `st.session_state.historico` já está do mais recente para o mais antigo,
+# não precisamos do `reversed()`. Mas para garantir, vou usar a lista bruta
+# e fazer a inversão necessária para a ordem de exibição.
+historico_para_exibir = list(st.session_state.historico) # já está na ordem 'mais recente à esquerda' se appendleft foi usado
+
+# Gera a string HTML para os círculos do histórico
+html_historico = "<div style='display: flex; flex-wrap: wrap; gap: 5px;'>" # Flexbox para alinhar na linha e quebrar se necessário
+for resultado in historico_para_exibir:
+    cor_fundo = cores.get(resultado, '#cccccc') # Cor padrão se o resultado não for reconhecido
+    html_historico += f"""
+    <span style='
+        display: inline-block;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        background-color: {cor_fundo};
+        color: white;
+        text-align: center;
+        line-height: 25px;
+        font-weight: bold;
+        font-size: 12px;
+        border: 2px solid #333;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    '>{resultado}</span>
+    """
+html_historico += "</div>"
+
+# Renderiza o HTML no Streamlit. O parâmetro unsafe_allow_html=True é CRUCIAL!
+st.markdown(html_historico, unsafe_allow_html=True)
+
+st.markdown("---") # Linha divisória
+
+# --- EXIBIÇÃO DOS PADRÕES ENCONTRADOS ---
+st.subheader("Padrões Encontrados:")
+encontrou_algum_padrao = False
+for padrao, encontrado in padroes_encontrados.items():
+    if encontrado:
+        st.success(f"✅ Padrão **'{padrao}'** encontrado!")
+        encontrou_algum_padrao = True
+if not encontrou_algum_padrao:
+    st.info("Nenhum padrão detectado no histórico atual.")
+
+st.markdown("---")
+
+# Opcional: Mostrar o histórico em formato de tabela para depuração
+# st.subheader("Histórico Completo (para depuração):")
+# st.write(historico_lista)
