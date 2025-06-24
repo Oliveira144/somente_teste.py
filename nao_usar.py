@@ -1,7 +1,5 @@
 import streamlit as st
 import collections
-import streamlit as st
-import collections
 import random
 import numpy as np
 from datetime import datetime
@@ -10,55 +8,55 @@ import pandas as pd
 # --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
-        self.historico = historico[:50]  # Aumentado para 50 jogos para melhor anÃ¡lise
+        self.historico = historico[:50]  # Aumentado para 50 jogos para melhor análise
         self.padroes_ativos = {
-            # PadrÃµes bÃ¡sicos existentes
-            "SequÃªncia (Surf de Cor)": self._sequencia_simples,
+            # Padrões básicos existentes
+            "Sequência (Surf de Cor)": self._sequencia_simples,
             "Zig-Zag Perfeito": self._zig_zag,
             "Quebra de Surf": self._quebra_de_surf,
             "Quebra de Zig-Zag": self._quebra_de_zig_zag,
             "Duplas Repetidas": self._duplas_repetidas,
             "Empate Recorrente": self._empate_recorrente,
-            "PadrÃ£o Escada": self._padrao_escada,
+            "Padrão Escada": self._padrao_escada,
             "Espelho": self._espelho,
-            "AlternÃ¢ncia com Empate": self._alternancia_empate_meio,
-            "PadrÃ£o Onda": self._padrao_onda,
+            "Alternância com Empate": self._alternancia_empate_meio,
+            "Padrão Onda": self._padrao_onda,
             
-            # Novos padrÃµes especÃ­ficos do Football Studio
-            "PadrÃ£o Fibonacci": self._padrao_fibonacci,
-            "SequÃªncia Dourada": self._sequencia_dourada,
-            "PadrÃ£o Triangular": self._padrao_triangular,
+            # Novos padrões específicos do Football Studio
+            "Padrão Fibonacci": self._padrao_fibonacci,
+            "Sequência Dourada": self._sequencia_dourada,
+            "Padrão Triangular": self._padrao_triangular,
             "Ciclo de Empates": self._ciclo_empates,
-            "PadrÃ£o Martingale": self._padrao_martingale,
-            "SequÃªncia de Fibonacci Invertida": self._fibonacci_invertida,
-            "PadrÃ£o Dragon Tiger": self._padrao_dragon_tiger,
-            "SequÃªncia de Paroli": self._sequencia_paroli,
-            "PadrÃ£o de Ondas Longas": self._ondas_longas,
-            "Ciclo de DominÃ¢ncia": self._ciclo_dominancia,
-            "PadrÃ£o de TensÃ£o": self._padrao_tensao,
-            "SequÃªncia de Labouchere": self._sequencia_labouchere,
-            "PadrÃ£o Ritmo CardÃ­aco": self._ritmo_cardiaco,
-            "Ciclo de PressÃ£o": self._ciclo_pressao,
-            "PadrÃ£o de Clusters": self._padrao_clusters,
-            "SequÃªncia Polar": self._sequencia_polar,
-            "PadrÃ£o de Momentum": self._padrao_momentum,
-            "Ciclo de RespiraÃ§Ã£o": self._ciclo_respiracao,
-            "PadrÃ£o de ResistÃªncia": self._padrao_resistencia,
-            "SequÃªncia de Breakout": self._sequencia_breakout,
+            "Padrão Martingale": self._padrao_martingale,
+            "Sequência de Fibonacci Invertida": self._fibonacci_invertida,
+            "Padrão Dragon Tiger": self._padrao_dragon_tiger,
+            "Sequência de Paroli": self._sequencia_paroli,
+            "Padrão de Ondas Longas": self._ondas_longas,
+            "Ciclo de Dominância": self._ciclo_dominancia,
+            "Padrão de Tensão": self._padrao_tensao,
+            "Sequência de Labouchere": self._sequencia_labouchere,
+            "Padrão Ritmo Cardíaco": self._ritmo_cardiaco,
+            "Ciclo de Pressão": self._ciclo_pressao,
+            "Padrão de Clusters": self._padrao_clusters,
+            "Sequência Polar": self._sequencia_polar,
+            "Padrão de Momentum": self._padrao_momentum,
+            "Ciclo de Respiração": self._ciclo_respiracao,
+            "Padrão de Resistência": self._padrao_resistencia,
+            "Sequência de Breakout": self._sequencia_breakout,
         }
         
-        # Pesos dos padrÃµes para calcular confianÃ§a
+        # Pesos dos padrões para calcular confiança
         self.pesos_padroes = {
-            "SequÃªncia (Surf de Cor)": 0.9,
+            "Sequência (Surf de Cor)": 0.9,
             "Zig-Zag Perfeito": 0.8,
             "Quebra de Surf": 0.85,
             "Quebra de Zig-Zag": 0.8,
-            "PadrÃ£o Fibonacci": 0.95,
-            "SequÃªncia Dourada": 0.9,
-            "PadrÃ£o Dragon Tiger": 0.85,
-            "Ciclo de DominÃ¢ncia": 0.8,
-            "PadrÃ£o de Momentum": 0.9,
-            "SequÃªncia de Breakout": 0.95,
+            "Padrão Fibonacci": 0.95,
+            "Sequência Dourada": 0.9,
+            "Padrão Dragon Tiger": 0.85,
+            "Ciclo de Dominância": 0.8,
+            "Padrão de Momentum": 0.9,
+            "Sequência de Breakout": 0.95,
         }
 
     def analisar_todos(self):
@@ -70,7 +68,7 @@ class AnalisePadroes:
                 resultados[nome] = False
         return resultados
 
-    # --- PADRÃ•ES BÃSICOS EXISTENTES ---
+    # --- PADRÕES BÁSICOS EXISTENTES ---
     def _sequencia_simples(self):
         for i in range(len(self.historico) - 2):
             if self.historico[i] == self.historico[i+1] == self.historico[i+2]:
@@ -121,13 +119,13 @@ class AnalisePadroes:
         if len(empates_indices) < 3:
             return False
         
-        # Verifica se hÃ¡ um padrÃ£o de intervalos regulares entre empates
+        # Verifica se há um padrão de intervalos regulares entre empates
         intervalos = []
         for i in range(len(empates_indices) - 1):
             intervalos.append(empates_indices[i+1] - empates_indices[i])
         
         if len(intervalos) >= 2:
-            # Verifica se os intervalos seguem um padrÃ£o
+            # Verifica se os intervalos seguem um padrão
             media_intervalo = sum(intervalos) / len(intervalos)
             return 2 <= media_intervalo <= 8
         return False
@@ -174,17 +172,17 @@ class AnalisePadroes:
                 return True
         return False
 
-    # --- NOVOS PADRÃ•ES ESPECÃFICOS DO FOOTBALL STUDIO ---
+    # --- NOVOS PADRÕES ESPECÍFICOS DO FOOTBALL STUDIO ---
     
     def _padrao_fibonacci(self):
-        """Detecta padrÃµes baseados na sequÃªncia de Fibonacci"""
+        """Detecta padrões baseados na sequência de Fibonacci"""
         if len(self.historico) < 8:
             return False
         
         fib_sequence = [1, 1, 2, 3, 5, 8]
         
         for i in range(len(self.historico) - 7):
-            # Verifica se hÃ¡ uma sequÃªncia que segue o padrÃ£o Fibonacci
+            # Verifica se há uma sequência que segue o padrão Fibonacci
             segment = self.historico[i:i+6]
             pattern_found = True
             
@@ -205,11 +203,11 @@ class AnalisePadroes:
         return False
 
     def _sequencia_dourada(self):
-        """Detecta sequÃªncias baseadas na proporÃ§Ã£o Ã¡urea"""
+        """Detecta sequências baseadas na proporção áurea"""
         if len(self.historico) < 8:
             return False
         
-        # PadrÃ£o dourado: 3, 5, 8, 13...
+        # Padrão dourado: 3, 5, 8, 13...
         for i in range(len(self.historico) - 7):
             if (self.historico[i] == self.historico[i+1] == self.historico[i+2] and
                 self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
@@ -218,7 +216,7 @@ class AnalisePadroes:
         return False
 
     def _padrao_triangular(self):
-        """Detecta padrÃµes triangulares: 1, 2, 3, 2, 1"""
+        """Detecta padrões triangulares: 1, 2, 3, 2, 1"""
         if len(self.historico) < 9:
             return False
         
@@ -234,12 +232,12 @@ class AnalisePadroes:
         return False
 
     def _ciclo_empates(self):
-        """Detecta ciclos especÃ­ficos de empates"""
+        """Detecta ciclos específicos de empates"""
         empates = [i for i, x in enumerate(self.historico) if x == 'E']
         if len(empates) < 3:
             return False
         
-        # Verifica se empates aparecem em intervalos cÃ­clicos
+        # Verifica se empates aparecem em intervalos cíclicos
         for cycle_length in range(3, 10):
             cycle_found = True
             for i in range(len(empates) - 1):
@@ -254,12 +252,12 @@ class AnalisePadroes:
         return False
 
     def _padrao_martingale(self):
-        """Detecta padrÃµes de duplicaÃ§Ã£o (Martingale)"""
+        """Detecta padrões de duplicação (Martingale)"""
         if len(self.historico) < 7:
             return False
         
         for i in range(len(self.historico) - 6):
-            # PadrÃ£o: 1, 2, 4 (1 resultado, 2 iguais, 4 iguais)
+            # Padrão: 1, 2, 4 (1 resultado, 2 iguais, 4 iguais)
             if (self.historico[i] != self.historico[i+1] and
                 self.historico[i+1] == self.historico[i+2] and
                 self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] and
@@ -272,7 +270,7 @@ class AnalisePadroes:
         if len(self.historico) < 8:
             return False
         
-        # PadrÃ£o: 8, 5, 3, 2, 1, 1
+        # Padrão: 8, 5, 3, 2, 1, 1
         for i in range(len(self.historico) - 7):
             segment = self.historico[i:i+8]
             if (len(set(segment[:2])) == 1 and  # 8 primeiros iguais (simulando)
@@ -284,12 +282,12 @@ class AnalisePadroes:
         return False
 
     def _padrao_dragon_tiger(self):
-        """PadrÃ£o especÃ­fico de Dragon Tiger adaptado"""
+        """Padrão específico de Dragon Tiger adaptado"""
         if len(self.historico) < 6:
             return False
         
         for i in range(len(self.historico) - 5):
-            # PadrÃ£o: AlternÃ¢ncia forte seguida de empate
+            # Padrão: Alternância forte seguida de empate
             if (self.historico[i] != self.historico[i+1] != self.historico[i+2] and
                 self.historico[i+3] == 'E' and
                 self.historico[i+4] == self.historico[i+5] and
@@ -298,12 +296,12 @@ class AnalisePadroes:
         return False
 
     def _sequencia_paroli(self):
-        """Detecta padrÃµes de progressÃ£o positiva"""
+        """Detecta padrões de progressão positiva"""
         if len(self.historico) < 7:
             return False
         
         for i in range(len(self.historico) - 6):
-            # PadrÃ£o: 1, 2, 4, volta ao 1
+            # Padrão: 1, 2, 4, volta ao 1
             if (self.historico[i] != self.historico[i+1] and
                 self.historico[i+1] == self.historico[i+2] and
                 self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] and
@@ -312,7 +310,7 @@ class AnalisePadroes:
         return False
 
     def _ondas_longas(self):
-        """Detecta ondas longas (sequÃªncias de 5+ do mesmo resultado)"""
+        """Detecta ondas longas (sequências de 5+ do mesmo resultado)"""
         if len(self.historico) < 5:
             return False
         
@@ -327,7 +325,7 @@ class AnalisePadroes:
         return False
 
     def _ciclo_dominancia(self):
-        """Detecta ciclos de dominÃ¢ncia de um resultado"""
+        """Detecta ciclos de dominância de um resultado"""
         if len(self.historico) < 10:
             return False
         
@@ -343,31 +341,31 @@ class AnalisePadroes:
         return False
 
     def _padrao_tensao(self):
-        """Detecta padrÃµes de tensÃ£o (alternÃ¢ncia seguida de explosÃ£o)"""
+        """Detecta padrões de tensão (alternância seguida de explosão)"""
         if len(self.historico) < 8:
             return False
         
         for i in range(len(self.historico) - 7):
-            # PadrÃ£o: 4+ alternÃ¢ncias seguidas de sequÃªncia
+            # Padrão: 4+ alternâncias seguidas de sequência
             alternations = 0
             for j in range(i, i+4):
                 if j+1 < len(self.historico) and self.historico[j] != self.historico[j+1]:
                     alternations += 1
             
             if alternations >= 3:
-                # Verifica se hÃ¡ sequÃªncia apÃ³s as alternÃ¢ncias
+                # Verifica se há sequência após as alternâncias
                 if (i+5 < len(self.historico) and 
                     self.historico[i+4] == self.historico[i+5] == self.historico[i+6]):
                     return True
         return False
 
     def _sequencia_labouchere(self):
-        """Detecta padrÃµes de cancelamento"""
+        """Detecta padrões de cancelamento"""
         if len(self.historico) < 6:
             return False
         
         for i in range(len(self.historico) - 5):
-            # PadrÃ£o: inÃ­cio e fim iguais, meio diferente
+            # Padrão: início e fim iguais, meio diferente
             if (self.historico[i] == self.historico[i+5] and
                 self.historico[i+1] == self.historico[i+4] and
                 self.historico[i+2] != self.historico[i] and
@@ -376,12 +374,12 @@ class AnalisePadroes:
         return False
 
     def _ritmo_cardiaco(self):
-        """Detecta padrÃµes de ritmo cardÃ­aco (batimentos irregulares)"""
+        """Detecta padrões de ritmo cardíaco (batimentos irregulares)"""
         if len(self.historico) < 8:
             return False
         
         for i in range(len(self.historico) - 7):
-            # PadrÃ£o: 2, 1, 2, 3, 2, 1, 2
+            # Padrão: 2, 1, 2, 3, 2, 1, 2
             segment = self.historico[i:i+8]
             if (segment[0] == segment[1] and
                 segment[2] != segment[0] and
@@ -392,12 +390,12 @@ class AnalisePadroes:
         return False
 
     def _ciclo_pressao(self):
-        """Detecta ciclos de pressÃ£o crescente"""
+        """Detecta ciclos de pressão crescente"""
         if len(self.historico) < 9:
             return False
         
         for i in range(len(self.historico) - 8):
-            # PadrÃ£o: 1, 2, 3, 1, 2, 3
+            # Padrão: 1, 2, 3, 1, 2, 3
             if (self.historico[i] != self.historico[i+1] and
                 self.historico[i+1] == self.historico[i+2] and
                 self.historico[i+3] == self.historico[i+4] == self.historico[i+5] and
@@ -420,7 +418,7 @@ class AnalisePadroes:
             cluster2 = window[4:8]
             cluster3 = window[8:12]
             
-            # Verifica se cada cluster tem dominÃ¢ncia (3+ iguais)
+            # Verifica se cada cluster tem dominância (3+ iguais)
             if (collections.Counter(cluster1).most_common(1)[0][1] >= 3 and
                 collections.Counter(cluster2).most_common(1)[0][1] >= 3 and
                 collections.Counter(cluster3).most_common(1)[0][1] >= 3):
@@ -428,29 +426,29 @@ class AnalisePadroes:
         return False
 
     def _sequencia_polar(self):
-        """Detecta sequÃªncias polares (extremos)"""
+        """Detecta sequências polares (extremos)"""
         if len(self.historico) < 10:
             return False
         
         for i in range(len(self.historico) - 9):
             window = self.historico[i:i+10]
             
-            # Verifica se hÃ¡ polarizaÃ§Ã£o (sÃ³ 2 tipos de resultado, sem empates)
+            # Verifica se há polarização (só 2 tipos de resultado, sem empates)
             unique_results = set(window)
             if len(unique_results) == 2 and 'E' not in unique_results:
-                # Verifica alternÃ¢ncia polar
+                # Verifica alternância polar
                 changes = sum(1 for j in range(len(window)-1) if window[j] != window[j+1])
-                if changes >= 6:  # Muitas mudanÃ§as
+                if changes >= 6:  # Muitas mudanças
                     return True
         return False
 
     def _padrao_momentum(self):
-        """Detecta padrÃµes de momentum (aceleraÃ§Ã£o)"""
+        """Detecta padrões de momentum (aceleração)"""
         if len(self.historico) < 10:
             return False
         
         for i in range(len(self.historico) - 9):
-            # PadrÃ£o: 1, 2, 3, 4 (crescimento)
+            # Padrão: 1, 2, 3, 4 (crescimento)
             if (self.historico[i] != self.historico[i+1] and
                 self.historico[i+1] == self.historico[i+2] and
                 self.historico[i+3] == self.historico[i+4] == self.historico[i+5] and
@@ -459,12 +457,12 @@ class AnalisePadroes:
         return False
 
     def _ciclo_respiracao(self):
-        """Detecta padrÃµes de respiraÃ§Ã£o (inspiraÃ§Ã£o/expiraÃ§Ã£o)"""
+        """Detecta padrões de respiração (inspiração/expiração)"""
         if len(self.historico) < 8:
             return False
         
         for i in range(len(self.historico) - 7):
-            # PadrÃ£o: expansÃ£o e contraÃ§Ã£o
+            # Padrão: expansão e contração
             if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
                 self.historico[i+4] != self.historico[i] and
                 self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
@@ -473,12 +471,12 @@ class AnalisePadroes:
         return False
 
     def _padrao_resistencia(self):
-        """Detecta padrÃµes de resistÃªncia (tentativas de quebra)"""
+        """Detecta padrões de resistência (tentativas de quebra)"""
         if len(self.historico) < 6:
             return False
         
         for i in range(len(self.historico) - 5):
-            # PadrÃ£o: resultado dominante resiste a mudanÃ§as
+            # Padrão: resultado dominante resiste a mudanças
             if (self.historico[i] == self.historico[i+2] == self.historico[i+4] == self.historico[i+5] and
                 self.historico[i+1] != self.historico[i] and
                 self.historico[i+3] != self.historico[i]):
@@ -486,12 +484,12 @@ class AnalisePadroes:
         return False
 
     def _sequencia_breakout(self):
-        """Detecta sequÃªncias de breakout (quebra de padrÃ£o)"""
+        """Detecta sequências de breakout (quebra de padrão)"""
         if len(self.historico) < 8:
             return False
         
         for i in range(len(self.historico) - 7):
-            # PadrÃ£o: estabilidade seguida de mudanÃ§a abrupta
+            # Padrão: estabilidade seguida de mudança abrupta
             if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
                 self.historico[i+4] != self.historico[i] and
                 self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
@@ -500,7 +498,7 @@ class AnalisePadroes:
         return False
 
     def calcular_frequencias(self):
-        """Calcula frequÃªncias dos resultados"""
+        """Calcula frequências dos resultados"""
         contador = collections.Counter(self.historico)
         total = len(self.historico)
         if total == 0:
@@ -513,7 +511,7 @@ class AnalisePadroes:
         return result
 
     def calcular_tendencia(self):
-        """Calcula tendÃªncia dos Ãºltimos resultados"""
+        """Calcula tendência dos últimos resultados"""
         if len(self.historico) < 5:
             return "Dados insuficientes"
         
@@ -521,14 +519,14 @@ class AnalisePadroes:
         contador = collections.Counter(ultimos_5)
         
         if contador.most_common(1)[0][1] >= 4:
-            return f"Forte tendÃªncia: {contador.most_common(1)[0][0]}"
+            return f"Forte tendência: {contador.most_common(1)[0][0]}"
         elif contador.most_common(1)[0][1] >= 3:
-            return f"TendÃªncia moderada: {contador.most_common(1)[0][0]}"
+            return f"Tendência moderada: {contador.most_common(1)[0][0]}"
         else:
-            return "Sem tendÃªncia clara"
+            return "Sem tendência clara"
 
     def sugestao_inteligente(self):
-        """Gera sugestÃ£o inteligente baseada em mÃºltiplos fatores"""
+        """Gera sugestão inteligente baseada em múltiplos fatores"""
         analise = self.analisar_todos()
         padroes_identificados = [nome for nome, ok in analise.items() if ok]
         
@@ -537,14 +535,14 @@ class AnalisePadroes:
                 "sugerir": False,
                 "entrada": None,
                 "entrada_codigo": None,
-                "motivos": ["Nenhum padrÃ£o confiÃ¡vel identificado"],
+                "motivos": ["Nenhum padrão confiável identificado"],
                 "confianca": 0,
                 "frequencias": self.calcular_frequencias(),
                 "tendencia": self.calcular_tendencia(),
                 "ultimos_resultados": self.historico[:5]
             }
         
-        # Calcula confianÃ§a baseada nos pesos dos padrÃµes
+        # Calcula confiança baseada nos pesos dos padrões
         confianca_total = 0
         peso_total = 0
         
@@ -555,22 +553,22 @@ class AnalisePadroes:
         
         confianca_media = (confianca_total / peso_total) * 100 if peso_total > 0 else 0
         
-        # Ajusta confianÃ§a baseada na quantidade de padrÃµes
+        # Ajusta confiança baseada na quantidade de padrões
         bonus_quantidade = min(20, len(padroes_identificados) * 5)
         confianca_final = min(95, int(confianca_media + bonus_quantidade))
         
-        # AnÃ¡lise de frequÃªncias e tendÃªncias
+        # Análise de frequências e tendências
         frequencias = self.calcular_frequencias()
         tendencia = self.calcular_tendencia()
         
-        # LÃ³gica de sugestÃ£o aprimorada
+        # Lógica de sugestão aprimorada
         opcoes = ["V", "C", "E"]
         
-        # Considera padrÃµes de quebra
+        # Considera padrões de quebra
         padroes_quebra = [p for p in padroes_identificados if "quebra" in p.lower() or "breakout" in p.lower()]
         
         if padroes_quebra:
-            # Se hÃ¡ padrÃµes de quebra, sugere o oposto da tendÃªncia
+            # Se há padrões de quebra, sugere o oposto da tendência
             ultimo_resultado = self.historico[0] if self.historico else None
             if ultimo_resultado:
                 opcoes_sem_ultimo = [op for op in opcoes if op != ultimo_resultado]
@@ -578,16 +576,16 @@ class AnalisePadroes:
             else:
                 entrada_sugerida = min(opcoes, key=lambda x: frequencias.get(x, 0))
         else:
-            # LÃ³gica normal: sugere baseado em frequÃªncias
+            # Lógica normal: sugere baseado em frequências
             entrada_sugerida = min(opcoes, key=lambda x: frequencias.get(x, 0))
         
-        # Se todas as frequÃªncias sÃ£o iguais, usa anÃ¡lise de momentum
+        # Se todas as frequências são iguais, usa análise de momentum
         if len(set(frequencias.values())) == 1:
-            # Analisa momentum dos Ãºltimos 3 resultados
+            # Analisa momentum dos últimos 3 resultados
             ultimos_3 = self.historico[:3]
             contador_recente = collections.Counter(ultimos_3)
             if contador_recente.most_common(1)[0][1] >= 2:
-                # Se hÃ¡ repetiÃ§Ã£o recente, sugere mudanÃ§a
+                # Se há repetição recente, sugere mudança
                 resultado_frequente = contador_recente.most_common(1)[0][0]
                 opcoes_mudanca = [op for op in opcoes if op != resultado_frequente]
                 entrada_sugerida = random.choice(opcoes_mudanca)
@@ -610,12 +608,12 @@ class AnalisePadroes:
         }
 
     def _gerar_analise_detalhada(self, padroes):
-        """Gera anÃ¡lise detalhada dos padrÃµes encontrados"""
+        """Gera análise detalhada dos padrões encontrados"""
         categorias = {
-            "PadrÃµes de SequÃªncia": ["SequÃªncia", "Surf", "Ondas", "Fibonacci"],
-            "PadrÃµes de Quebra": ["Quebra", "Breakout", "TensÃ£o"],
-            "PadrÃµes CÃ­clicos": ["Ciclo", "RespiraÃ§Ã£o", "Momentum"],
-            "PadrÃµes Especiais": ["Dragon", "Martingale", "Dourada", "Triangular"]
+            "Padrões de Sequência": ["Sequência", "Surf", "Ondas", "Fibonacci"],
+            "Padrões de Quebra": ["Quebra", "Breakout", "Tensão"],
+            "Padrões Cíclicos": ["Ciclo", "Respiração", "Momentum"],
+            "Padrões Especiais": ["Dragon", "Martingale", "Dourada", "Triangular"]
         }
         
         analise = {}
@@ -626,9 +624,9 @@ class AnalisePadroes:
         
         return analise
 
-# --- FUNÃ‡Ã•ES DE INTERFACE E LÃ“GICA DE HISTÃ“RICO ---
+# --- FUNÇÕES DE INTERFACE E LÓGICA DE HISTÓRICO ---
 
-# Inicializa o estado da sessÃ£o
+# Inicializa o estado da sessão
 if 'historico' not in st.session_state:
     st.session_state.historico = []
 
@@ -641,14 +639,14 @@ if 'estatisticas' not in st.session_state:
     }
 
 def adicionar_resultado(resultado):
-    """Adiciona resultado ao histÃ³rico"""
+    """Adiciona resultado ao histórico"""
     st.session_state.historico.insert(0, resultado)
     if len(st.session_state.historico) > 50:
         st.session_state.historico = st.session_state.historico[:50]
     st.session_state.estatisticas['total_jogos'] += 1
 
 def limpar_historico():
-    """Limpa todo o histÃ³rico"""
+    """Limpa todo o histórico"""
     st.session_state.historico = []
     st.session_state.estatisticas = {
         'total_jogos': 0,
@@ -658,14 +656,14 @@ def limpar_historico():
     }
 
 def desfazer_ultimo():
-    """Remove o Ãºltimo resultado"""
+    """Remove o último resultado"""
     if st.session_state.historico:
         st.session_state.historico.pop(0)
         if st.session_state.estatisticas['total_jogos'] > 0:
             st.session_state.estatisticas['total_jogos'] -= 1
 
 def verificar_sugestao(resultado_real, sugestao_codigo):
-    """Verifica se a sugestÃ£o estava correta"""
+    """Verifica se a sugestão estava correta"""
     if sugestao_codigo == resultado_real:
         st.session_state.estatisticas['acertos'] += 1
         return True
@@ -697,19 +695,19 @@ def get_resultado_html(resultado):
     """
 
 def get_trend_arrow(frequencias):
-    """Retorna seta de tendÃªncia baseada nas frequÃªncias"""
+    """Retorna seta de tendência baseada nas frequências"""
     valores = list(frequencias.values())
     max_val = max(valores)
     resultado_dominante = [k for k, v in frequencias.items() if v == max_val][0]
     
-    arrows = {'C': 'ðŸ”´', 'V': 'ðŸ”µ', 'E': 'ðŸŸ¡'}
-    return arrows.get(resultado_dominante, 'âšª')
+    arrows = {'C': '🔴', 'V': '🔵', 'E': '🟡'}
+    return arrows.get(resultado_dominante, '⚪')
 
-# --- CONFIGURAÃ‡ÃƒO DA PÃGINA ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     layout="wide", 
     page_title="Football Studio Live Analyzer Pro",
-    page_icon="âš½"
+    page_icon="⚽"
 )
 
 # CSS melhorado
@@ -736,7 +734,7 @@ st.markdown("""
     box-shadow: 0 8px 16px rgba(0,0,0,0.3);
 }
 
-/* BotÃµes coloridos */
+/* Botões coloridos */
 div.stButton > button:first-child {
     font-size: 16px;
     padding: 12px 24px;
@@ -771,7 +769,7 @@ div.stButton > button[kind="tertiary"] {
     color: black;
 }
 
-/* BotÃµes de aÃ§Ã£o */
+/* Botões de ação */
 div.stButton > button[kind="primary"]:not([style*="background"]) {
     background: linear-gradient(135deg, #28a745, #20c997);
 }
@@ -823,16 +821,16 @@ div.stButton > button[kind="primary"]:not([style*="background"]) {
 """, unsafe_allow_html=True)
 
 # --- HEADER ---
-st.markdown('<h1 class="main-header">âš½ Football Studio Live Analyzer Pro</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">⚽ Football Studio Live Analyzer Pro</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# --- ESTATÃSTICAS RÃPIDAS ---
+# --- ESTATÍSTICAS RÁPIDAS ---
 col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
 
 with col_stat1:
     st.markdown(f"""
     <div class="metric-card">
-        <h3>ðŸŽ¯ Total de Jogos</h3>
+        <h3>🎯 Total de Jogos</h3>
         <h2>{st.session_state.estatisticas['total_jogos']}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -841,7 +839,7 @@ with col_stat2:
     acertos = st.session_state.estatisticas['acertos']
     st.markdown(f"""
     <div class="metric-card">
-        <h3>âœ… Acertos</h3>
+        <h3>✅ Acertos</h3>
         <h2>{acertos}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -850,7 +848,7 @@ with col_stat3:
     erros = st.session_state.estatisticas['erros']
     st.markdown(f"""
     <div class="metric-card">
-        <h3>âŒ Erros</h3>
+        <h3>❌ Erros</h3>
         <h2>{erros}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -860,172 +858,172 @@ with col_stat4:
     precisao = round((acertos / total_sugestoes * 100), 1) if total_sugestoes > 0 else 0
     st.markdown(f"""
     <div class="metric-card">
-        <h3>ðŸ“Š PrecisÃ£o</h3>
+        <h3>📊 Precisão</h3>
         <h2>{precisao}%</h2>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- INSERÃ‡ÃƒO DE RESULTADOS ---
-st.subheader("ðŸŽ® Inserir Novo Resultado")
+# --- INSERÇÃO DE RESULTADOS ---
+st.subheader("🎮 Inserir Novo Resultado")
 
 col_btn1, col_btn2, col_btn3, col_btn4, col_btn5 = st.columns(5)
 
 with col_btn1:
-    if st.button("ðŸ”´ Casa (C)", help="VitÃ³ria da Casa", key="casa", use_container_width=True):
+    if st.button("🔴 Casa (C)", help="Vitória da Casa", key="casa", use_container_width=True):
         adicionar_resultado('C')
         st.rerun()
 
 with col_btn2:
-    if st.button("ðŸ”µ Visitante (V)", help="VitÃ³ria do Visitante", key="visitante", use_container_width=True):
+    if st.button("🔵 Visitante (V)", help="Vitória do Visitante", key="visitante", use_container_width=True):
         adicionar_resultado('V')
         st.rerun()
 
 with col_btn3:
-    if st.button("ðŸŸ¡ Empate (E)", help="Resultado Empate", key="empate", use_container_width=True):
+    if st.button("🟡 Empate (E)", help="Resultado Empate", key="empate", use_container_width=True):
         adicionar_resultado('E')
         st.rerun()
 
 with col_btn4:
-    if st.button("â†©ï¸ Desfazer", help="Remove Ãºltimo resultado", key="desfazer", use_container_width=True):
+    if st.button("↩️ Desfazer", help="Remove último resultado", key="desfazer", use_container_width=True):
         desfazer_ultimo()
         st.rerun()
 
 with col_btn5:
-    if st.button("ðŸ—‘ï¸ Limpar Tudo", help="Limpa histÃ³rico completo", key="limpar", use_container_width=True):
+    if st.button("🗑️ Limpar Tudo", help="Limpa histórico completo", key="limpar", use_container_width=True):
         limpar_historico()
         st.rerun()
 
 st.markdown("---")
 
-# --- HISTÃ“RICO ---
-st.subheader("ðŸ“ˆ HistÃ³rico de Resultados")
+# --- HISTÓRICO ---
+st.subheader("📈 Histórico de Resultados")
 
 if not st.session_state.historico:
-    st.info("ðŸŽ¯ HistÃ³rico vazio. Comece inserindo alguns resultados para ver a mÃ¡gica acontecer!")
+    st.info("🎯 Histórico vazio. Comece inserindo alguns resultados para ver a mágica acontecer!")
 else:
-    # Exibe histÃ³rico com styling
+    # Exibe histórico com styling
     historico_html = "<div class='history-container'>"
-    historico_html += "<h4>Ãšltimos Resultados (mais recente Ã  esquerda):</h4>"
-
+    historico_html += "<h4>Últimos Resultados (mais recente à esquerda):</h4>"
+    
     for i, resultado in enumerate(st.session_state.historico):
         historico_html += get_resultado_html(resultado)
         if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
             historico_html += "<br><br>"
-
+    
     historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
     historico_html += "</div>"
-
+    
     st.markdown(historico_html, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- ANÃLISE PRINCIPAL ---
+# --- ANÁLISE PRINCIPAL ---
 if len(st.session_state.historico) >= 9:
     analyzer = AnalisePadroes(st.session_state.historico)
     
-    # --- SUGESTÃƒO PRINCIPAL ---
-    st.header("ðŸ”® SugestÃ£o Inteligente")
+    # --- SUGESTÃO PRINCIPAL ---
+    st.header("🔮 Sugestão Inteligente")
     
     sugestao = analyzer.sugestao_inteligente()
     
     if sugestao['sugerir']:
-        # Determina cor da confianÃ§a
+        # Determina cor da confiança
         if sugestao['confianca'] >= 75:
             conf_class = "confidence-high"
-            conf_emoji = "ðŸŸ¢"
+            conf_emoji = "🟢"
         elif sugestao['confianca'] >= 50:
             conf_class = "confidence-medium"
-            conf_emoji = "ðŸŸ¡"
+            conf_emoji = "🟡"
         else:
             conf_class = "confidence-low"
-            conf_emoji = "ðŸ”´"
+            conf_emoji = "🔴"
         
-        # Box de sugestÃ£o
+        # Box de sugestão
         st.markdown(f"""
         <div class="suggestion-box">
-            <h2>ðŸŽ¯ PrÃ³xima Jogada Sugerida: <strong>{sugestao['entrada']}</strong></h2>
-            <h3>{conf_emoji} ConfianÃ§a: <span class="{conf_class}">{sugestao['confianca']}%</span></h3>
-            <p><strong>TendÃªncia:</strong> {sugestao['tendencia']}</p>
-            <p><strong>Ãšltimos 5:</strong> {' â†’ '.join(sugestao['ultimos_resultados'])}</p>
+            <h2>🎯 Próxima Jogada Sugerida: <strong>{sugestao['entrada']}</strong></h2>
+            <h3>{conf_emoji} Confiança: <span class="{conf_class}">{sugestao['confianca']}%</span></h3>
+            <p><strong>Tendência:</strong> {sugestao['tendencia']}</p>
+            <p><strong>Últimos 5:</strong> {' → '.join(sugestao['ultimos_resultados'])}</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # AnÃ¡lise detalhada
+        # Análise detalhada
         if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
-            st.subheader("ðŸ” AnÃ¡lise Detalhada por Categoria")
+            st.subheader("🔍 Análise Detalhada por Categoria")
             for categoria, padroes in sugestao['analise_detalhada'].items():
                 st.write(f"**{categoria}:**")
                 for padrao in padroes:
-                    st.markdown(f"<span class='pattern-found'>âœ“ {padrao}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span class='pattern-found'>✓ {padrao}</span>", unsafe_allow_html=True)
                 st.write("")
     
     else:
-        st.warning("âš ï¸ Dados insuficientes para sugestÃ£o confiÃ¡vel. Continue jogando!")
+        st.warning("⚠️ Dados insuficientes para sugestão confiável. Continue jogando!")
     
     st.markdown("---")
     
-    # --- PADRÃ•ES DETECTADOS ---
-    st.header("ðŸŽ¨ PadrÃµes Detectados")
+    # --- PADRÕES DETECTADOS ---
+    st.header("🎨 Padrões Detectados")
     
     padroes_encontrados = analyzer.analisar_todos()
     
     col_found, col_not_found = st.columns(2)
     
     with col_found:
-        st.subheader("âœ… PadrÃµes Ativos")
+        st.subheader("✅ Padrões Ativos")
         encontrados = [nome for nome, found in padroes_encontrados.items() if found]
         
         if encontrados:
             for padrao in encontrados:
-                st.markdown(f"<span class='pattern-found'>âœ“ {padrao}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span class='pattern-found'>✓ {padrao}</span>", unsafe_allow_html=True)
         else:
-            st.info("Nenhum padrÃ£o especÃ­fico ativo no momento.")
+            st.info("Nenhum padrão específico ativo no momento.")
     
     with col_not_found:
-        st.subheader("â³ PadrÃµes Inativos")
+        st.subheader("⏳ Padrões Inativos")
         nao_encontrados = [nome for nome, found in padroes_encontrados.items() if not found]
         
         if nao_encontrados:
-            # Mostra apenas os primeiros 10 para nÃ£o sobrecarregar
+            # Mostra apenas os primeiros 10 para não sobrecarregar
             for padrao in nao_encontrados[:10]:
-                st.markdown(f"<span class='pattern-not-found'>â—‹ {padrao}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span class='pattern-not-found'>○ {padrao}</span>", unsafe_allow_html=True)
             
             if len(nao_encontrados) > 10:
-                st.write(f"... e mais {len(nao_encontrados) - 10} padrÃµes")
+                st.write(f"... e mais {len(nao_encontrados) - 10} padrões")
     
     st.markdown("---")
     
-    # --- ANÃLISE FREQUENCIAL ---
-    st.header("ðŸ“Š AnÃ¡lise de FrequÃªncias")
+    # --- ANÁLISE FREQUENCIAL ---
+    st.header("📊 Análise de Frequências")
     
     frequencias = analyzer.calcular_frequencias()
     
     col_freq1, col_freq2 = st.columns(2)
     
     with col_freq1:
-        # GrÃ¡fico de barras
+        # Gráfico de barras
         df_freq = pd.DataFrame([
-            {'Resultado': 'Casa', 'FrequÃªncia': frequencias['C'], 'Cor': '#FF4B4B'},
-            {'Resultado': 'Visitante', 'FrequÃªncia': frequencias['V'], 'Cor': '#4B4BFF'},
-            {'Resultado': 'Empate', 'FrequÃªncia': frequencias['E'], 'Cor': '#FFD700'}
+            {'Resultado': 'Casa', 'Frequência': frequencias['C'], 'Cor': '#FF4B4B'},
+            {'Resultado': 'Visitante', 'Frequência': frequencias['V'], 'Cor': '#4B4BFF'},
+            {'Resultado': 'Empate', 'Frequência': frequencias['E'], 'Cor': '#FFD700'}
         ])
         
-        st.bar_chart(df_freq.set_index('Resultado')['FrequÃªncia'])
+        st.bar_chart(df_freq.set_index('Resultado')['Frequência'])
     
     with col_freq2:
-        # MÃ©tricas detalhadas
-        st.metric("ðŸ”´ Casa", f"{frequencias['C']}%")
-        st.metric("ðŸ”µ Visitante", f"{frequencias['V']}%")
-        st.metric("ðŸŸ¡ Empate", f"{frequencias['E']}%")
+        # Métricas detalhadas
+        st.metric("🔴 Casa", f"{frequencias['C']}%")
+        st.metric("🔵 Visitante", f"{frequencias['V']}%")
+        st.metric("🟡 Empate", f"{frequencias['E']}%")
         
-        # Indicador de tendÃªncia
+        # Indicador de tendência
         trend_arrow = get_trend_arrow(frequencias)
-        st.markdown(f"**TendÃªncia Atual:** {trend_arrow}")
+        st.markdown(f"**Tendência Atual:** {trend_arrow}")
 
 else:
-    st.warning(f"ðŸ“Š AnÃ¡lise serÃ¡ exibida com pelo menos 9 resultados. Atual: **{len(st.session_state.historico)}**")
+    st.warning(f"📊 Análise será exibida com pelo menos 9 resultados. Atual: **{len(st.session_state.historico)}**")
     
     progress = len(st.session_state.historico) / 9
     st.progress(progress)
@@ -1035,8 +1033,8 @@ else:
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; margin-top: 50px;'>
-    <h4>âš½ Football Studio Live Analyzer Pro</h4>
-    <p>AnÃ¡lise inteligente de padrÃµes para Football Studio da Evolution Gaming</p>
-    <p><small>Desenvolvido com algoritmos avanÃ§ados de detecÃ§Ã£o de padrÃµes</small></p>
+    <h4>⚽ Football Studio Live Analyzer Pro</h4>
+    <p>Análise inteligente de padrões para Football Studio da Evolution Gaming</p>
+    <p><small>Desenvolvido com algoritmos avançados de detecção de padrões</small></p>
 </div>
 """, unsafe_allow_html=True)
