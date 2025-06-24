@@ -907,16 +907,17 @@ else:
     historico_html = "<div class='history-container'>"
     historico_html += "<h4>Últimos Resultados (mais recente à esquerda):</h4>"
     
-    # === ALTERAÇÃO FEITA AQUI PARA EXIBIR 9 RESULTADOS POR LINHA ===
+    # === ESTA É A PARTE ALTERADA PARA 9 RESULTADOS POR LINHA ===
     for i, resultado in enumerate(st.session_state.historico):
         historico_html += get_resultado_html(resultado)
         if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
-            historico_html += "<br>" # Uma única quebra de linha para organizar visualmente
-    # =================================================================
+            historico_html += "<br>" # Quebra de linha a cada 9 resultados
+    # =========================================================
 
     historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
     historico_html += "</div>"
     
+    # A renderização final do HTML para o Streamlit
     st.markdown(historico_html, unsafe_allow_html=True)
 
 st.markdown("---")
@@ -1040,3 +1041,4 @@ st.markdown("""
     <p><small>Desenvolvido com algoritmos avançados de detecção de padrões</small></p>
 </div>
 """, unsafe_allow_html=True)
+
