@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 import pandas as pd
 
-# --- CLASSE ANALISEPADROES REFINADA (SEU CÓDIGO INTACTO) ---
+# --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
         self.historico = historico[:50]  # Aumentado para 50 jogos para melhor análise
@@ -65,7 +65,6 @@ class AnalisePadroes:
             try:
                 resultados[nome] = func()
             except Exception as e:
-                # Opcional: st.warning(f"Erro ao analisar padrão '{nome}': {e}")
                 resultados[nome] = False
         return resultados
 
@@ -498,91 +497,551 @@ class AnalisePadroes:
                 return True
         return False
 
-# --- CÓDIGO STREAMLIT PARA EXIBIÇÃO ---
+    def calcular_frequencias(self):
+        """Calcula frequências dos resultados"""
+        contador = collections.Counter(self.historico)
+        total = len(self.historico)
+        if total == 0:
+            return {'C': 0, 'V': 0, 'E': 0}
+        
+        result = {k: round(v / total * 100, 1) for k, v in contador.items()}
+        for tipo in ['C', 'V', 'E']:
+            if tipo not in result:
+                result[tipo] = 0
+        return result
 
-st.set_page_config(layout="wide") # Opcional: para usar mais largura da tela
+    def calcular_tendencia(self):
+        """Calcula tendência dos últimos resultados"""
+        if len(self.historico) < 5:
+            return "Dados insuficientes"
+        
+        ultimos_5 = self.historico[:5]
+        contador = collections.Counter(ultimos_5)
+        
+        if contador.most_common(1)[0][1] >= 4:
+            return f"Forte tendência: {contador.most_common(1)[0][0]}"
+        elif contador.most_common(1)[0][1] >= 3:
+            return f"Tendência moderada: {contador.most_common(1)[0][0]}"
+        else:
+            return "Sem tendência clara"
 
-st.title("Análise de Padrões Football Studio")
+    def sugestao_inteligente(self):
+        """Gera sugestão inteligente baseada em múltiplos fatores"""
+        analise = self.analisar_todos()
+        padroes_identificados = [nome for nome, ok in analise.items() if ok]
+        
+        if not padroes_identificados:
+            return {
+                "sugerir": False,
+                "entrada": None,
+                "entrada_codigo": None,
+                "motivos": ["Nenhum padrão confiável identificado"],
+                "confianca": 0,
+                "frequencias": self.calcular_frequencias(),
+                "tendencia": self.calcular_tendencia(),
+                "ultimos_resultados": self.historico[:5]
+            }
+        
+        # Calcula confiança baseada nos pesos dos padrões
+        confianca_total = 0
+        peso_total = 0
+        
+        for padrao in padroes_identificados:
+            peso = self.pesos_padroes.get(padrao, 0.5)
+            confianca_total += peso
+            peso_total += peso
+        
+        confianca_media = (confianca_total / peso_total) * 100 if peso_total > 0 else 0
+        
+        # Ajusta confiança baseada na quantidade de padrões
+        bonus_quantidade = min(20, len(padroes_identificados) * 5)
+        confianca_final = min(95, int(confianca_media + bonus_quantidade))
+        
+        # Análise de frequências e tendências
+        frequencias = self.calcular_frequencias()
+        tendencia = self.calcular_tendencia()
+        
+        # Lógica de sugestão aprimorada
+        opcoes = ["V", "C", "E"]
+        
+        # Considera padrões de quebra
+        padroes_quebra = [p for p in padroes_identificados if "quebra" in p.lower() or "breakout" in p.lower()]
+        
+        if padroes_quebra:
+            # Se há padrões de quebra, sugere o oposto da tendência
+            ultimo_resultado = self.historico[0] if self.historico else None
+            if ultimo_resultado:
+                opcoes_sem_ultimo = [op for op in opcoes if op != ultimo_resultado]
+                entrada_sugerida = min(opcoes_sem_ultimo, key=lambda x: frequencias.get(x, 0))
+            else:
+                entrada_sugerida = min(opcoes, key=lambda x: frequencias.get(x, 0))
+        else:
+            # Lógica normal: sugere baseado em frequências
+            entrada_sugerida = min(opcoes, key=lambda x: frequencias.get(x, 0))
+        
+        # Se todas as frequências são iguais, usa análise de momentum
+        if len(set(frequencias.values())) == 1:
+            # Analisa momentum dos últimos 3 resultados
+            ultimos_3 = self.historico[:3]
+            contador_recente = collections.Counter(ultimos_3)
+            if contador_recente.most_common(1)[0][1] >= 2:
+                # Se há repetição recente, sugere mudança
+                resultado_frequente = contador_recente.most_common(1)[0][0]
+                opcoes_mudanca = [op for op in opcoes if op != resultado_frequente]
+                entrada_sugerida = random.choice(opcoes_mudanca)
+            else:
+                entrada_sugerida = random.choice(opcoes)
+        
+        mapeamento = {"C": "Casa", "V": "Visitante", "E": "Empate"}
+        entrada_legivel = mapeamento[entrada_sugerida]
+        
+        return {
+            "sugerir": True,
+            "entrada": entrada_legivel,
+            "entrada_codigo": entrada_sugerida,
+            "motivos": padroes_identificados,
+            "confianca": confianca_final,
+            "frequencias": frequencias,
+            "tendencia": tendencia,
+            "ultimos_resultados": self.historico[:5],
+            "analise_detalhada": self._gerar_analise_detalhada(padroes_identificados)
+        }
 
-# Simulação de histórico de resultados (substitua isso pelos seus dados reais)
-# Para fins de teste, estou gerando um histórico aleatório.
+    def _gerar_analise_detalhada(self, padroes):
+        """Gera análise detalhada dos padrões encontrados"""
+        categorias = {
+            "Padrões de Sequência": ["Sequência", "Surf", "Ondas", "Fibonacci"],
+            "Padrões de Quebra": ["Quebra", "Breakout", "Tensão"],
+            "Padrões Cíclicos": ["Ciclo", "Respiração", "Momentum"],
+            "Padrões Especiais": ["Dragon", "Martingale", "Dourada", "Triangular"]
+        }
+        
+        analise = {}
+        for categoria, keywords in categorias.items():
+            padroes_categoria = [p for p in padroes if any(k.lower() in p.lower() for k in keywords)]
+            if padroes_categoria:
+                analise[categoria] = padroes_categoria
+        
+        return analise
+
+# --- FUNÇÕES DE INTERFACE E LÓGICA DE HISTÓRICO ---
+
+# Inicializa o estado da sessão
 if 'historico' not in st.session_state:
-    st.session_state.historico = collections.deque(maxlen=50) # Usar deque para performance
+    st.session_state.historico = []
 
-# Adiciona alguns resultados de exemplo ao histórico
-# No seu caso real, isso viria de uma API ou outra fonte de dados
-if st.button("Adicionar Novo Resultado (Aleatório para Teste)"):
-    possiveis_resultados = ['V', 'C', 'E'] # V = Vitória (Home), C = Convidado (Away), E = Empate (Tie)
-    novo_resultado = random.choice(possiveis_resultados)
-    st.session_state.historico.appendleft(novo_resultado) # Adiciona no início para o mais recente à esquerda
+if 'estatisticas' not in st.session_state:
+    st.session_state.estatisticas = {
+        'total_jogos': 0,
+        'acertos': 0,
+        'erros': 0,
+        'historico_sugestoes': []
+    }
 
-# Converte o deque para uma lista para a análise da classe
-historico_lista = list(st.session_state.historico)
+def adicionar_resultado(resultado):
+    """Adiciona novo resultado ao histórico"""
+    st.session_state.historico.insert(0, resultado)
+    if len(st.session_state.historico) > 50:
+        st.session_state.historico = st.session_state.historico[:50]
+    st.session_state.estatisticas['total_jogos'] += 1
 
-# Instancia a classe de análise
-analisador = AnalisePadroes(historico_lista)
+def limpar_historico():
+    """Limpa todo o histórico"""
+    st.session_state.historico = []
+    st.session_state.estatisticas = {
+        'total_jogos': 0,
+        'acertos': 0,
+        'erros': 0,
+        'historico_sugestoes': []
+    }
 
-# Analisa os padrões
-padroes_encontrados = analisador.analisar_todos()
+def desfazer_ultimo():
+    """Remove o último resultado"""
+    if st.session_state.historico:
+        st.session_state.historico.pop(0)
+        if st.session_state.estatisticas['total_jogos'] > 0:
+            st.session_state.estatisticas['total_jogos'] -= 1
 
-# --- EXIBIÇÃO DO HISTÓRICO CORRIGIDA ---
-st.subheader("Últimos Resultados (mais recente à esquerda):")
+def validar_sugestao(sugestao_anterior, resultado_real):
+    """Valida se a sugestão anterior estava correta"""
+    if sugestao_anterior['entrada_codigo'] == resultado_real:
+        st.session_state.estatisticas['acertos'] += 1
+        return True
+    else:
+        st.session_state.estatisticas['erros'] += 1
+        return False
 
-# Dicionário para mapear resultados a cores
-cores = {
-    'V': '#FF4B4B',  # Vermelho (similar ao 'C' na sua imagem, mas estou usando para 'V' = Home)
-    'C': '#007bff',  # Azul (similar ao 'V' na sua imagem, mas estou usando para 'C' = Away)
-    'E': '#6c757d'   # Cinza para Empate
+def get_resultado_html(resultado):
+    """Retorna HTML para visualização do resultado"""
+    color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
+    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'}
+    
+    return f"""
+    <span style='
+        display: inline-block; 
+        width: 30px; 
+        height: 30px; 
+        border-radius: 50%; 
+        background-color: {color_map.get(resultado, 'gray')}; 
+        margin: 2px; 
+        text-align: center; 
+        line-height: 30px; 
+        font-size: 14px;
+        color: {"black" if resultado == "E" else "white"};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    '>
+        {symbol_map.get(resultado, '?')}
+    </span>
+    """
+
+def get_confianca_color(confianca):
+    """Retorna cor baseada no nível de confiança"""
+    if confianca >= 80:
+        return "#4CAF50"  # Verde
+    elif confianca >= 60:
+        return "#FF9800"  # Laranja
+    elif confianca >= 40:
+        return "#FFC107"  # Amarelo
+    else:
+        return "#F44336"  # Vermelho
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(
+    layout="wide", 
+    page_title="🎯 Football Studio Live Analyzer",
+    page_icon="⚽",
+    initial_sidebar_state="expanded"
+)
+
+# CSS Aprimorado
+st.markdown("""
+<style>
+/* Estilo geral */
+.main-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    text-align: center;
 }
 
-# Inverte o histórico para que o mais recente (que foi adicionado com appendleft)
-# seja o primeiro a ser processado para exibição da esquerda para a direita.
-# No entanto, se você adiciona com append(), não precisaria inverter aqui.
-# A imagem que você mostrou tem 'V' na esquerda (mais recente) e depois 'E', 'C', etc.
-# Se `st.session_state.historico` já está do mais recente para o mais antigo,
-# não precisamos do `reversed()`. Mas para garantir, vou usar a lista bruta
-# e fazer a inversão necessária para a ordem de exibição.
-historico_para_exibir = list(st.session_state.historico) # já está na ordem 'mais recente à esquerda' se appendleft foi usado
+.main-header h1 {
+    color: white;
+    font-size: 2.5rem;
+    margin: 0;
+}
 
-# Gera a string HTML para os círculos do histórico
-html_historico = "<div style='display: flex; flex-wrap: wrap; gap: 5px;'>" # Flexbox para alinhar na linha e quebrar se necessário
-for resultado in historico_para_exibir:
-    cor_fundo = cores.get(resultado, '#cccccc') # Cor padrão se o resultado não for reconhecido
-    html_historico += f"""
-    <span style='
-        display: inline-block;
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-        background-color: {cor_fundo};
-        color: white;
-        text-align: center;
-        line-height: 25px;
-        font-weight: bold;
-        font-size: 12px;
-        border: 2px solid #333;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    '>{resultado}</span>
-    """
-html_historico += "</div>"
+.main-header p {
+    color: white;
+    font-size: 1.2rem;
+    margin: 0.5rem 0 0 0;
+    opacity: 0.9;
+}
 
-# Renderiza o HTML no Streamlit. O parâmetro unsafe_allow_html=True é CRUCIAL!
-st.markdown(html_historico, unsafe_allow_html=True)
+/* Botões */
+div.stButton > button:first-child {
+    font-size: 16px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px;
+    color: white;
+    border: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
 
-st.markdown("---") # Linha divisória
+div.stButton > button:first-child:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
 
-# --- EXIBIÇÃO DOS PADRÕES ENCONTRADOS ---
-st.subheader("Padrões Encontrados:")
-encontrou_algum_padrao = False
-for padrao, encontrado in padroes_encontrados.items():
-    if encontrado:
-        st.success(f"✅ Padrão **'{padrao}'** encontrado!")
-        encontrou_algum_padrao = True
-if not encontrou_algum_padrao:
-    st.info("Nenhum padrão detectado no histórico atual.")
+/* Botões específicos */
+div.stButton > button[data-testid="stButton-🏠 Casa (C)"] {
+    background: linear-gradient(135deg, #FF6B6B, #FF4B4B);
+}
 
+div.stButton > button[data-testid="stButton-✈️ Visitante (V)"] {
+    background: linear-gradient(135deg, #4ECDC4, #4B4BFF);
+}
+
+div.stButton > button[data-testid="stButton-⚖️ Empate (E)"] {
+    background: linear-gradient(135deg, #FFE66D, #FFD700);
+    color: black;
+}
+
+div.stButton > button[data-testid="stButton-↩️ Desfazer"],
+div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
+    background: linear-gradient(135deg, #95A5A6, #7F8C8D);
+}
+
+/* Cards de estatísticas */
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #667eea;
+    margin: 1rem 0;
+}
+
+.metric-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2C3E50;
+}
+
+.metric-card p {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* Seções */
+.section-header {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    text-align: center;
+}
+
+.pattern-found {
+    background: linear-gradient(135deg, #00b894, #55a3ff);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin: 0.25rem 0;
+    font-weight: bold;
+}
+
+.pattern-not-found {
+    background: #f8f9fa;
+    color: #6c757d;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin: 0.25rem 0;
+    border: 1px solid #dee2e6;
+}
+
+.suggestion-box {
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    padding: 2rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    border: 2px solid #667eea;
+}
+
+.confidence-high { color: #27AE60; font-weight: bold; }
+.confidence-medium { color: #F39C12; font-weight: bold; }
+.confidence-low { color: #E74C3C; font-weight: bold; }
+
+.historic-container {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+    border: 1px solid #dee2e6;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --- CABEÇALHO PRINCIPAL ---
+st.markdown("""
+<div class="main-header">
+    <h1>⚽ Football Studio Live Analyzer</h1>
+    <p>Análise Inteligente de Padrões - Evolution Gaming</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --- SIDEBAR COM ESTATÍSTICAS ---
+with st.sidebar:
+    st.markdown("## 📊 Estatísticas da Sessão")
+    
+    total_jogos = st.session_state.estatisticas['total_jogos']
+    acertos = st.session_state.estatisticas['acertos']
+    erros = st.session_state.estatisticas['erros']
+    
+    if total_jogos > 0:
+        taxa_acerto = (acertos / total_jogos) * 100
+        st.metric("Total de Jogos", total_jogos)
+        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f}%")
+        st.metric("Acertos", acertos, delta=acertos-erros)
+    else:
+        st.info("Nenhum jogo analisado ainda")
+    
+    st.markdown("---")
+    st.markdown("## ⚙️ Configurações")
+    
+    auto_suggest = st.checkbox("Sugestão Automática", value=True)
+    show_advanced = st.checkbox("Análise Avançada", value=True)
+    confidence_threshold = st.slider("Limite de Confiança", 0, 100, 60)
+
+# --- SEÇÃO DE INSERÇÃO DE RESULTADOS ---
+st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2></div>', unsafe_allow_html=True)
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
+    if st.button("🏠 Casa (C)", key="🏠 Casa (C)", use_container_width=True, help="Vitória da Casa"):
+        adicionar_resultado('C')
+        st.rerun()
+
+with col2:
+    if st.button("✈️ Visitante (V)", key="✈️ Visitante (V)", use_container_width=True, help="Vitória do Visitante"):
+        adicionar_resultado('V')
+        st.rerun()
+
+with col3:
+    if st.button("⚖️ Empate (E)", key="⚖️ Empate (E)", use_container_width=True, help="Empate"):
+        adicionar_resultado('E')
+        st.rerun()
+
+with col4:
+    if st.button("↩️ Desfazer", key="↩️ Desfazer", use_container_width=True, help="Desfazer último resultado"):
+        desfazer_ultimo()
+        st.rerun()
+
+with col5:
+    if st.button("🗑️ Limpar", key="🗑️ Limpar", use_container_width=True, help="Limpar todo o histórico"):
+        limpar_historico()
+        st.rerun()
+
+# --- EXIBIÇÃO DO HISTÓRICO ---
+st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
+
+if not st.session_state.historico:
+    st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
+else:
+    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
+    
+    historico_html = ""
+    for i, resultado in enumerate(st.session_state.historico):
+        historico_html += get_resultado_html(resultado)
+        if (i + 1) % 10 == 0 and (i + 1) < len(st.session_state.historico):
+            historico_html += "<br>"
+    
+    st.markdown(historico_html, unsafe_allow_html=True)
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- ANÁLISE PRINCIPAL ---
+if len(st.session_state.historico) >= 5:
+    analyzer = AnalisePadroes(st.session_state.historico)
+    
+    # --- SUGESTÃO INTELIGENTE ---
+    st.markdown('<div class="section-header"><h2>🎯 Sugestão Inteligente</h2></div>', unsafe_allow_html=True)
+    
+    sugestao = analyzer.sugestao_inteligente()
+    
+    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
+        confianca_color = get_confianca_color(sugestao['confianca'])
+        
+        st.markdown(f"""
+        <div class="suggestion-box">
+            <h3>🎯 Próxima Sugestão</h3>
+            <h2 style="color: {confianca_color}; margin: 1rem 0;">
+                {sugestao['entrada']} ({sugestao['entrada_codigo']})
+            </h2>
+            <p><strong>Confiança:</strong> 
+                <span style="color: {confianca_color}; font-weight: bold;">
+                    {sugestao['confianca']}%
+                </span>
+            </p>
+            <p><strong>Tendência:</strong> {sugestao['tendencia']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Detalhes da análise
+        if show_advanced:
+            with st.expander("📋 Detalhes da Análise"):
+                st.write("**Padrões Identificados:**")
+                for motivo in sugestao['motivos']:
+                    st.write(f"• {motivo}")
+                
+                if 'analise_detalhada' in sugestao:
+                    st.write("**Análise por Categoria:**")
+                    for categoria, padroes in sugestao['analise_detalhada'].items():
+                        st.write(f"**{categoria}:** {', '.join(padroes)}")
+    else:
+        st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) ou nenhum padrão detectado")
+    
+    # --- ANÁLISE DE PADRÕES ---
+    st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados</h2></div>', unsafe_allow_html=True)
+    
+    padroes_encontrados = analyzer.analisar_todos()
+    
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("### ✅ Padrões Encontrados")
+        encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+        
+        if encontrados:
+            for padrao in encontrados:
+                peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+        else:
+            st.info("Nenhum padrão específico detectado")
+    
+    with col_right:
+        st.markdown("### ❌ Padrões Não Encontrados")
+        nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+        
+        for padrao in nao_encontrados[:10]:  # Limita a exibição
+            st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+    
+    # --- ANÁLISE ESTATÍSTICA ---
+    st.markdown('<div class="section-header"><h2>📊 Análise Estatística</h2></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    frequencias = analyzer.calcular_frequencias()
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🏠 Casa</h3>
+            <p style="color: #FF4B4B;">{frequencias['C']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✈️ Visitante</h3>
+            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>⚖️ Empate</h3>
+            <p style="color: #FFD700;">{frequencias['E']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Gráfico de frequências
+    if show_advanced:
+        st.markdown("### 📈 Distribuição dos Resultados")
+        chart_data = pd.DataFrame({
+            'Resultado': ['Casa', 'Visitante', 'Empate'],
+            'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']],
+            'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
+        })
+        
+        st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
+
+else:
+    st.info("🎮 Insira pelo menos 5 resultados para começar a análise inteligente!")
+
+# --- RODAPÉ ---
 st.markdown("---")
-
-# Opcional: Mostrar o histórico em formato de tabela para depuração
-# st.subheader("Histórico Completo (para depuração):")
-# st.write(historico_lista)
+st.markdown("""
+<div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
+    <p>⚽ Football Studio Live Analyzer v2.0 | Análise Inteligente de Padrões</p>
+    <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
+</div>
+""", unsafe_allow_html=True)
