@@ -911,7 +911,7 @@ else:
     historico_html += get_resultado_html(resultado)
     if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
         historico_html += "<br><br>"
-    
+  
     historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
     historico_html += "</div>"
     
