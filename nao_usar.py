@@ -629,128 +629,122 @@ class AnalisePadroes:
 # Inicializa o estado da sessão
 if 'historico' not in st.session_state:
     st.session_state.historico = []
-if 'estatisticas' not in st.session_state:
-    st.session_state.estatisticas = {'total_jogos': 0, 'acertos': 0, 'sugestoes_seguidas': 0}
-if 'historico_sugestoes' not in st.session_state:
-    st.session_state.historico_sugestoes = []
 
-def adicionar_resultado(resultado, foi_sugerido=False):
-    """Adiciona resultado e atualiza estatísticas"""
+if 'estatisticas' not in st.session_state:
+    st.session_state.estatisticas = {
+        'total_jogos': 0,
+        'acertos': 0,
+        'erros': 0,
+        'historico_sugestoes': []
+    }
+
+def adicionar_resultado(resultado):
+    """Adiciona resultado ao histórico"""
     st.session_state.historico.insert(0, resultado)
-    st.session_state.estatisticas['total_jogos'] += 1
-    
-    # Verifica se seguiu a sugestão anterior
-    if st.session_state.historico_sugestoes and foi_sugerido:
-        ultima_sugestao = st.session_state.historico_sugestoes[-1]
-        if ultima_sugestao['entrada_codigo'] == resultado:
-            st.session_state.estatisticas['acertos'] += 1
-            st.session_state.estatisticas['sugestoes_seguidas'] += 1
-        else:
-            st.session_state.estatisticas['sugestoes_seguidas'] = 0
-    
-    # Limita histórico a 50 resultados
     if len(st.session_state.historico) > 50:
         st.session_state.historico = st.session_state.historico[:50]
+    st.session_state.estatisticas['total_jogos'] += 1
 
 def limpar_historico():
-    """Limpa histórico e estatísticas"""
+    """Limpa todo o histórico"""
     st.session_state.historico = []
-    st.session_state.estatisticas = {'total_jogos': 0, 'acertos': 0, 'sugestoes_seguidas': 0}
-    st.session_state.historico_sugestoes = []
+    st.session_state.estatisticas = {
+        'total_jogos': 0,
+        'acertos': 0,
+        'erros': 0,
+        'historico_sugestoes': []
+    }
 
 def desfazer_ultimo():
-    """Remove último resultado"""
+    """Remove o último resultado"""
     if st.session_state.historico:
         st.session_state.historico.pop(0)
         if st.session_state.estatisticas['total_jogos'] > 0:
             st.session_state.estatisticas['total_jogos'] -= 1
 
+def verificar_sugestao(resultado_real, sugestao_codigo):
+    """Verifica se a sugestão estava correta"""
+    if sugestao_codigo == resultado_real:
+        st.session_state.estatisticas['acertos'] += 1
+        return True
+    else:
+        st.session_state.estatisticas['erros'] += 1
+        return False
+
 def get_resultado_html(resultado):
     """Retorna HTML para bolinha colorida"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
-    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'}
+    label_map = {'C': 'C', 'V': 'V', 'E': 'E'}
+    
     return f"""
-    <span style='display:inline-block; width:30px; height:30px; border-radius:50%; 
-                 background-color:{color_map.get(resultado, 'gray')}; margin:2px; 
-                 vertical-align:middle; text-align:center; line-height:30px; 
-                 font-size:16px; color:white; font-weight:bold; 
-                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);'>
-        {symbol_map.get(resultado, '?')}
-    </span>
+    <span style='
+        display: inline-block; 
+        width: 25px; 
+        height: 25px; 
+        border-radius: 50%; 
+        background-color: {color_map.get(resultado, 'gray')}; 
+        color: {'black' if resultado == 'E' else 'white'};
+        text-align: center;
+        line-height: 25px;
+        font-weight: bold;
+        font-size: 12px;
+        margin: 2px;
+        border: 2px solid #333;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    '>{label_map.get(resultado, '?')}</span>
     """
 
-def calcular_taxa_acerto():
-    """Calcula taxa de acerto das sugestões"""
-    if st.session_state.estatisticas['sugestoes_seguidas'] == 0:
-        return 0
-    return round((st.session_state.estatisticas['acertos'] / 
-                 max(1, len(st.session_state.historico_sugestoes))) * 100, 1)
+def get_trend_arrow(frequencias):
+    """Retorna seta de tendência baseada nas frequências"""
+    valores = list(frequencias.values())
+    max_val = max(valores)
+    resultado_dominante = [k for k, v in frequencias.items() if v == max_val][0]
+    
+    arrows = {'C': '🔴', 'V': '🔵', 'E': '🟡'}
+    return arrows.get(resultado_dominante, '⚪')
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     layout="wide", 
-    page_title="Football Studio Live Game - Analisador Pro",
-    page_icon="⚽",
-    initial_sidebar_state="expanded"
+    page_title="Football Studio Live Analyzer Pro",
+    page_icon="⚽"
 )
 
-# CSS Avançado
+# CSS melhorado
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-
-.main-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 2.5rem;
-    font-weight: 900;
-    text-align: center;
-    background: linear-gradient(45deg, #FF4B4B, #4B4BFF, #FFD700);
+/* Estilo geral */
+.main-header {
+    background: linear-gradient(90deg, #FF4B4B, #4B4BFF);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 2rem;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-}
-
-.stats-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 1rem;
-    border-radius: 10px;
-    color: white;
     text-align: center;
-    margin: 0.5rem;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 20px;
 }
 
-.pattern-card {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    padding: 1rem;
-    border-radius: 10px;
-    margin: 0.5rem 0;
-    color: white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.suggestion-card {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    padding: 2rem;
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
     border-radius: 15px;
     color: white;
     text-align: center;
-    margin: 1rem 0;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    margin: 10px 0;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
 }
 
-.confidence-high { color: #28a745; font-weight: bold; }
-.confidence-medium { color: #ffc107; font-weight: bold; }
-.confidence-low { color: #dc3545; font-weight: bold; }
-
+/* Botões coloridos */
 div.stButton > button:first-child {
     font-size: 16px;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin: 5px;
+    color: white;
+    border: none;
     font-weight: bold;
     transition: all 0.3s ease;
-    border: none;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
@@ -759,209 +753,290 @@ div.stButton > button:first-child:hover {
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
 }
 
-.stButton > button[key="Casa (C)"] {
+/* Casa (Vermelho) */
+div.stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #FF4B4B, #FF6B6B);
-    color: white;
 }
 
-.stButton > button[key="Visitante (V)"] {
+/* Visitante (Azul) */
+div.stButton > button[kind="secondary"] {
     background: linear-gradient(135deg, #4B4BFF, #6B6BFF);
-    color: white;
 }
 
-.stButton > button[key="Empate (E)"] {
-    background: linear-gradient(135deg, #FFD700, #FFF066);
+/* Empate (Dourado) */
+div.stButton > button[kind="tertiary"] {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
     color: black;
 }
 
-.metric-card {
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    padding: 1rem;
-    margin: 0.5rem;
-    border: 1px solid rgba(255,255,255,0.2);
+/* Botões de ação */
+div.stButton > button[kind="primary"]:not([style*="background"]) {
+    background: linear-gradient(135deg, #28a745, #20c997);
 }
+
+.pattern-found {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 2px;
+    display: inline-block;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pattern-not-found {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 2px;
+    display: inline-block;
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.suggestion-box {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 10px 0;
+    border-left: 5px solid #FFD700;
+}
+
+.confidence-high { color: #28a745; font-weight: bold; }
+.confidence-medium { color: #ffc107; font-weight: bold; }
+.confidence-low { color: #dc3545; font-weight: bold; }
+
+.history-container {
+    background: rgba(255,255,255,0.05);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# --- INTERFACE PRINCIPAL ---
-st.markdown('<h1 class="main-title">⚽ Football Studio Live Game - Analisador Pro</h1>', unsafe_allow_html=True)
+# --- HEADER ---
+st.markdown('<h1 class="main-header">⚽ Football Studio Live Analyzer Pro</h1>', unsafe_allow_html=True)
+st.markdown("---")
 
-# Sidebar com estatísticas
-with st.sidebar:
-    st.markdown("### 📊 Estatísticas da Sessão")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total de Jogos", st.session_state.estatisticas['total_jogos'])
-        st.metric("Sequência Atual", st.session_state.estatisticas['sugestoes_seguidas'])
-    
-    with col2:
-        st.metric("Acertos", st.session_state.estatisticas['acertos'])
-        st.metric("Taxa de Acerto", f"{calcular_taxa_acerto()}%")
-    
-    st.markdown("---")
-    st.markdown("### 🎯 Configurações")
-    
-    modo_analise = st.selectbox(
-        "Modo de Análise",
-        ["Padrão Completo", "Foco em Quebras", "Análise Conservadora", "Modo Agressivo"]
-    )
-    
-    mostrar_detalhes = st.checkbox("Mostrar Análise Detalhada", value=True)
-    
-    st.markdown("---")
-    st.markdown("### 🔄 Ações Rápidas")
-    if st.button("🗑️ Limpar Tudo", use_container_width=True):
-        limpar_historico()
-        st.rerun()
+# --- ESTATÍSTICAS RÁPIDAS ---
+col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
 
-# Seção de inserção de resultados
-st.markdown("### 🎮 Inserir Novo Resultado")
+with col_stat1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>🎯 Total de Jogos</h3>
+        <h2>{st.session_state.estatisticas['total_jogos']}</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
-col1, col2, col3, col4, col5 = st.columns(5)
+with col_stat2:
+    acertos = st.session_state.estatisticas['acertos']
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>✅ Acertos</h3>
+        <h2>{acertos}</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
-with col1:
-    if st.button("🏠 Casa (C)", key="Casa (C)", help="Vitória da Casa", use_container_width=True):
+with col_stat3:
+    erros = st.session_state.estatisticas['erros']
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>❌ Erros</h3>
+        <h2>{erros}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_stat4:
+    total_sugestoes = acertos + erros
+    precisao = round((acertos / total_sugestoes * 100), 1) if total_sugestoes > 0 else 0
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>📊 Precisão</h3>
+        <h2>{precisao}%</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# --- INSERÇÃO DE RESULTADOS ---
+st.subheader("🎮 Inserir Novo Resultado")
+
+col_btn1, col_btn2, col_btn3, col_btn4, col_btn5 = st.columns(5)
+
+with col_btn1:
+    if st.button("🔴 Casa (C)", help="Vitória da Casa", key="casa", use_container_width=True):
         adicionar_resultado('C')
         st.rerun()
 
-with col2:
-    if st.button("✈️ Visitante (V)", key="Visitante (V)", help="Vitória do Visitante", use_container_width=True):
+with col_btn2:
+    if st.button("🔵 Visitante (V)", help="Vitória do Visitante", key="visitante", use_container_width=True):
         adicionar_resultado('V')
         st.rerun()
 
-with col3:
-    if st.button("⚖️ Empate (E)", key="Empate (E)", help="Resultado Empate", use_container_width=True):
+with col_btn3:
+    if st.button("🟡 Empate (E)", help="Resultado Empate", key="empate", use_container_width=True):
         adicionar_resultado('E')
         st.rerun()
 
-with col4:
-    if st.button("↩️ Desfazer", help="Remove último resultado", use_container_width=True):
+with col_btn4:
+    if st.button("↩️ Desfazer", help="Remove último resultado", key="desfazer", use_container_width=True):
         desfazer_ultimo()
         st.rerun()
 
-with col5:
-    if st.button("🔄 Limpar", help="Limpa histórico", use_container_width=True):
+with col_btn5:
+    if st.button("🗑️ Limpar Tudo", help="Limpa histórico completo", key="limpar", use_container_width=True):
         limpar_historico()
         st.rerun()
 
 st.markdown("---")
 
-# Exibição do histórico
-st.markdown("### 📈 Histórico de Resultados (Mais Recente → Mais Antigo)")
+# --- HISTÓRICO ---
+st.subheader("📈 Histórico de Resultados")
 
 if not st.session_state.historico:
-    st.info("🎯 O histórico está vazio. Comece inserindo os resultados dos jogos acima.")
+    st.info("🎯 Histórico vazio. Comece inserindo alguns resultados para ver a mágica acontecer!")
 else:
-    # Histórico visual
-    historico_html = ""
+    # Exibe histórico com styling
+    historico_html = "<div class='history-container'>"
+    historico_html += "<h4>Últimos Resultados (mais recente à esquerda):</h4>"
+    
+    # === ALTERAÇÃO FEITA AQUI PARA EXIBIR 9 RESULTADOS POR LINHA ===
     for i, resultado in enumerate(st.session_state.historico):
         historico_html += get_resultado_html(resultado)
-        if (i + 1) % 10 == 0 and (i + 1) < len(st.session_state.historico):
-            historico_html += "<br><br>"
+        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
+            historico_html += "<br>" # Uma única quebra de linha para organizar visualmente
+    # =================================================================
+
+    historico_html += f"<br><br><small>Total: {len(st.session_state.historico)} resultados</small>"
+    historico_html += "</div>"
     
     st.markdown(historico_html, unsafe_allow_html=True)
-    
-    # Métricas do histórico
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total de Resultados", len(st.session_state.historico))
-    with col2:
-        casa_count = st.session_state.historico.count('C')
-        st.metric("🏠 Casa", f"{casa_count} ({round(casa_count/len(st.session_state.historico)*100, 1)}%)")
-    with col3:
-        visitante_count = st.session_state.historico.count('V')
-        st.metric("✈️ Visitante", f"{visitante_count} ({round(visitante_count/len(st.session_state.historico)*100, 1)}%)")
-    with col4:
-        empate_count = st.session_state.historico.count('E')
-        st.metric("⚖️ Empate", f"{empate_count} ({round(empate_count/len(st.session_state.historico)*100, 1)}%)")
 
 st.markdown("---")
 
-# Análise principal
-if len(st.session_state.historico) >= 6:
-    analisador = AnalisePadroes(st.session_state.historico)
+# --- ANÁLISE PRINCIPAL ---
+if len(st.session_state.historico) >= 9:
+    analyzer = AnalisePadroes(st.session_state.historico)
     
-    # Sugestão principal
-    sugestao = analisador.sugestao_inteligente()
+    # --- SUGESTÃO PRINCIPAL ---
+    st.header("🔮 Sugestão Inteligente")
+    
+    sugestao = analyzer.sugestao_inteligente()
     
     if sugestao['sugerir']:
-        confianca = sugestao['confianca']
-        cor_confianca = "confidence-high" if confianca >= 70 else "confidence-medium" if confianca >= 50 else "confidence-low"
+        # Determina cor da confiança
+        if sugestao['confianca'] >= 75:
+            conf_class = "confidence-high"
+            conf_emoji = "🟢"
+        elif sugestao['confianca'] >= 50:
+            conf_class = "confidence-medium"
+            conf_emoji = "🟡"
+        else:
+            conf_class = "confidence-low"
+            conf_emoji = "🔴"
         
+        # Box de sugestão
         st.markdown(f"""
-        <div class="suggestion-card">
-            <h2>🎯 SUGESTÃO PARA O PRÓXIMO JOGO</h2>
-            <h1>{sugestao['entrada']} ({sugestao['entrada_codigo']})</h1>
-            <h3 class="{cor_confianca}">Confiança: {confianca}%</h3>
-            <p>Tendência: {sugestao['tendencia']}</p>
+        <div class="suggestion-box">
+            <h2>🎯 Próxima Jogada Sugerida: <strong>{sugestao['entrada']}</strong></h2>
+            <h3>{conf_emoji} Confiança: <span class="{conf_class}">{sugestao['confianca']}%</span></h3>
+            <p><strong>Tendência:</strong> {sugestao['tendencia']}</p>
+            <p><strong>Últimos 5:</strong> {' → '.join(sugestao['ultimos_resultados'])}</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Salva sugestão no histórico
-        st.session_state.historico_sugestoes.append(sugestao)
-        
         # Análise detalhada
-        if mostrar_detalhes and 'analise_detalhada' in sugestao:
-            st.markdown("### 🔍 Análise Detalhada dos Padrões")
-            
-            analise_det = sugestao['analise_detalhada']
-            if analise_det:
-                for categoria, padroes in analise_det.items():
-                    with st.expander(f"📋 {categoria} ({len(padroes)} padrões)"):
-                        for padrao in padroes:
-                            st.success(f"✅ {padrao}")
-            else:
-                st.info("Nenhuma categorização específica disponível.")
-        
-        # Padrões encontrados
-        st.markdown("### 🔎 Padrões Identificados")
-        
-        if sugestao['motivos']:
-            # Divide padrões em colunas
-            num_padroes = len(sugestao['motivos'])
-            cols = st.columns(min(3, num_padroes))
-            
-            for i, padrao in enumerate(sugestao['motivos']):
-                with cols[i % len(cols)]:
-                    st.markdown(f"""
-                    <div class="pattern-card">
-                        <strong>✅ {padrao}</strong>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        # Gráfico de frequências
-        st.markdown("### 📊 Distribuição dos Resultados")
-        
-        freq_data = pd.DataFrame({
-            'Resultado': ['🏠 Casa', '✈️ Visitante', '⚖️ Empate'],
-            'Frequência (%)': [sugestao['frequencias']['C'], sugestao['frequencias']['V'], sugestao['frequencias']['E']],
-            'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
-        })
-        
-        st.bar_chart(freq_data.set_index('Resultado')['Frequência (%)'])
-        
-        # Últimos resultados
-        st.markdown("### 🔄 Últimos 5 Resultados Analisados")
-        ultimos_html = ""
-        for resultado in sugestao['ultimos_resultados']:
-            ultimos_html += get_resultado_html(resultado)
-        st.markdown(ultimos_html, unsafe_allow_html=True)
-        
+        if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
+            st.subheader("🔍 Análise Detalhada por Categoria")
+            for categoria, padroes in sugestao['analise_detalhada'].items():
+                st.write(f"**{categoria}:**")
+                for padrao in padroes:
+                    st.markdown(f"<span class='pattern-found'>✓ {padrao}</span>", unsafe_allow_html=True)
+                st.write("")
+    
     else:
-        st.warning("⚠️ Dados insuficientes para gerar sugestão confiável. Continue inserindo resultados.")
+        st.warning("⚠️ Dados insuficientes para sugestão confiável. Continue jogando!")
+    
+    st.markdown("---")
+    
+    # --- PADRÕES DETECTADOS ---
+    st.header("🎨 Padrões Detectados")
+    
+    padroes_encontrados = analyzer.analisar_todos()
+    
+    col_found, col_not_found = st.columns(2)
+    
+    with col_found:
+        st.subheader("✅ Padrões Ativos")
+        encontrados = [nome for nome, found in padroes_encontrados.items() if found]
+        
+        if encontrados:
+            for padrao in encontrados:
+                st.markdown(f"<span class='pattern-found'>✓ {padrao}</span>", unsafe_allow_html=True)
+        else:
+            st.info("Nenhum padrão específico ativo no momento.")
+    
+    with col_not_found:
+        st.subheader("⏳ Padrões Inativos")
+        nao_encontrados = [nome for nome, found in padroes_encontrados.items() if not found]
+        
+        if nao_encontrados:
+            # Mostra apenas os primeiros 10 para não sobrecarregar
+            for padrao in nao_encontrados[:10]:
+                st.markdown(f"<span class='pattern-not-found'>○ {padrao}</span>", unsafe_allow_html=True)
+            
+            if len(nao_encontrados) > 10:
+                st.write(f"... e mais {len(nao_encontrados) - 10} padrões")
+    
+    st.markdown("---")
+    
+    # --- ANÁLISE FREQUENCIAL ---
+    st.header("📊 Análise de Frequências")
+    
+    frequencias = analyzer.calcular_frequencias()
+    
+    col_freq1, col_freq2 = st.columns(2)
+    
+    with col_freq1:
+        # Gráfico de barras
+        df_freq = pd.DataFrame([
+            {'Resultado': 'Casa', 'Frequência': frequencias['C'], 'Cor': '#FF4B4B'},
+            {'Resultado': 'Visitante', 'Frequência': frequencias['V'], 'Cor': '#4B4BFF'},
+            {'Resultado': 'Empate', 'Frequência': frequencias['E'], 'Cor': '#FFD700'}
+        ])
+        
+        st.bar_chart(df_freq.set_index('Resultado')['Frequência'])
+    
+    with col_freq2:
+        # Métricas detalhadas
+        st.metric("🔴 Casa", f"{frequencias['C']}%")
+        st.metric("🔵 Visitante", f"{frequencias['V']}%")
+        st.metric("🟡 Empate", f"{frequencias['E']}%")
+        
+        # Indicador de tendência
+        trend_arrow = get_trend_arrow(frequencias)
+        st.markdown(f"**Tendência Atual:** {trend_arrow}")
 
 else:
-    st.info(f"📋 Para análise completa, são necessários pelo menos 6 resultados. Atual: {len(st.session_state.historico)}")
+    st.warning(f"📊 Análise será exibida com pelo menos 9 resultados. Atual: **{len(st.session_state.historico)}**")
+    
+    progress = len(st.session_state.historico) / 9
+    st.progress(progress)
+    st.write(f"Progresso: {len(st.session_state.historico)}/9 resultados")
 
-# Rodapé
+# --- FOOTER ---
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; font-size: 0.9rem;'>
-    <p>⚽ Football Studio Live Game - Analisador Pro v2.0</p>
-    <p>🎯 Sistema de análise avançada com 20+ padrões específicos</p>
-    <p>⚠️ Use com responsabilidade. Apostas envolvem riscos.</p>
+<div style='text-align: center; color: #666; margin-top: 50px;'>
+    <h4>⚽ Football Studio Live Analyzer Pro</h4>
+    <p>Análise inteligente de padrões para Football Studio da Evolution Gaming</p>
+    <p><small>Desenvolvido com algoritmos avançados de detecção de padrões</small></p>
 </div>
 """, unsafe_allow_html=True)
