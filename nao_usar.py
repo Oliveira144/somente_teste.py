@@ -942,36 +942,6 @@ with st.sidebar:
     show_advanced = st.checkbox("Análise Avançada e Detalhes", value=True)
     confidence_threshold = st.slider("Limite Mínimo de Confiança para Sugestão", 0, 100, 60)
 
-# --- SEÇÃO DE INSERÇÃO DE RESULTADOS ---
-st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2></div>', unsafe_allow_html=True)
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-with col1:
-    if st.button("🔴 CASA (C)", key="stButton-CASA", use_container_width=True, help="Vitória da Casa"):
-        adicionar_resultado('C')
-        st.rerun()
-
-with col2:
-    if st.button("🟡 EMPATE (E)", key="stButton-EMPATE", use_container_width=True, help="Empate"):
-        adicionar_resultado('E')
-        st.rerun()
-
-with col3:
-    if st.button("🔵 VISITANTE (V)", key="stButton-VISITANTE", use_container_width=True, help="Vitória do Visitante"):
-        adicionar_resultado('V')
-        st.rerun()
-
-with col4:
-    if st.button("↩️ DESFAZER ÚLTIMO", key="stButton-Desfazer", use_container_width=True, help="Remove o último resultado inserido"):
-        desfazer_ultimo()
-        st.rerun()
-
-with col5:
-    if st.button("🗑️ LIMPAR TUDO", key="stButton-Limpar", use_container_width=True, help="Limpa todo o histórico e estatísticas"):
-        limpar_historico()
-        st.rerun()
-
 import streamlit.components.v1 as components
 
 # --- EXIBIÇÃO DO HISTÓRICO EM LINHAS DE 9 ---
