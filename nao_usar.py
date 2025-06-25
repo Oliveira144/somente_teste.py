@@ -720,7 +720,7 @@ class AnalisePadroes:
 if 'historico' not in st.session_state:
     # Histórico de exemplo, pode ser vazio ou com alguns dados para começar
     # st.session_state.historico = [] # Se quiser começar completamente vazio
-    st.session_state.historico = ['C', 'F', 'C', 'E', 'F', 'F', 'C', 'C', 'E', 'F'] 
+    st.session_state.historico = ['C', 'F', 'C', 'E', 'F', 'F', 'C', 'C', 'E', 'F', 'C', 'F', 'C', 'E', 'F', 'F', 'C', 'C', 'E', 'F'] 
     
 if 'estatisticas' not in st.session_state:
     st.session_state.estatisticas = {
@@ -802,7 +802,7 @@ def get_resultado_html(resultado):
     
     return f"""
     <div style='
-        display: inline-flex;
+        display: flex; /* Usar flex para centralizar o conteúdo dentro do círculo */
         width: 32px;
         height: 32px; 
         border-radius: 50%; 
@@ -838,7 +838,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Aprimorado (removendo historic-row e adaptando historic-container)
+# CSS Aprimorado (Removendo historic-row-container para usar st.columns)
 st.markdown("""
 <style>
 /* Estilo geral */
@@ -962,34 +962,21 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* Histórico de resultados - NOVO ESTILO PARA LINHAS FIXAS */
-.historic-row-container {
+/* Adicione um estilo para o contêiner de colunas do Streamlit, se necessário */
+.st-emotion-cache-1jmve3k { /* Ou o seletor gerado pelo Streamlit para as colunas */
     display: flex;
-    flex-wrap: wrap; /* Permite quebras de linha */
+    flex-wrap: wrap;
     justify-content: flex-start;
     align-items: center;
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 10px;
-    margin: 1rem 0;
-    border: 1px solid #dee2e6;
 }
 
-/* Tamanho fixo para cada círculo do resultado para garantir 9 por linha */
-.historic-row-container div[data-testid="stHtml"] { /* Target Streamlit's div wrapping the HTML */
-    flex: 0 0 calc(100% / 9 - 4px); /* Força 9 itens por linha, considerando a margem */
-    max-width: calc(100% / 9 - 4px); /* Garante que não ultrapasse */
-    display: flex; /* Para centralizar o conteúdo do círculo */
-    justify-content: center;
-    align-items: center;
-}
-/* Estilo específico para o círculo interno (gerado por get_resultado_html) */
-.historic-row-container div[data-testid="stHtml"] > div {
-    width: 32px; 
+/* Estilo para o círculo do resultado */
+.resultado-circulo {
+    display: inline-flex; /* ou flex */
+    width: 32px;
     height: 32px; 
     border-radius: 50%; 
     margin: 2px; /* Margem entre os círculos */
-    display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
@@ -997,6 +984,7 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     flex-shrink: 0;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1147,14 +1135,17 @@ st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2><
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    st.markdown('<div class="historic-row-container">', unsafe_allow_html=True) # Container flexbox
-    
-    # Iterar sobre o histórico e adicionar cada círculo. O CSS cuidará da quebra de linha.
-    for resultado in st.session_state.historico:
-        st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
+    # Agrupa os resultados em blocos de 9
+    resultados_agrupados = [st.session_state.historico[i:i + 9] for i in range(0, len(st.session_state.historico), 9)]
+
+    for linha_resultados in resultados_agrupados:
+        # Cria 9 colunas para cada linha
+        cols = st.columns(9)
+        for i, resultado in enumerate(linha_resultados):
+            with cols[i]:
+                # Usamos st.markdown para o HTML do círculo dentro de CADA COLUNA
+                st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
             
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha a div historic-row-container
-    
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
 
 
