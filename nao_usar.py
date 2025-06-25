@@ -816,8 +816,15 @@ def desfazer_ultimo():
 
 def get_resultado_html(resultado):
     """Retorna HTML para visualização do resultado com cores e símbolos"""
-    color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'} # Vermelho, Azul, Amarelo
+    color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700', '': 'transparent'} # Adicionado 'transparent' para células vazias
     
+    # Texto para 'E' (Empate) e vazio para outros, ou nada se for transparente
+    text_content = ""
+    if resultado == "E":
+        text_content = "E"
+    elif resultado == "": # Para células vazias
+        text_content = ""
+
     return f"""
     <div style='
         display: flex;
@@ -832,8 +839,10 @@ def get_resultado_html(resultado):
         color: {"black" if resultado == "E" else "white"};
         border: 1px solid rgba(255,255,255,0.3); /* Borda sutil */
         flex-shrink: 0; /* Impede que os itens encolham */
+        box-sizing: border-box; /* Garante que padding e border não aumentem o tamanho total */
     '>
-        {"E" if resultado == "E" else ""} </div>
+        {text_content}
+    </div>
     """
 
 def get_confianca_color(confianca):
@@ -979,17 +988,34 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-.historic-row {
-    display: flex; /* Para os resultados na linha */
-    justify-content: flex-start; /* Alinha do início (esquerda) */
-    align-items: center;
-    margin-bottom: 5px; /* Espaçamento entre as linhas */
+/* Styles for the roadmap grid */
+.roadmap-grid-container {
+    display: grid;
+    /* Define o número de colunas (9) e o tamanho de cada uma */
+    grid-template-columns: repeat(9, min-content); 
+    /* Define o número de linhas (6) */
+    grid-template-rows: repeat(6, min-content); 
+    gap: 2px; /* Espaçamento entre os círculos */
+    justify-content: start; /* Alinha a grade à esquerda */
+    align-items: start; /* Alinha os itens ao topo */
+    padding: 5px;
+    border: 1px solid #333; /* Borda para o roadmap */
+    border-radius: 5px;
+    background-color: #1a1a1a; /* Fundo escuro para a grade */
+    max-width: fit-content; /* Ajusta a largura ao conteúdo */
+}
+
+/* Make sure the circle items fit well */
+.roadmap-grid-container > div {
+    width: 25px; /* Same as in get_resultado_html */
+    height: 25px;
+    box-sizing: border-box; /* Important for consistent sizing */
 }
 
 /* Ajuste para o texto dentro dos botões de resultado */
-.stButton > button[data-testid*="stButton-CASA"] div,
-.stButton > button[data-testid*="stButton-EMPATE"] div,
-.stButton > button[data-testid*="stButton-VISITANTE"] div {
+div.stButton > button[data-testid*="stButton-CASA"] div,
+div.stButton > button[data-testid*="stButton-EMPATE"] div,
+div.stButton > button[data-testid*="stButton-VISITANTE"] div {
     white-space: nowrap; /* Impede que o texto quebre em várias linhas */
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1060,47 +1086,35 @@ with col5:
         limpar_historico()
         st.rerun()
 
-# --- EXIBIÇÃO DO HISTÓRICO NO FORMATO DE LINHAS DA ESQUERDA PARA A DIREITA ---
+# --- EXIBIÇÃO DO HISTÓRICO NO FORMATO DE ROADMAP ---
 st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
 
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    # Parâmetros para a exibição em linhas
-    RESULTADOS_POR_LINHA = 9
-    NUM_LINHAS_MAX = 6 # Para limitar a 54 resultados no total
-    
-    # Cria um container para as linhas de resultados
-    # Adicionei um CSS .historic-results-grid para controlar o layout
-    st.markdown('<div class="historic-results-grid" style="display: flex; flex-direction: column;">', unsafe_allow_html=True)
-    
-    # Itera sobre o histórico e agrupa em linhas
-    for i in range(NUM_LINHAS_MAX):
-        start_index = i * RESULTADOS_POR_LINHA
-        end_index = start_index + RESULTADOS_POR_LINHA
-        
-        # Pega a fatia do histórico para a linha atual
-        # Lembre-se que st.session_state.historico está do mais recente para o mais antigo.
-        # Então, o fatiamento já garante a ordem correta para a exibição da esquerda para a direita.
-        current_line_results = st.session_state.historico[start_index:end_index]
-        
-        if not current_line_results and i == 0: # Não há resultados ainda
-            break
-        elif not current_line_results and i > 0: # Se uma linha é vazia e não é a primeira, já preenchemos tudo
-            break
+    NUM_LINHAS_ROADMAP = 6
+    NUM_COLUNAS_ROADMAP = 9
+    TOTAL_CELULAS = NUM_LINHAS_ROADMAP * NUM_COLUNAS_ROADMAP
 
-        # Cria uma linha de divs para cada resultado, mantendo o flexbox
-        st.markdown('<div class="historic-row">', unsafe_allow_html=True)
-        for res in current_line_results:
-            st.markdown(get_resultado_html(res), unsafe_allow_html=True)
-        
-        # Preenche com espaços vazios se a linha não estiver completa
-        for _ in range(RESULTADOS_POR_LINHA - len(current_line_results)):
-            st.markdown(get_resultado_html(''), unsafe_allow_html=True) # Círculo vazio
-        
-        st.markdown('</div>', unsafe_allow_html=True) # Fecha a linha
+    # A lista historico_reversed terá o resultado mais antigo na posição 0
+    # e o mais recente na última posição
+    historico_reversed = st.session_state.historico[::-1] 
+    
+    # Preenche uma lista 'grid_data' com os resultados na ordem correta para o roadmap
+    # Começa com os espaços vazios e adiciona os resultados no final
+    grid_data = [''] * (TOTAL_CELULAS - len(historico_reversed)) + historico_reversed
 
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha o grid principal
+    # Garante que não excedemos o número máximo de células
+    grid_data = grid_data[-TOTAL_CELULAS:]
+
+    # Inicia o container da grade CSS
+    st.markdown('<div class="roadmap-grid-container">', unsafe_allow_html=True)
+
+    # Itera sobre os dados da grade e renderiza cada célula
+    for resultado_cell in grid_data:
+        st.markdown(get_resultado_html(resultado_cell), unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha o container da grade
 
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True)
 
