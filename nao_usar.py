@@ -247,7 +247,7 @@ class AnalisePadroes:
         intervals = np.diff(empates)
         if len(intervals) >= 2:
             media_intervalo = np.mean(intervals)
-            # Um ciclo é mais forte se os intervalos são consistentes
+            # Um ciclo é mais forte se os intervalos são consistentemente
             return np.std(intervals) < 1.5 and 2 <= media_intervalo <= 7 # Intervalos médios entre 2 e 7 jogos
 
     def _padrao_martingale(self) -> bool:
@@ -804,21 +804,20 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # *** AJUSTES DE COLUNAS (TENTATIVA 4) ***
-    # Usando inline-block e tamanho fixo muito pequeno para cada item com !important
+    # *** AJUSTES DE COLUNAS (TENTATIVA 5) - FOCO NO !important E MEDIDAS ***
     return f"""
     <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')} !important; 
         color: {"black" if resultado == "E" else "white"} !important;
-        width: 28px !important; 
-        height: 28px !important; 
+        width: 28px !important; /* CRÍTICO: Força a largura */
+        height: 28px !important; /* CRÍTICO: Força a altura */
         border-radius: 50% !important; 
-        margin: 0px !important; /* CRÍTICO: remove toda a margem */
-        padding: 0px !important; /* CRÍTICO: remove todo o padding */
+        margin: 0px !important; /* CRÍTICO: Remove toda a margem */
+        padding: 0px !important; /* CRÍTICO: Remove todo o padding */
         display: inline-flex !important; /* Força inline-flex */
         align-items: center !important;
         justify-content: center !important;
-        font-size: 12px !important; /* Fonte reduzida */
+        font-size: 12px !important; /* Fonte reduzida para caber */
         box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
         flex-shrink: 0 !important; /* Impede que o item encolha */
         flex-grow: 0 !important; /* Impede que o item cresça */
@@ -971,7 +970,7 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** AJUSTES DE COLUNAS (TENTATIVA 4) *** */
+/* *** AJUSTES DE COLUNAS (TENTATIVA 5) *** */
 .historic-container {
     display: flex !important; /* Força o display flex */
     flex-wrap: nowrap !important; /* Força a não quebrar linha */
@@ -989,8 +988,8 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
     display: inline-flex !important; /* Melhor para o white-space: nowrap */
-    width: 28px !important; /* Mantém o tamanho pequeno */
-    height: 28px !important; /* Mantém o tamanho pequeno */
+    width: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
+    height: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
     border-radius: 50% !important; 
     margin: 0px !important; /* CRÍTICO: remove toda a margem */
     padding: 0px !important; /* CRÍTICO: remove todo o padding */
@@ -1001,6 +1000,8 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     flex-shrink: 0 !important; /* Impede que o item encolha */
     flex-grow: 0 !important; /* Impede que o item cresça */
     line-height: 1 !important; /* Garante que o texto não adicione altura extra */
+    /* Garante que o elemento se encaixe corretamente */
+    box-sizing: border-box !important; 
 }
 
 /* Ajustes para o layout do Streamlit em telas menores, se aplicável */
