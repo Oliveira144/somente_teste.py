@@ -800,34 +800,40 @@ def validar_sugestao(sugestao_obj, resultado_real):
         return False
 
 def get_resultado_html(resultado):
-    """Retorna HTML para visualização do resultado com letra correspondente"""
-    color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
+    """
+    Retorna HTML para visualização do resultado como uma bolinha colorida,
+    sem letras ou ícones dentro.
+    """
+    color_map = {
+        'C': '#FF4B4B',  # Vermelho para Casa
+        'F': '#4B4BFF',  # Azul para Visitante
+        'E': '#FFD700'   # Amarelo para Empate
+    }
     
-    # Cor do texto: preto para Empate (amarelo), branco para Casa (vermelho) e Fora (azul)
-    text_color = "black" if resultado == "E" else "white"
+    # A cor do texto será transparente para esconder a letra
+    text_color = "transparent"
 
     return f"""
     <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')} !important; 
-        color: {text_color} !important; /* Cor do texto ajustada */
-        width: 28px !important; /* CRÍTICO: Força a largura */
-        height: 28px !important; /* CRÍTICO: Força a altura */
+        color: {text_color} !important; /* Texto transparente */
+        width: 28px !important; 
+        height: 28px !important; 
         border-radius: 50% !important; 
-        margin: 2px !important; /* Pequena margem para espaçamento entre eles */
-        padding: 0px !important; /* Remove padding */
-        display: inline-flex !important; /* Mantém o inline-flex */
+        margin: 2px !important; 
+        padding: 0px !important; 
+        display: inline-flex !important; 
         align-items: center !important;
         justify-content: center !important;
-        font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
-        font-weight: bold !important; /* Negrito para as letras */
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
-        flex-shrink: 0 !important; /* Impede que o item encolha */
-        flex-grow: 0 !important; /* Impede que o item cresça */
-        line-height: 1 !important; /* Garante que o texto não adicione altura extra */
-        box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
+        font-size: 0px !important; /* CRÍTICO: Define o tamanho da fonte como 0 para esconder a letra */
+        font-weight: bold !important; 
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; 
+        flex-shrink: 0 !important; 
+        flex-grow: 0 !important; 
+        line-height: 1 !important; 
+        box-sizing: border-box !important; 
     '>
-        {resultado}
-    </div>
+        {resultado} </div>
     """
 
 def get_confianca_color(confianca):
@@ -973,38 +979,38 @@ div.stButton > button[data-testid="stButton-Limpar"] { /* Ajustado para remover 
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** AJUSTES DE COLUNAS (TENTATIVA 6) *** */
+/* *** AJUSTES DE COLUNAS DO HISTÓRICO *** */
 .historic-container {
     display: flex !important;
-    flex-wrap: wrap !important; /* AGORA O WRAP ESTÁ ATIVO */
+    flex-wrap: wrap !important;
     justify-content: flex-start !important;
     align-items: center !important;
     padding: 5px !important;
     border: 1px solid #eee !important;
     border-radius: 8px !important;
-    /* Adiciona uma largura máxima que possa acomodar 9 círculos + suas margens + alguma folga */
-    /* 9 * (28px de largura + 2*2px de margem) = 9 * 32px = 288px */
-    max-width: 298px !important; /* CRÍTICO: Força a largura para 9 elementos */
-    gap: 0px !important; /* Garante que não haja gap extra */
+    /* Calcula a largura máxima para 9 círculos: 9 * (28px largura + 2*2px margem) = 9 * 32px = 288px */
+    max-width: 298px !important; /* CRÍTICO: Força a largura para 9 elementos + pequena folga */
+    gap: 0px !important; 
+    background-color: #262730; /* Cor de fundo escura, como na imagem */
 }
 
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
-    display: inline-flex !important; /* Continua inline-flex */
-    width: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
-    height: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
+    display: inline-flex !important; 
+    width: 28px !important; 
+    height: 28px !important; 
     border-radius: 50% !important; 
-    margin: 2px !important; /* CRÍTICO: Pequena margem para espaçamento */
-    padding: 0px !important; /* CRÍTICO: Remove todo o padding */
+    margin: 2px !important; 
+    padding: 0px !important; 
     align-items: center !important;
     justify-content: center !important;
-    font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
-    font-weight: bold !important; /* Negrito para as letras */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
-    flex-shrink: 0 !important; /* Impede que o item encolha */
-    flex-grow: 0 !important; /* Impede que o item cresça */
-    line-height: 1 !important; /* Garante que o texto não adicione altura extra */
-    box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
+    font-size: 0px !important; /* CRÍTICO: Fonte 0px para esconder o texto */
+    font-weight: bold !important; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; 
+    flex-shrink: 0 !important; 
+    flex-grow: 0 !important; 
+    line-height: 1 !important; 
+    box-sizing: border-box !important; 
 }
 
 /* Ajustes para o layout do Streamlit em telas menores, se aplicável */
@@ -1027,7 +1033,7 @@ div.stButton > button[data-testid="stButton-Limpar"] { /* Ajustado para remover 
     .resultado-circulo {
         width: 28px !important; 
         height: 28px !important; 
-        font-size: 14px !important; /* Manteve o tamanho para as letras */
+        font-size: 0px !important; /* Garante que a letra continue invisível */
     }
     /* Garante que o contêiner se ajuste em telas menores, mas ainda permitindo 9 por linha se houver espaço */
     .historic-container {
@@ -1067,7 +1073,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("## ⚙️ Configurações")
     
-    # auto_suggest = st.checkbox("Sugestão Automática", value=True) # Removido, pois a sugestão é sempre exibida se a confiança for suficiente
     show_advanced = st.checkbox("Análise Avançada", value=True)
     confidence_threshold = st.slider("Limite de Confiança", 0, 100, 60)
 
