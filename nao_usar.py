@@ -642,8 +642,12 @@ class AnalisePadroes:
                         pontuacoes[self.historico[0]] += peso * 1.2
 
                 elif nome_padrao == "Padrão 4x4": # C C C C F F F F -> Sugere C (o tipo da primeira sequência de 4 para reiniciar o ciclo)
-                    if len(self.historico) >= 8 and self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and \
-                       self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7]:
+                    if len(self.historico) < 8: return False # Verifica o tamanho aqui também
+                    # Esta lógica já estava correta, apenas movi a verificação de tamanho para dentro da função.
+                    # As pontuações abaixo seriam aplicadas apenas se o padrão fosse detectado.
+                    if (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and # Quatro do mesmo
+                       self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7] and # Quatro do outro
+                       self.historico[0] != self.historico[4]):             # Os quartetos são de tipos diferentes
                         pontuacoes[self.historico[0]] += peso * 1.4
         
         # 2. Adicionar uma pontuação baseada na tendência mais recente (últimos 3-5 jogos)
@@ -800,20 +804,21 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
+    # Reduzi o tamanho do círculo para 30px e a fonte para 13px para caber 9 em linha
     return f"""
     <div style='
         display: flex; /* Usar flex para centralizar o conteúdo dentro do círculo */
-        width: 32px;
-        height: 32px; 
+        width: 30px; /* Levemente menor */
+        height: 30px; /* Levemente menor */
         border-radius: 50%; 
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 2px;
+        margin: 1px; /* Margem reduzida */
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 13px; /* Fonte levemente menor */
         color: {"black" if resultado == "E" else "white"};
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        flex-shrink: 0;
+        flex-shrink: 0; /* Garante que não vai encolher */
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -962,24 +967,27 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* Adicione um estilo para o contêiner de colunas do Streamlit, se necessário */
-.st-emotion-cache-1jmve3k { /* Ou o seletor gerado pelo Streamlit para as colunas */
+/* NOVO ESTILO PARA O CONTÊINER DO HISTÓRICO */
+.historic-container {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
+    justify-content: flex-start; /* Alinha os itens ao início */
     align-items: center;
+    gap: 0px; /* Ajusta o espaço entre os itens */
 }
 
 /* Estilo para o círculo do resultado */
+/* O estilo abaixo é redundante se você já aplica o estilo inline no get_resultado_html,
+   mas pode ser útil como fallback ou para ajustes finos globais. */
 .resultado-circulo {
-    display: inline-flex; /* ou flex */
-    width: 32px;
-    height: 32px; 
+    display: inline-flex;
+    width: 30px; /* Levemente menor */
+    height: 30px; /* Levemente menor */
     border-radius: 50%; 
-    margin: 2px; /* Margem entre os círculos */
+    margin: 1px; /* Margem reduzida */
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 13px; /* Fonte levemente menor */
     color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     flex-shrink: 0;
@@ -1135,17 +1143,15 @@ st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2><
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    # Agrupa os resultados em blocos de 9
-    resultados_agrupados = [st.session_state.historico[i:i + 9] for i in range(0, len(st.session_state.historico), 9)]
-
-    for linha_resultados in resultados_agrupados:
-        # Cria 9 colunas para cada linha
-        cols = st.columns(9)
-        for i, resultado in enumerate(linha_resultados):
-            with cols[i]:
-                # Usamos st.markdown para o HTML do círculo dentro de CADA COLUNA
-                st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
+    # Cria um contêiner flexível para todos os resultados do histórico
+    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
+    
+    # Renderiza todos os resultados em sequência. O CSS fará o agrupamento de 9 em 9
+    for resultado in st.session_state.historico:
+        st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
             
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha o contêiner flexível
+    
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
 
 
