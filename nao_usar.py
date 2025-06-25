@@ -804,12 +804,25 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # *** AJUSTES DE COLUNAS (TENTATIVA 3) ***
-    # Usando inline-block e tamanho fixo muito pequeno para cada item
+    # *** AJUSTES DE COLUNAS (TENTATIVA 4) ***
+    # Usando inline-block e tamanho fixo muito pequeno para cada item com !important
     return f"""
     <div class="resultado-circulo" style='
-        background-color: {color_map.get(resultado, 'gray')}; 
-        color: {"black" if resultado == "E" else "white"};
+        background-color: {color_map.get(resultado, 'gray')} !important; 
+        color: {"black" if resultado == "E" else "white"} !important;
+        width: 28px !important; 
+        height: 28px !important; 
+        border-radius: 50% !important; 
+        margin: 0px !important; /* CRÍTICO: remove toda a margem */
+        padding: 0px !important; /* CRÍTICO: remove todo o padding */
+        display: inline-flex !important; /* Força inline-flex */
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important; /* Fonte reduzida */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
+        flex-shrink: 0 !important; /* Impede que o item encolha */
+        flex-grow: 0 !important; /* Impede que o item cresça */
+        line-height: 1 !important; /* Garante que o texto não adicione altura extra */
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -958,34 +971,36 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** AJUSTES DE COLUNAS (TENTATIVA 3) *** */
+/* *** AJUSTES DE COLUNAS (TENTATIVA 4) *** */
 .historic-container {
-    display: flex;
-    flex-wrap: nowrap; /* Força a não quebrar linha */
-    justify-content: flex-start;
-    align-items: center;
-    overflow-x: auto; /* Adiciona barra de rolagem se não couber */
-    white-space: nowrap; /* Ajuda a manter inline-block na mesma linha */
-    padding: 5px; /* Pequeno padding para rolagem não colar na borda */
-    border: 1px solid #eee; /* Borda leve para visualização do container */
-    border-radius: 8px;
-    gap: 0px; /* Garante que não há gap entre os flex items */
-    min-width: 260px; /* Tenta garantir espaço para 9x28px + folga */
+    display: flex !important; /* Força o display flex */
+    flex-wrap: nowrap !important; /* Força a não quebrar linha */
+    justify-content: flex-start !important;
+    align-items: center !important;
+    overflow-x: auto !important; /* Adiciona barra de rolagem se não couber */
+    white-space: nowrap !important; /* Ajuda a manter inline-block na mesma linha */
+    padding: 5px !important; /* Pequeno padding para rolagem não colar na borda */
+    border: 1px solid #eee !important; /* Borda leve para visualização do container */
+    border-radius: 8px !important;
+    gap: 0px !important; /* Garante que não há gap entre os flex items */
+    min-width: 260px !important; /* Tenta garantir espaço para 9x28px + folga */
 }
 
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
-    display: inline-flex; /* Melhor para o white-space: nowrap */
-    width: 28px; /* Mantém o tamanho pequeno */
-    height: 28px; /* Mantém o tamanho pequeno */
-    border-radius: 50%; 
-    margin: 0px; /* CRÍTICO: remove toda a margem */
-    align-items: center;
-    justify-content: center;
-    font-size: 12px; /* Fonte reduzida */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Sombra suave */
-    flex-shrink: 0; /* Impede que o item encolha */
-    flex-grow: 0; /* Impede que o item cresça */
+    display: inline-flex !important; /* Melhor para o white-space: nowrap */
+    width: 28px !important; /* Mantém o tamanho pequeno */
+    height: 28px !important; /* Mantém o tamanho pequeno */
+    border-radius: 50% !important; 
+    margin: 0px !important; /* CRÍTICO: remove toda a margem */
+    padding: 0px !important; /* CRÍTICO: remove todo o padding */
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important; /* Fonte reduzida */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
+    flex-shrink: 0 !important; /* Impede que o item encolha */
+    flex-grow: 0 !important; /* Impede que o item cresça */
+    line-height: 1 !important; /* Garante que o texto não adicione altura extra */
 }
 
 /* Ajustes para o layout do Streamlit em telas menores, se aplicável */
@@ -1003,6 +1018,12 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     div.stButton > button:first-child {
         font-size: 14px;
         padding: 10px 20px;
+    }
+    /* Força os círculos a se manterem minúsculos mesmo em telas pequenas */
+    .resultado-circulo {
+        width: 28px !important; 
+        height: 28px !important; 
+        font-size: 12px !important; 
     }
 }
 
