@@ -714,13 +714,17 @@ def desfazer_ultimo():
              del st.session_state.ultima_sugestao
 
 def get_resultado_html(resultado):
-    """Retorna apenas uma bolinha colorida com base no resultado"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
 
     return f"""
     <div class='roadmap-item' style='
         background-color: {color_map.get(resultado, 'gray')} !important;
-        color: transparent !important;
+        width: 25px !important;
+        height: 25px !important;
+        border-radius: 50% !important;
+        display: inline-block !important;
+        margin: 2px !important;
+        border: 1px solid #ccc !important;
     '>
     </div>
     """
