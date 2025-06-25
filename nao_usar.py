@@ -9,7 +9,7 @@ import pandas as pd
 class AnalisePadroes:
     def __init__(self, historico):
         # Limita o histórico para análise, sempre os 54 mais recentes
-        self.historico = historico[:54]
+        self.historico = historico[:54] # Máximo de 54 resultados para o roadmap
         
         self.padroes_ativos = {
             # Padrões básicos existentes
@@ -488,7 +488,7 @@ class AnalisePadroes:
             if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and # Expansão (4 iguais)
                 self.historico[i+4] != self.historico[i] and # Quebra
                 self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and # Contração (3 iguais)
-                self.historico[i+5] != self.historico[i+4]): # O novo bloco é diferente do último singular
+                self.historico[i+5] == self.historico[i+4]): # A nova estabilidade é do tipo da quebra
                 return True
         return False
 
@@ -557,10 +557,12 @@ class AnalisePadroes:
                 return True
         
         # Verifica se o último empate foi há muito tempo (mais de 15 jogos) e agora um novo empate ocorreu
-        if empates_indices and empates_indices[0] > 15: # O primeiro empate do histórico é o mais recente
-             # Se o último empate conhecido foi há mais de 15 jogos atrás e um novo empate ocorreu
-            return True # Assume que é a "reaparição"
-
+        # Note: self.historico[0] é o mais recente. indices são em ordem crescente, então empates_indices[0] é o mais antigo no histórico exibido.
+        # Queremos saber se o *intervalo* até o empate mais recente (que é historico[0] se for um E) foi grande.
+        # Isso é mais bem abordado pelo calculo de `intervals` e a verificação do último intervalo.
+        if len(intervals) > 0 and intervals[0] > 15: # Se o intervalo até o empate mais recente é grande
+             return True # Pode indicar um reaparecimento
+        
         return False
 
     def calcular_frequencias(self):
@@ -779,7 +781,7 @@ def adicionar_resultado(resultado):
         del st.session_state.ultima_sugestao
 
     st.session_state.historico.insert(0, resultado) # Adiciona no início (mais recente)
-    if len(st.session_state.historico) > 54: # Limita a 54 resultados
+    if len(st.session_state.historico) > 54: # Limita a 54 resultados (9 colunas x 6 linhas)
         st.session_state.historico = st.session_state.historico[:54]
     st.session_state.estatisticas['total_jogos'] += 1
 
@@ -815,24 +817,28 @@ def desfazer_ultimo():
 def get_resultado_html(resultado):
     """Retorna HTML para visualização do resultado com cores e símbolos"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'} # Vermelho, Azul, Amarelo
-    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'}
+    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'} # Símbolos simples, se quiser mais próximos dos da imagem (C e V em círculo)
+                                               # Pode usar ícones de imagem ou CSS mais complexo
     
+    # Para se parecer mais com a imagem, os símbolos podem ser substituídos por círculos vazios
+    # e apenas a cor do background ser usada, ou um ponto central.
+    
+    # Exemplo para se parecer mais com a imagem, apenas a cor:
     return f"""
-    <span style='
-        display: inline-block; 
-        width: 30px; 
-        height: 30px; 
+    <div style='
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 25px; /* Tamanho do círculo */
+        height: 25px;
         border-radius: 50%; 
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 2px; 
-        text-align: center; 
-        line-height: 30px; 
+        margin: 2px; /* Espaçamento entre os círculos */
         font-size: 14px;
         color: {"black" if resultado == "E" else "white"};
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.3); /* Borda sutil */
     '>
-        {symbol_map.get(resultado, '?')}
-    </span>
+        {"E" if resultado == "E" else ""} </div>
     """
 
 def get_confianca_color(confianca):
@@ -984,7 +990,31 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
     border-radius: 10px;
     margin: 1rem 0;
     border: 1px solid #dee2e6;
+    display: flex; /* Para roadmap */
+    overflow-x: auto; /* Permite rolagem horizontal se muitas colunas */
+    scroll-behavior: smooth;
+    padding-bottom: 10px; /* Espaço para barra de rolagem */
 }
+
+.historic-column {
+    display: flex;
+    flex-direction: column; /* Resultados em coluna */
+    align-items: center;
+    margin: 0 2px; /* Espaçamento entre colunas */
+}
+.historic-column div {
+    margin-bottom: 2px; /* Espaçamento entre itens na coluna */
+}
+
+/* Ajuste para o texto dentro dos botões de resultado */
+.stButton > button[data-testid*="stButton-CASA"] div,
+.stButton > button[data-testid*="stButton-EMPATE"] div,
+.stButton > button[data-testid*="stButton-VISITANTE"] div {
+    white-space: nowrap; /* Impede que o texto quebre em várias linhas */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1050,21 +1080,91 @@ with col5:
         limpar_historico()
         st.rerun()
 
-# --- EXIBIÇÃO DO HISTÓRICO ---
+# --- EXIBIÇÃO DO HISTÓRICO NO FORMATO ROADMAP ---
 st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
 
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
+    # Parâmetros para o roadmap
+    NUM_LINHAS_ROADMAP = 6 # Fixado em 6 linhas como no placar
+    MAX_COLUNAS_ROADMAP = 9 # Para um total de 54 resultados (9 colunas * 6 linhas)
+    
+    # Preparar os dados para exibição no formato de colunas
+    # O histórico está em ordem inversa (mais recente no índice 0)
+    # Precisamos preencher as colunas do mais novo para o mais antigo, de cima para baixo
+    
+    # Preenche um grid com None para os espaços vazios
+    grid_resultados = [['' for _ in range(MAX_COLUNAS_ROADMAP)] for _ in range(NUM_LINHAS_ROADMAP)]
+    
+    col_idx = 0
+    row_idx = 0
+    
+    # Percorre o histórico e preenche a grid, simulando o preenchimento do roadmap
+    for i, res in enumerate(st.session_state.historico):
+        if row_idx >= NUM_LINHAS_ROADMAP:
+            # Se a coluna está cheia, move para a próxima coluna
+            col_idx += 1
+            row_idx = 0 # Reinicia a linha
+            # Se chegamos ao fim das colunas visíveis, paramos
+            if col_idx >= MAX_COLUNAS_ROADMAP:
+                break
+        
+        grid_resultados[row_idx][col_idx] = res
+        row_idx += 1
+    
+    # Inverte as colunas para que as mais recentes fiquem à esquerda na exibição
+    # A imagem mostra os resultados mais recentes nas colunas da esquerda,
+    # e os mais antigos nas colunas da direita, com as colunas sendo preenchidas de cima para baixo.
+    # Nossa lógica preenche da esquerda para a direita, de cima para baixo,
+    # então precisamos inverter as colunas para a exibição.
+    
+    # Se você quiser que o placar "empurre" da direita para a esquerda:
+    # A maneira mais fácil de simular é criar as colunas da direita para a esquerda
+    # no HTML, ou renderizar o grid invertido.
+    
+    # Para o formato da imagem (mais recente à esquerda, preenchido de cima para baixo)
+    # A lista `st.session_state.historico` já está do mais recente (índice 0) para o mais antigo.
+    # O preenchimento da grid deve simular a rolagem para a esquerda.
+    
+    # Crio um container flex para as colunas
     st.markdown('<div class="historic-container">', unsafe_allow_html=True)
     
-    historico_html = ""
-    for i, resultado in enumerate(st.session_state.historico):
-        historico_html += get_resultado_html(resultado)
-        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico): # 9 resultados por linha
-            historico_html += "<br>"
+    # As colunas mais recentes ficam à esquerda.
+    # Itero de MAX_COLUNAS_ROADMAP - 1 até 0 para exibir da direita para a esquerda,
+    # mas os resultados são do mais recente (índice 0) para o mais antigo.
+    # Isso significa que a primeira coluna exibida (mais à esquerda) deve conter
+    # os resultados mais recentes.
     
-    st.markdown(historico_html, unsafe_allow_html=True)
+    # Vamos re-pensar o preenchimento para ser mais direto com o visual:
+    # Imagine o histórico como uma fila. O item 0 é o mais recente.
+    # A primeira coluna (mais à esquerda) do roadmap deve conter os itens 0, 1, 2, 3, 4, 5.
+    # A segunda coluna deve conter 6, 7, 8, 9, 10, 11, e assim por diante.
+    
+    roadmap_columns = [[] for _ in range(MAX_COLUNAS_ROADMAP)]
+    
+    for i, res in enumerate(st.session_state.historico):
+        col = i // NUM_LINHAS_ROADMAP # Qual coluna este resultado pertence
+        row = i % NUM_LINHAS_ROADMAP # Qual linha dentro da coluna
+        
+        if col < MAX_COLUNAS_ROADMAP: # Garante que não excede o número de colunas
+            roadmap_columns[col].append(res)
+    
+    # Renderiza as colunas da esquerda para a direita (mais recentes para os mais antigos visíveis)
+    for col_data in roadmap_columns:
+        if not col_data: # Não renderiza colunas vazias
+            continue
+        
+        st.markdown('<div class="historic-column">', unsafe_allow_html=True)
+        for res in col_data:
+            st.markdown(get_resultado_html(res), unsafe_allow_html=True)
+        # Preenche os espaços vazios na coluna se ela não estiver cheia (6 resultados)
+        for _ in range(NUM_LINHAS_ROADMAP - len(col_data)):
+            st.markdown(get_resultado_html(''), unsafe_allow_html=True) # Renderiza um círculo vazio
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha historic-container
+    
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1209,7 +1309,7 @@ else:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
-    <p>⚽ Football Studio Live Analyzer v2.1 | Análise Inteligente de Padrões</p>
+    <p>⚽ Football Studio Live Analyzer v2.2 | Análise Inteligente de Padrões</p>
     <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
 </div>
 """, unsafe_allow_html=True)
