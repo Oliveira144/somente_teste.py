@@ -873,18 +873,17 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
 /* Styles for the roadmap grid - APLICAR AO CONTAINER PAI */
 .roadmap-grid-container {
     display: grid !important;
-    grid-template-columns: repeat(9, 28px) !important; /* Ajustado para 9 colunas de 28px */
-    gap: 2px !important; /* Espaçamento entre os círculos */
+    grid-template-columns: repeat(9, 28px) !important; /* 9 colunas fixas */
+    gap: 4px !important;
     justify-content: start !important;
     align-items: start !important;
     padding: 5px !important;
     border: 1px solid #333 !important;
     border-radius: 5px !important;
     background-color: #1a1a1a !important;
-    max-width: fit-content !important; /* Ajusta a largura ao conteúdo */
-    overflow-x: hidden !important; /* Garante que não haja scroll horizontal */
+    width: fit-content !important;
+    max-width: 100% !important;
 }
-
 /* Styles for each roadmap item (the circles) */
 .roadmap-item {
     display: flex !important;
