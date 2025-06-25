@@ -455,7 +455,7 @@ class AnalisePadroes:
         else: 
             return "Sem tendência clara"
 
-    def gerar_sugestao(self) -> dict:
+    def gerar_sugestao(self) -> dict: # CORRIGIDO: Nome do método de 'generar_sugestao' para 'gerar_sugestao'
         """
         Gera uma sugestão de próximo resultado com base nos padrões ativos e seus pesos,
         além de considerar a tendência mais recente.
@@ -475,7 +475,7 @@ class AnalisePadroes:
         last_result = self._get_last_result()
         second_last_result = self._get_second_last_result()
         
-        motives_sugestao = [] # Corrigido de 'motivos_sugestao' para 'motives_sugestao' para consistência
+        motives_sugestao = []
         total_peso_padroes = 0.0
         
         for nome_padrao, ativo in padroes_ativos.items():
@@ -520,7 +520,6 @@ class AnalisePadroes:
                         
                 elif nome_padrao == "Espelho":
                     # Se há um espelho (e.g., C F E F C), o próximo seria a 'continuação' do espelho.
-                    # Se o último foi C, o próximo seria F para espelhar C. Mas geralmente espelho é para prever o centro.
                     # Para simplificar, pode-se sugerir o oposto do último para manter a simetria ou o próximo do "espelho"
                     if last_result == 'C': pontuacoes['F'] += peso * 0.7
                     elif last_result == 'F': pontuacoes['C'] += peso * 0.7
@@ -742,10 +741,13 @@ def log_message(type, message):
 
 def adicionar_resultado(resultado):
     """Adiciona novo resultado ao histórico e valida a sugestão anterior."""
-    if st.session_state.get('ultima_sugestao'):
-        # Valida a sugestão anterior antes de adicionar o novo resultado
+    # Valida a sugestão anterior ANTES de adicionar o novo resultado ao histórico principal.
+    # Isso garante que a validação usa o estado do histórico anterior ao novo jogo.
+    if st.session_state.get('ultima_sugestao') and st.session_state.get('sugestao_processada'):
+        # A sugestão só é validada se foi gerada na rodada anterior
         validar_sugestao(st.session_state.ultima_sugestao, resultado)
-        # Limpa a última sugestão depois de validá-la
+        # Limpa a flag e a sugestão após a validação
+        st.session_state.sugestao_processada = False
         st.session_state.ultima_sugestao = None
     
     st.session_state.historico.insert(0, resultado) # Adiciona no início
@@ -765,6 +767,7 @@ def limpar_historico():
         'ultima_sugestao': None
     }
     st.session_state.log_messages = []
+    st.session_state.sugestao_processada = False # Reseta a flag
     log_message("info", "Histórico e estatísticas limpos.")
 
 
@@ -772,10 +775,10 @@ def desfazer_ultimo():
     """Remove o último resultado e ajusta as estatísticas."""
     if st.session_state.historico:
         removed_result = st.session_state.historico.pop(0)
-        # Se você quiser desfazer a contagem de acertos/erros também, a lógica seria mais complexa.
-        # Por simplicidade, apenas ajustamos o total de jogos.
+        # Ao desfazer, também zera a sugestão para evitar validação de um jogo que não existe mais.
+        st.session_state.ultima_sugestao = None
+        st.session_state.sugestao_processada = False
         st.session_state.estatisticas['total_jogos'] = len(st.session_state.historico)
-        st.session_state.ultima_sugestao = None # Reseta a sugestão para evitar validação incorreta
         log_message("info", f"Último resultado '{removed_result}' desfeito. Histórico ajustado.")
     else:
         log_message("warn", "Tentativa de desfazer com histórico vazio.")
@@ -1044,19 +1047,16 @@ col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     if st.button("🏠 Casa (C)", key="CasaC", use_container_width=True, help="Vitória da Casa"):
         adicionar_resultado('C')
-        st.session_state.ultima_sugestao = None # Limpa a sugestão após adicionar o resultado
         st.rerun()
 
 with col2:
     if st.button("✈️ Visitante (F)", key="VisitanteF", use_container_width=True, help="Vitória do Visitante"):
         adicionar_resultado('F')
-        st.session_state.ultima_sugestao = None
         st.rerun()
 
 with col3:
     if st.button("⚖️ Empate (E)", key="EmpateE", use_container_width=True, help="Empate"):
         adicionar_resultado('E')
-        st.session_state.ultima_sugestao = None
         st.rerun()
 
 with col4:
@@ -1077,11 +1077,13 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
         analyzer = AnalisePadroes(st.session_state.historico)
         log_message("info", "Objeto AnalisePadroes criado com histórico atual.")
         
-        sugestao = analyzer.generar_sugestao()
+        # Gera a sugestão
+        sugestao = analyzer.gerar_sugestao() # CORRIGIDO: Chamando o método com o nome correto
         log_message("info", f"Sugestão gerada: {sugestao['entrada_codigo']} (Confiança: {sugestao['confianca']}%)")
         
-        # Armazena a sugestão para validação futura
+        # Armazena a sugestão e define uma flag para que ela seja processada na próxima adição de resultado
         st.session_state.ultima_sugestao = sugestao
+        st.session_state.sugestao_processada = True # Flag para indicar que uma sugestão foi gerada e aguarda validação
 
         if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
             confianca_color = get_confianca_color(sugestao['confianca'])
@@ -1114,7 +1116,7 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
                     if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
                         st.write("**Análise por Categoria de Padrões:**")
                         for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                            st.write(f"**{categoria}:** {', '.join(padroes_list)}")
+                            st.write(f"**{categoria}:** {', '.join(padrores_list)}")
                     else:
                         st.info("Nenhuma análise detalhada de categorias de padrões disponível.")
                     
