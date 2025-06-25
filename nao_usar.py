@@ -804,21 +804,12 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # *** AINDA MENOR E SEM MARGEM ***
+    # *** AJUSTES DE COLUNAS (TENTATIVA 3) ***
+    # Usando inline-block e tamanho fixo muito pequeno para cada item
     return f"""
-    <div style='
-        display: flex; 
-        width: 28px; /* Reduzido para 28px */
-        height: 28px; /* Reduzido para 28px */
-        border-radius: 50%; 
+    <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 0px; /* Margem removida */
-        align-items: center;
-        justify-content: center;
-        font-size: 12px; /* Fonte reduzida para 12px */
         color: {"black" if resultado == "E" else "white"};
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Sombra mais suave */
-        flex-shrink: 0; 
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -967,32 +958,52 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** NOVO ESTILO PARA O CONTÊINER DO HISTÓRICO *** */
+/* *** AJUSTES DE COLUNAS (TENTATIVA 3) *** */
 .historic-container {
     display: flex;
-    flex-wrap: wrap; 
+    flex-wrap: nowrap; /* Força a não quebrar linha */
     justify-content: flex-start;
     align-items: center;
-    /* Adicionado flex-basis para tentar forçar uma largura para cada grupo de 9 */
-    /* flex-basis: calc(9 * 28px + 0 * 8px); /* 9 itens * 28px + 8px de gap (se tivesse) */
-    /* width: calc(9 * 28px); /* Tenta uma largura fixa para o container */
     overflow-x: auto; /* Adiciona barra de rolagem se não couber */
-    white-space: nowrap; /* Tenta manter tudo na mesma linha */
+    white-space: nowrap; /* Ajuda a manter inline-block na mesma linha */
+    padding: 5px; /* Pequeno padding para rolagem não colar na borda */
+    border: 1px solid #eee; /* Borda leve para visualização do container */
+    border-radius: 8px;
+    gap: 0px; /* Garante que não há gap entre os flex items */
+    min-width: 260px; /* Tenta garantir espaço para 9x28px + folga */
 }
 
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
-    display: inline-flex; /* Alterado para inline-flex para melhor controle com white-space: nowrap */
-    width: 28px; 
-    height: 28px; 
+    display: inline-flex; /* Melhor para o white-space: nowrap */
+    width: 28px; /* Mantém o tamanho pequeno */
+    height: 28px; /* Mantém o tamanho pequeno */
     border-radius: 50%; 
-    margin: 0px; /* Margem removida */
+    margin: 0px; /* CRÍTICO: remove toda a margem */
     align-items: center;
     justify-content: center;
-    font-size: 12px; 
-    color: white;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    flex-shrink: 0; /* Garante que não vai encolher */
+    font-size: 12px; /* Fonte reduzida */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Sombra suave */
+    flex-shrink: 0; /* Impede que o item encolha */
+    flex-grow: 0; /* Impede que o item cresça */
+}
+
+/* Ajustes para o layout do Streamlit em telas menores, se aplicável */
+@media (max-width: 768px) {
+    .main-header h1 {
+        font-size: 2rem;
+    }
+    .main-header p {
+        font-size: 1rem;
+    }
+    .metric-card {
+        padding: 1rem;
+    }
+    /* Pode ser necessário ajustar o tamanho dos botões em telas muito pequenas */
+    div.stButton > button:first-child {
+        font-size: 14px;
+        padding: 10px 20px;
+    }
 }
 
 </style>
