@@ -14,15 +14,15 @@ class AnalisePadroes:
     def __init__(self, historico: list):
         """
         Inicializa a classe com um histórico de resultados.
-        O histórico é truncado para os últimos 54 jogos para foco na análise recente.
+        O histórico é truncado para os últimos 50 jogos para foco na análise recente.
 
         Args:
             historico (list): Uma lista de strings representando os resultados dos jogos.
                                Ex: ['C', 'F', 'E', 'C', 'C']
         """
-        # Limita o histórico aos últimos 54 jogos para análise.
+        # Limita o histórico aos últimos 50 jogos para análise.
         # Assume que o histórico está sempre com o mais recente primeiro (insert(0))
-        self.historico = historico[:54] if len(historico) > 54 else historico[:]
+        self.historico = historico[:50] if len(historico) > 50 else historico[:]
 
         self.padroes_ativos_map = {
             # Padrões Básicos
@@ -755,8 +755,8 @@ def adicionar_resultado(resultado):
         st.session_state.ultima_sugestao = None
     
     st.session_state.historico.insert(0, resultado) # Adiciona no início
-    if len(st.session_state.historico) > 54: # ALTERADO PARA 54
-        st.session_state.historico = st.session_state.historico[:54] # ALTERADO PARA 54
+    if len(st.session_state.historico) > 50:
+        st.session_state.historico = st.session_state.historico[:50]
     st.session_state.estatisticas['total_jogos'] = len(st.session_state.historico) # Atualiza total de jogos
     log_message("info", f"Resultado '{resultado}' adicionado. Histórico atualizado.")
 
@@ -800,42 +800,34 @@ def validar_sugestao(sugestao_obj, resultado_real):
         return False
 
 def get_resultado_html(resultado):
-    """
-    Retorna HTML para visualização do resultado como uma bolinha colorida,
-    sem letras ou ícones dentro. Adicionado um contorno para debug visual.
-    """
-    color_map = {
-        'C': '#FF4B4B',  # Vermelho para Casa
-        'F': '#4B4BFF',  # Azul para Visitante
-        'E': '#FFD700'   # Amarelo para Empate
-    }
+    """Retorna HTML para visualização do resultado com letra correspondente"""
+    color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     
-    # A cor do texto será transparente para esconder a letra
-    text_color = "transparent"
+    # Cor do texto: preto para Empate (amarelo), branco para Casa (vermelho) e Fora (azul)
+    text_color = "black" if resultado == "E" else "white"
 
     return f"""
     <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')} !important; 
-        color: {text_color} !important; /* Texto transparente */
-        width: 28px !important; 
-        height: 28px !important; 
+        color: {text_color} !important; /* Cor do texto ajustada */
+        width: 28px !important; /* CRÍTICO: Força a largura */
+        height: 28px !important; /* CRÍTICO: Força a altura */
         border-radius: 50% !important; 
-        margin: 2px !important; 
-        padding: 0px !important; 
-        display: inline-flex !important; 
+        margin: 2px !important; /* Pequena margem para espaçamento entre eles */
+        padding: 0px !important; /* Remove padding */
+        display: inline-flex !important; /* Mantém o inline-flex */
         align-items: center !important;
         justify-content: center !important;
-        font-size: 0px !important; /* CRÍTICO: Define o tamanho da fonte como 0 para esconder a letra */
-        font-weight: bold !important; 
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; 
-        flex-shrink: 0 !important; 
-        flex-grow: 0 !important; 
-        line-height: 1 !important; 
-        box-sizing: border-box !important; 
-        /* ADIÇÃO PARA DEBUG: Contorno para garantir que a bolinha está lá */
-        border: 1px solid rgba(255, 255, 255, 0.3) !important; 
+        font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
+        font-weight: bold !important; /* Negrito para as letras */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
+        flex-shrink: 0 !important; /* Impede que o item encolha */
+        flex-grow: 0 !important; /* Impede que o item cresça */
+        line-height: 1 !important; /* Garante que o texto não adicione altura extra */
+        box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
     '>
-        {resultado} </div>
+        {resultado}
+    </div>
     """
 
 def get_confianca_color(confianca):
@@ -902,21 +894,21 @@ div.stButton > button:first-child:hover {
 }
 
 /* Botões específicos */
-div.stButton > button[data-testid="stButton-Casa (C)"] {
+div.stButton > button[data-testid="stButton-Casa (C)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #FF6B6B, #FF4B4B);
 }
 
-div.stButton > button[data-testid="stButton-Visitante (F)"] {
+div.stButton > button[data-testid="stButton-Visitante (F)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #4ECDC4, #4B4BFF);
 }
 
-div.stButton > button[data-testid="stButton-Empate (E)"] {
+div.stButton > button[data-testid="stButton-Empate (E)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #FFE66D, #FFD700);
     color: black;
 }
 
-div.stButton > button[data-testid="stButton-Desfazer"],
-div.stButton > button[data-testid="stButton-Limpar"] {
+div.stButton > button[data-testid="stButton-Desfazer"], /* Ajustado para remover símbolo */
+div.stButton > button[data-testid="stButton-Limpar"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #95A5A6, #7F8C8D);
 }
 
@@ -981,42 +973,38 @@ div.stButton > button[data-testid="stButton-Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** AJUSTES DE COLUNAS DO HISTÓRICO *** */
+/* *** AJUSTES DE COLUNAS (TENTATIVA 6) *** */
 .historic-container {
     display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: flex-start !important; /* Alinhar à esquerda */
+    flex-wrap: wrap !important; /* AGORA O WRAP ESTÁ ATIVO */
+    justify-content: flex-start !important;
     align-items: center !important;
     padding: 5px !important;
     border: 1px solid #eee !important;
     border-radius: 8px !important;
-    /* Calcula a largura máxima para 9 círculos: 9 * (28px largura + 2*2px margem) = 9 * 32px = 288px */
-    max-width: 298px !important; /* CRÍTICO: Força a largura para 9 elementos + pequena folga */
-    min-height: 100px !important; /* ADIÇÃO: Garante uma altura mínima para o contêiner */
-    gap: 0px !important; 
-    background-color: #262730; /* Cor de fundo escura, como na imagem */
-    overflow-y: auto !important; /* ADIÇÃO: Permite rolagem se o conteúdo exceder a altura */
+    /* Adiciona uma largura máxima que possa acomodar 9 círculos + suas margens + alguma folga */
+    /* 9 * (28px de largura + 2*2px de margem) = 9 * 32px = 288px */
+    max-width: 298px !important; /* 288px + 10px de folga ou padding */
+    gap: 0px !important; /* Garante que não haja gap extra */
 }
 
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
-    display: inline-flex !important; 
-    width: 28px !important; 
-    height: 28px !important; 
+    display: inline-flex !important; /* Continua inline-flex */
+    width: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
+    height: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
     border-radius: 50% !important; 
-    margin: 2px !important; /* Mantém a margem de 2px em todos os lados */
-    padding: 0px !important; 
+    margin: 2px !important; /* CRÍTICO: Pequena margem para espaçamento */
+    padding: 0px !important; /* CRÍTICO: Remove todo o padding */
     align-items: center !important;
     justify-content: center !important;
-    font-size: 0px !important; /* CRÍTICO: Fonte 0px para esconder o texto */
-    font-weight: bold !important; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; 
-    flex-shrink: 0 !important; 
-    flex-grow: 0 !important; 
-    line-height: 1 !important; 
-    box-sizing: border-box !important; 
-    /* ADIÇÃO PARA DEBUG: Contorno para garantir que a bolinha está lá. Pode remover depois. */
-    border: 1px solid rgba(255, 255, 255, 0.3) !important; 
+    font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
+    font-weight: bold !important; /* Negrito para as letras */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
+    flex-shrink: 0 !important; /* Impede que o item encolha */
+    flex-grow: 0 !important; /* Impede que o item cresça */
+    line-height: 1 !important; /* Garante que o texto não adicione altura extra */
+    box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
 }
 
 /* Ajustes para o layout do Streamlit em telas menores, se aplicável */
@@ -1039,13 +1027,12 @@ div.stButton > button[data-testid="stButton-Limpar"] {
     .resultado-circulo {
         width: 28px !important; 
         height: 28px !important; 
-        font-size: 0px !important; /* Garante que a letra continue invisível */
+        font-size: 14px !important; /* Manteve o tamanho para as letras */
     }
     /* Garante que o contêiner se ajuste em telas menores, mas ainda permitindo 9 por linha se houver espaço */
     .historic-container {
         max-width: unset !important; /* Remove max-width em telas pequenas para se ajustar melhor */
         width: 100% !important; /* Ocupa toda a largura disponível */
-        justify-content: center !important; /* Centraliza as bolinhas em telas menores */
     }
 }
 
@@ -1071,7 +1058,7 @@ with st.sidebar:
     if total_jogos > 0:
         taxa_acerto = (acertos / total_jogos) * 100
         st.metric("Total de Jogos", total_jogos)
-        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f} %")
+        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f}%")
         st.metric("Acertos", acertos)
         st.metric("Erros", erros)
     else:
@@ -1080,6 +1067,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("## ⚙️ Configurações")
     
+    # auto_suggest = st.checkbox("Sugestão Automática", value=True) # Removido, pois a sugestão é sempre exibida se a confiança for suficiente
     show_advanced = st.checkbox("Análise Avançada", value=True)
     confidence_threshold = st.slider("Limite de Confiança", 0, 100, 60)
 
@@ -1100,27 +1088,27 @@ st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2>
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    if st.button("Casa (C)", key="CasaC", use_container_width=True, help="Vitória da Casa"):
+    if st.button("Casa (C)", key="CasaC", use_container_width=True, help="Vitória da Casa"): # Texto do botão atualizado
         adicionar_resultado('C')
         st.rerun()
 
 with col2:
-    if st.button("Visitante (F)", key="VisitanteF", use_container_width=True, help="Vitória do Visitante"):
+    if st.button("Visitante (F)", key="VisitanteF", use_container_width=True, help="Vitória do Visitante"): # Texto do botão atualizado
         adicionar_resultado('F')
         st.rerun()
 
 with col3:
-    if st.button("Empate (E)", key="EmpateE", use_container_width=True, help="Empate"):
+    if st.button("Empate (E)", key="EmpateE", use_container_width=True, help="Empate"): # Texto do botão atualizado
         adicionar_resultado('E')
         st.rerun()
 
 with col4:
-    if st.button("Desfazer", key="Desfazer", use_container_width=True, help="Desfazer último resultado"):
+    if st.button("Desfazer", key="Desfazer", use_container_width=True, help="Desfazer último resultado"): # Texto do botão atualizado
         desfazer_ultimo()
         st.rerun()
 
 with col5:
-    if st.button("Limpar", key="Limpar", use_container_width=True, help="Limpar todo o histórico"):
+    if st.button("Limpar", key="Limpar", use_container_width=True, help="Limpar todo o histórico"): # Texto do botão atualizado
         limpar_historico()
         st.rerun()
 
@@ -1133,7 +1121,7 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
         log_message("info", "Objeto AnalisePadroes criado com histórico atual.")
         
         # Gera a sugestão
-        sugestao = analyzer.gerar_sugestao()
+        sugestao = analyzer.gerar_sugestao() # Chamando o método com o nome correto
         log_message("info", f"Sugestão gerada: {sugestao['entrada_codigo']} (Confiança: {sugestao['confianca']}%)")
         
         # Armazena a sugestão e define uma flag para que ela seja processada na próxima adição de resultado
@@ -1207,8 +1195,47 @@ else:
             
     st.markdown('</div>', unsafe_allow_html=True) # Fecha o contêiner flexível
     
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True)
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
 
+
+# --- ANÁLISE DE PADRÕES (DETALHADA) - SÓ SE show_advanced ESTIVER ATIVO ---
+if show_advanced and len(st.session_state.historico) >= 5:
+    try:
+        analyzer = AnalisePadroes(st.session_state.historico) # Recria o analyzer para esta seção, se necessário
+        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Todos)</h2></div>', unsafe_allow_html=True)
+        
+        padroes_encontrados = analyzer.analisar_todos()
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.markdown("### ✅ Padrões Ativos")
+            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+            
+            if encontrados:
+                for padrao in encontrados:
+                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+            else:
+                st.info("Nenhum padrão detectado no histórico atual.")
+        
+        with col_right:
+            st.markdown("### ❌ Padrões Inativos")
+            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+            
+            if nao_encontrados:
+                # Exibir apenas os primeiros X inativos para não poluir a tela
+                for padrao in nao_encontrados[:15]: 
+                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+                if len(nao_encontrados) > 15:
+                    st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
+            else:
+                st.info("Todos os padrões foram encontrados (muito raro).")
+        
+    except Exception as e:
+        st.error(f"Ocorreu um erro inesperado durante a análise detalhada dos padrões. Por favor, verifique os logs na barra lateral.")
+        st.exception(e)
+        log_message("critical", f"Erro crítico na análise detalhada de padrões: {e}")
 
 # --- ANÁLISE ESTATÍSTICA GERAL ---
 st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
@@ -1245,16 +1272,16 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 
-# REMOVIDO: Gráfico de frequências
-# if show_advanced:
-#     st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
-#     chart_data = pd.DataFrame({
-#         'Resultado': ['Casa', 'Visitante', 'Empate'],
-#         'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
-#         'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
-#     })
+# Gráfico de frequências
+if show_advanced:
+    st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
+    chart_data = pd.DataFrame({
+        'Resultado': ['Casa', 'Visitante', 'Empate'],
+        'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
+        'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
+    })
     
-#     st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
+    st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
 
 # --- RODAPÉ ---
 st.markdown("---")
