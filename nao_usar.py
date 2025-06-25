@@ -1,11 +1,15 @@
-import streamlit as st
-import collections
-import random
-import numpy as np
-import pandas as pd
-from datetime import datetime
+importar streamlit como st
+importar coleções
+importar streamlit como st
+importar coleções
+importar numpy como np
+importar pandas como pd
+de data e hora importar data e hora
+
 # --- CLASSE ANALISEPADROES REFINADA E AJUSTADA ---
-    Classe para analisar padrões em um histórico de resultados de jogos
+classe AnalisePadroes:
+    """
+    Class para analisar padrões em um histórico de resultados de jogos
     (ex: 'C' para Casa, 'F' para Fora, 'E' para Empate) e gerar sugestões.
     """
     def __init__(self, histórico: lista):
@@ -17,8 +21,8 @@ from datetime import datetime
             histórico (lista): Uma lista de strings representando os resultados dos jogos.
                                Exemplo: ['Dó', 'Fá', 'Mi', 'Dó', 'Dó']
         """
-        # Limita o histórico aos últimos 50 jogos para análise.
-        # Suponha que o histórico esteja sempre com o mais recente primeiro (insert(0))
+        # Limita o histórico a até 50 jogos para análise.
+        # Assume que o histórico está sempre com o mais recente primeiro (insert(0))
         self.histórico = histórico[-54:]
         self.historico.reverse() if len(histórico) > 50 else histórico[:]
 
@@ -107,7 +111,7 @@ from datetime import datetime
 
     def analisar_todos(self) -> dict:
         """
-        Analise o histórico para detectar quais padrões são ativos.
+        Analise o histórico para detectar quais padrões estão ativos.
         Devoluções:
             dict: Um dicionário onde as chaves são os nomes dos padrões e os valores
                   sÃ£o True se o padrÃ£o for detectado, False caso contrario.
@@ -666,7 +670,7 @@ from datetime import datetime
             # (maior_pontuacao > 0 e (pontuacoes['E'] >= maior_pontuacao * 0.9 e pontuacoes['E'] < maior_pontuacao)):
             # melhor_sugestao_codigo = 'E'
         outro:
-            # Se nenhuma pontuação for gerada pelos padrões, use a frequência mais baixa como sugestão
+            # Se nenhuma pontuação for gerada pelos padrões, use uma frequência mais baixa como sugestão
             frequências = self.calcular_frequencias()
             se frequências:
                 # Sugere o resultado com menor frequência (equilíbrio)
@@ -1144,7 +1148,7 @@ outro:
     st.markdown('<div class="historic-container">', unsafe_allow_html=True)
     
     # Renderiza o histórico em linhas com quebra automática
-    # A classe CSS 'historic-row' já usa 'flex-wrap: wrap;' para quebrar automaticamente.
+    # Uma classe CSS 'historic-row' já usa 'flex-wrap: wrap;' para quebrar automaticamente.
     st.markdown('<div class="historic-row">', unsafe_allow_html=True)
     para i, resultado em enumerate(st.session_state.historico):
         st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
