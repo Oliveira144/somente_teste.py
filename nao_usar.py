@@ -965,7 +965,7 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 /* Histórico de resultados - NOVO ESTILO PARA LINHAS */
 .historic-row {
     display: flex;
-    flex-wrap: nowrap; /* Prevent wrapping within a row */
+    flex-wrap: wrap; /* Changed from nowrap to wrap */
     justify-content: flex-start;
     align-items: center;
     margin-bottom: 5px; /* Spacing between rows */
@@ -1116,7 +1116,7 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
                     if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
                         st.write("**Análise por Categoria de Padrões:**")
                         for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                            st.write(f"**{categoria}:** {', '.join(padrores_list)}")
+                            st.write(f"**{categoria}:** {', '.join(padroes_list)}")
                     else:
                         st.info("Nenhuma análise detalhada de categorias de padrões disponível.")
                     
@@ -1145,15 +1145,12 @@ if not st.session_state.historico:
 else:
     st.markdown('<div class="historic-container">', unsafe_allow_html=True)
     
-    # Renderiza o histórico em linhas de 9
-    results_per_row = 9
-    for i in range(0, len(st.session_state.historico), results_per_row):
-        row_results = st.session_state.historico[i:i + results_per_row]
-        row_html = '<div class="historic-row">'
-        for resultado in row_results:
-            row_html += get_resultado_html(resultado)
-        row_html += '</div>'
-        st.markdown(row_html, unsafe_allow_html=True)
+    # Renderiza o histórico em linhas com quebra automática
+    # A classe CSS 'historic-row' já usa 'flex-wrap: wrap;' para quebrar automaticamente.
+    st.markdown('<div class="historic-row">', unsafe_allow_html=True)
+    for resultado in st.session_state.historico:
+        st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha a div historic-row
             
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -1184,7 +1181,8 @@ if show_advanced and len(st.session_state.historico) >= 5:
             nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
             
             if nao_encontrados:
-                for padrao in nao_encontrados[:15]:
+                # Exibir apenas os primeiros X inativos para não poluir a tela
+                for padrao in nao_encontrados[:15]: 
                     st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
                 if len(nao_encontrados) > 15:
                     st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
