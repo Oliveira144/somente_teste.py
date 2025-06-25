@@ -724,8 +724,8 @@ def get_resultado_html(resultado):
     # Retornamos apenas o item, sem o container de grid
     return f"""
     <div class='roadmap-item' style='
-        background-color: {color_map.get(resultado, 'gray')};
-        color: {"black" if resultado == "E" else "white"};
+        background-color: {color_map.get(resultado, 'gray')} !important;
+        color: {"black" if resultado == "E" else "white"} !important;
     '>
         {text_content}
     </div>
@@ -754,161 +754,161 @@ st.html("""
 <style>
 /* Estilo geral */
 .main-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2rem;
-    border-radius: 10px;
-    margin-bottom: 2rem;
-    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    padding: 2rem !important;
+    border-radius: 10px !important;
+    margin-bottom: 2rem !important;
+    text-align: center !important;
 }
 
 .main-header h1 {
-    color: white;
-    font-size: 2.5rem;
-    margin: 0;
+    color: white !important;
+    font-size: 2.5rem !important;
+    margin: 0 !important;
 }
 
 .main-header p {
-    color: white;
-    font-size: 1.2rem;
-    margin: 0.5rem 0 0 0;
-    opacity: 0.9;
+    color: white !important;
+    font-size: 1.2rem !important;
+    margin: 0.5rem 0 0 0 !important;
+    opacity: 0.9 !important;
 }
 
 /* Botões */
 div.stButton > button:first-child {
-    font-size: 16px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    cursor: pointer;
-    margin: 5px;
-    color: white;
-    border: none;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-size: 16px !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    margin: 5px !important;
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
 }
 
 div.stButton > button:first-child:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
 }
 
 /* Botões específicos */
 div.stButton > button[data-testid*="stButton-CASA"] {
-    background: linear-gradient(135deg, #FF6B6B, #FF4B4B); /* Vermelho */
+    background: linear-gradient(135deg, #FF6B6B, #FF4B4B) !important; /* Vermelho */
 }
 
 div.stButton > button[data-testid*="stButton-EMPATE"] {
-    background: linear-gradient(135deg, #FFE66D, #FFD700); /* Amarelo */
-    color: black;
+    background: linear-gradient(135deg, #FFE66D, #FFD700) !important; /* Amarelo */
+    color: black !important;
 }
 
 div.stButton > button[data-testid*="stButton-VISITANTE"] {
-    background: linear-gradient(135deg, #4ECDC4, #4B4BFF); /* Azul */
+    background: linear-gradient(135deg, #4ECDC4, #4B4BFF) !important; /* Azul */
 }
 
 div.stButton > button[data-testid*="stButton-Desfazer"],
 div.stButton > button[data-testid*="stButton-Limpar"] {
-    background: linear-gradient(135deg, #95A5A6, #7F8C8D);
+    background: linear-gradient(135deg, #95A5A6, #7F8C8D) !important;
 }
 
 /* Cards de estatísticas */
 .metric-card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-left: 4px solid #667eea;
-    margin: 1rem 0;
+    background: white !important;
+    padding: 1.5rem !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    border-left: 4px solid #667eea !important;
+    margin: 1rem 0 !important;
 }
 
 .metric-card h3 {
-    margin: 0 0 0.5rem 0;
-    color: #2C3E50;
+    margin: 0 0 0.5rem 0 !important;
+    color: #2C3E50 !important;
 }
 
 .metric-card p {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: bold;
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
 }
 
 /* Seções */
 .section-header {
-    background: linear-gradient(135deg, #74b9ff, #0984e3);
-    color: white;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 1rem 0;
-    text-align: center;
+    background: linear-gradient(135deg, #74b9ff, #0984e3) !important;
+    color: white !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    margin: 1rem 0 !important;
+    text-align: center !important;
 }
 
 .pattern-found {
-    background: linear-gradient(135deg, #00b894, #55a3ff);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    margin: 0.25rem 0;
-    font-weight: bold;
+    background: linear-gradient(135deg, #00b894, #55a3ff) !important;
+    color: white !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px !important;
+    margin: 0.25rem 0 !important;
+    font-weight: bold !important;
 }
 
 .pattern-not-found {
-    background: #f8f9fa;
-    color: #6c757d;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    margin: 0.25rem 0;
-    border: 1px solid #dee2e6;
+    background: #f8f9fa !important;
+    color: #6c757d !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px !important;
+    margin: 0.25rem 0 !important;
+    border: 1px solid #dee2e6 !important;
 }
 
 .suggestion-box {
-    background: linear-gradient(135deg, #a8edea, #fed6e3);
-    padding: 2rem;
-    border-radius: 12px;
-    margin: 1rem 0;
-    border: 2px solid #667eea;
+    background: linear-gradient(135deg, #a8edea, #fed6e3) !important;
+    padding: 2rem !important;
+    border-radius: 12px !important;
+    margin: 1rem 0 !important;
+    border: 2px solid #667eea !important;
 }
 
-.confidence-high { color: #27AE60; font-weight: bold; }
-.confidence-medium { color: #F39C12; font-weight: bold; }
-.confidence-low { color: #E74C3C; font-weight: bold; }
+.confidence-high { color: #27AE60 !important; font-weight: bold !important; }
+.confidence-medium { color: #F39C12 !important; font-weight: bold !important; }
+.confidence-low { color: #E74C3C !important; font-weight: bold !important; }
 
 /* Styles for the roadmap grid - APLICAR AO CONTAINER PAI */
 .roadmap-grid-container {
-    display: grid;
-    grid-template-columns: repeat(9, 28px); /* Ajustado para 9 colunas de 28px */
-    gap: 2px; /* Espaçamento entre os círculos */
-    justify-content: start;
-    align-items: start;
-    padding: 5px;
-    border: 1px solid #333;
-    border-radius: 5px;
-    background-color: #1a1a1a;
-    max-width: fit-content; /* Ajusta a largura ao conteúdo */
-    overflow-x: hidden;
+    display: grid !important;
+    grid-template-columns: repeat(9, 28px) !important; /* Ajustado para 9 colunas de 28px */
+    gap: 2px !important; /* Espaçamento entre os círculos */
+    justify-content: start !important;
+    align-items: start !important;
+    padding: 5px !important;
+    border: 1px solid #333 !important;
+    border-radius: 5px !important;
+    background-color: #1a1a1a !important;
+    max-width: fit-content !important; /* Ajusta a largura ao conteúdo */
+    overflow-x: hidden !important; /* Garante que não haja scroll horizontal */
 }
 
 /* Styles for each roadmap item (the circles) */
 .roadmap-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 25px; /* Tamanho do círculo */
-    height: 25px;
-    border-radius: 50%;
-    font-size: 14px;
-    border: 1px solid rgba(255,255,255,0.3);
-    flex-shrink: 0; /* Impede que os itens encolham */
-    box-sizing: border-box; /* Garante que padding e border não aumentem o tamanho total */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 25px !important; /* Tamanho do círculo */
+    height: 25px !important;
+    border-radius: 50% !important; /* Faz o item ser um círculo */
+    font-size: 14px !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    flex-shrink: 0 !important; /* Impede que os itens encolham */
+    box-sizing: border-box !important; /* Garante que padding e border não aumentem o tamanho total */
 }
 
 /* Ajuste para o texto dentro dos botões de resultado */
 div.stButton > button[data-testid*="stButton-CASA"] div,
 div.stButton > button[data-testid*="stButton-EMPATE"] div,
 div.stButton > button[data-testid*="stButton-VISITANTE"] div {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 </style>
@@ -987,7 +987,6 @@ else:
         grid_html_content += get_resultado_html(resultado_cell)
     
     # Envolve todo o conteúdo da grade no div principal com a classe CSS
-    # Não use !important no inline style, pois o CSS global já tem !important nas regras da classe
     st.markdown(f'<div class="roadmap-grid-container">{grid_html_content}</div>', unsafe_allow_html=True)
 
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
@@ -1132,4 +1131,3 @@ st.markdown("""
     <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
 </div>
 """, unsafe_allow_html=True)
-
