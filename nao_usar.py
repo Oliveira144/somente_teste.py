@@ -984,7 +984,13 @@ else:
         grid_html_content += get_resultado_html(resultado_cell)
     
     # Envolve todo o conteúdo da grade no div principal com a classe CSS
-    st.markdown(f'<div class="roadmap-grid-container">{grid_html_content}</div>', unsafe_allow_html=True)
+    import streamlit.components.v1 as components
+
+components.html(f"""
+<div class="roadmap-grid-container">
+    {grid_html_content}
+</div>
+""", height=200, scrolling=False)
 
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
 
