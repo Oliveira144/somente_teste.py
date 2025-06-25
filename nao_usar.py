@@ -174,7 +174,7 @@ class AnalisePadroes:
     def _empate_recorrente(self) -> bool:
         empates_indices = [i for i, r in enumerate(self.historico) if r == 'E']
         if len(empates_indices) < 3: return False
-        intervals = np.diff(empates)
+        intervals = np.diff(empates_indices) # Corrigido para usar empates_indices
         if len(intervals) >= 2:
             media_intervalo = np.mean(intervals)
             # Ajustando a tolerância para ser mais flexível em "recorrente"
@@ -234,11 +234,11 @@ class AnalisePadroes:
         if len(self.historico) < 9: return False
         segment = self.historico[:9]
         # Padrão: A B C D C B A E A (onde A é o resultado mais externo, e E é o do meio)
+        # Ajuste para verificar se o centro (segment[4]) é o mesmo da base (segment[0])
+        # e se a parte central é uniforme (ex: C C C)
         return (segment[0] == segment[8] and segment[1] == segment[7] and 
                 segment[2] == segment[6] and segment[3] == segment[5] and
-                # A condição abaixo verifica se o centro do triângulo é diferente da base,
-                # e que a parte central é uniforme (ex: C C C)
-                len(set(segment[2:7])) == 1 and segment[0] != segment[4])
+                segment[0] != segment[4]) # A base é diferente do pico/centro do triângulo
 
     def _ciclo_empates(self) -> bool:
         empates = [i for i, x in enumerate(self.historico) if x == 'E']
@@ -261,10 +261,14 @@ class AnalisePadroes:
     def _fibonacci_invertida(self) -> bool:
         if len(self.historico) < 8: return False
         # Ex: C C F F C C F F (sequências curtas e alternadas)
-        return (self.historico[0] == self.historico[1] and self.historico[2] != self.historico[0] and # 2x A, então B
-                self.historico[3] == self.historico[4] and self.historico[5] != self.historico[3] and # 2x C, então D
-                self.historico[6] == self.historico[7] and # 2x E
-                self.historico[0] != self.historico[3]) # A != C
+        # Mais genérico: Dupla A, Dupla B, Dupla C, Dupla D, onde A!=B, B!=C, C!=D
+        return (self.historico[0] == self.historico[1] and           # Dupla 1
+                self.historico[2] == self.historico[3] and           # Dupla 2
+                self.historico[4] == self.historico[5] and           # Dupla 3
+                self.historico[6] == self.historico[7] and           # Dupla 4
+                self.historico[0] != self.historico[2] and           # Dupla 1 diferente de Dupla 2
+                self.historico[2] != self.historico[4] and           # Dupla 2 diferente de Dupla 3
+                self.historico[4] != self.historico[6])              # Dupla 3 diferente de Dupla 4
 
     def _padrao_dragon_tiger(self) -> bool:
         if len(self.historico) < 6: return False
@@ -304,12 +308,13 @@ class AnalisePadroes:
     def _padrao_tensao(self) -> bool:
         if len(self.historico) < 7: return False
         # Ex: C F C F C C C (Alternância que se "quebra" em uma sequência forte)
-        alternations = 0
-        for i in range(3): # Verifica os 4 primeiros (0 a 3) para alternância
-            if self.historico[i] != self.historico[i+1]: alternations += 1
-            else: return False # Se quebrar antes, não é o padrão
-        return (alternations == 3 and # Garante 4 alternâncias iniciais
-                self.historico[4] == self.historico[5] == self.historico[6]) # Uma sequência de 3 no final
+        alternations_ok = (self.historico[0] != self.historico[1] and
+                           self.historico[1] != self.historico[2] and
+                           self.historico[2] != self.historico[3]) # As 3 primeiras alternâncias
+        
+        sequence_break = (self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6]) # Uma sequência de 4
+        
+        return alternations_ok and sequence_break and (self.historico[2] != self.historico[3]) # A alternância é quebrada pela sequência
 
     def _sequencia_labouchere(self) -> bool:
         if len(self.historico) < 6: return False
@@ -322,9 +327,9 @@ class AnalisePadroes:
         if len(self.historico) < 8: return False
         # Ex: C C F C C F F F (Dupla, quebra, dupla, quebra, tripla)
         segment = self.historico[:8]
-        return (segment[0] == segment[1] and segment[2] != segment[0] and
-                segment[3] == segment[4] and segment[5] == segment[6] == segment[7] and
-                segment[3] != segment[5]) # A segunda dupla é diferente da tripla
+        return (segment[0] == segment[1] and segment[2] != segment[0] and # Dupla A, Quebra
+                segment[3] == segment[4] and segment[5] != segment[3] and # Dupla B, Quebra
+                segment[5] == segment[6] == segment[7]) # Tripla C, B diferente de C
 
     def _ciclo_pressao(self) -> bool:
         if len(self.historico) < 9: return False
@@ -584,7 +589,8 @@ class AnalisePadroes:
                         elif last_result == 'E': pontuacoes['E'] += peso * 0.5
 
                 elif nome_padrao == "Padrão Ritmo Cardíaco": # C C F C C F F F
-                    if len(self.historico) >= 8:
+                    if len(self.historico) < 8: return False # Já verificado na função do padrão
+                    else:
                         if self.historico[5] == self.historico[6] == self.historico[7]:
                             if self.historico[5] == 'C': pontuacoes['F'] += peso * 0.7 # Sugere o oposto da última sequência
                             elif self.historico[5] == 'F': pontuacoes['C'] += peso * 0.7
@@ -792,21 +798,22 @@ def get_resultado_html(resultado):
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
     return f"""
-    <span style='
-        display: inline-block; 
-        width: 30px; 
-        height: 30px; 
+    <div style='
+        display: inline-flex; /* Use inline-flex for the circle itself */
+        width: 32px; /* Slightly larger for better touch on mobile */
+        height: 32px; 
         border-radius: 50%; 
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 2px; 
-        text-align: center; 
-        line-height: 30px; 
+        margin: 2px; /* Keep margin for spacing between circles */
+        align-items: center; /* Center content vertically */
+        justify-content: center; /* Center content horizontally */
         font-size: 14px;
         color: {"black" if resultado == "E" else "white"};
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        flex-shrink: 0; /* Prevent shrinking */
     '>
         {symbol_map.get(resultado, '?')}
-    </span>
+    </div>
     """
 
 def get_confianca_color(confianca):
@@ -952,12 +959,36 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
+/* Histórico de resultados - NOVO ESTILO PARA LINHAS */
+.historic-row {
+    display: flex;
+    flex-wrap: nowrap; /* Prevent wrapping within a row */
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 5px; /* Spacing between rows */
+}
+
 .historic-container {
     background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 10px;
     margin: 1rem 0;
     border: 1px solid #dee2e6;
+}
+
+/* Ensure circles are inline-block for proper flow within flex */
+.historic-container div { /* Targeting the result circles */
+    display: inline-flex; /* Use inline-flex for the circle itself */
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%; 
+    margin: 2px; /* Spacing between circles */
+    align-items: center; 
+    justify-content: center; 
+    font-size: 14px;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    flex-shrink: 0; 
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1038,26 +1069,7 @@ with col5:
         limpar_historico()
         st.rerun()
 
-# --- EXIBIÇÃO DO HISTÓRICO ---
-st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
-
-if not st.session_state.historico:
-    st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
-else:
-    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
-    
-    historico_html = ""
-    # Exibe os resultados na ordem do mais recente para o mais antigo (st.session_state.historico já está assim)
-    for i, resultado in enumerate(st.session_state.historico):
-        historico_html += get_resultado_html(resultado)
-        if (i + 1) % 10 == 0 and (i + 1) < len(st.session_state.historico):
-            historico_html += "<br>" # Quebra de linha a cada 10 resultados
-    
-    st.markdown(historico_html, unsafe_allow_html=True)
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- ANÁLISE PRINCIPAL ---
+# --- ANÁLISE PRINCIPAL (MOVIDA PARA CIMA DO HISTÓRICO) ---
 st.markdown('<div class="section-header"><h2>✨ Próxima Sugestão</h2></div>', unsafe_allow_html=True)
 
 if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
@@ -1065,7 +1077,7 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
         analyzer = AnalisePadroes(st.session_state.historico)
         log_message("info", "Objeto AnalisePadroes criado com histórico atual.")
         
-        sugestao = analyzer.gerar_sugestao()
+        sugestao = analyzer.generar_sugestao()
         log_message("info", f"Sugestão gerada: {sugestao['entrada_codigo']} (Confiança: {sugestao['confianca']}%)")
         
         # Armazena a sugestão para validação futura
@@ -1114,92 +1126,125 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
             st.info("Continue inserindo resultados para aumentar a precisão da análise.")
             log_message("warn", f"Sugestão não exibida: Confiança {sugestao['confianca']}% abaixo do limite {confidence_threshold}%.")
 
-        # --- ANÁLISE DE PADRÕES (DETALHADA) ---
-        if show_advanced:
-            st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Todos)</h2></div>', unsafe_allow_html=True)
-            
-            padroes_encontrados = analyzer.analisar_todos()
-            
-            col_left, col_right = st.columns(2)
-            
-            with col_left:
-                st.markdown("### ✅ Padrões Ativos")
-                encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-                
-                if encontrados:
-                    for padrao in encontrados:
-                        peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                        st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-                else:
-                    st.info("Nenhum padrão detectado no histórico atual.")
-            
-            with col_right:
-                st.markdown("### ❌ Padrões Inativos")
-                nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-                
-                if nao_encontrados:
-                    for padrao in nao_encontrados[:15]:
-                        st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                    if len(nao_encontrados) > 15:
-                        st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
-                else:
-                    st.info("Todos os padrões foram encontrados (muito raro).")
-            
-        # --- ANÁLISE ESTATÍSTICA GERAL ---
-        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        frequencias = analyzer.calcular_frequencias()
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🏠 Casa</h3>
-                <p style="color: #FF4B4B;">{frequencias.get('C', 0.0)}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>✈️ Visitante</h3>
-                <p style="color: #4B4BFF;">{frequencias.get('F', 0.0)}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>⚖️ Empate</h3>
-                <p style="color: #FFD700;">{frequencias.get('E', 0.0)}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Gráfico de frequências
-        if show_advanced:
-            st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
-            chart_data = pd.DataFrame({
-                'Resultado': ['Casa', 'Visitante', 'Empate'],
-                'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
-                'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
-            })
-            
-            st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
-
     except Exception as e:
-        st.error(f"Ocorreu um erro inesperado durante a análise. Por favor, verifique os logs na barra lateral.")
+        st.error(f"Ocorreu um erro inesperado durante a análise da sugestão. Por favor, verifique os logs na barra lateral.")
         st.exception(e) # Exibe o traceback completo para depuração em desenvolvimento
         log_message("critical", f"Erro crítico na análise: {e}")
 
 else:
     st.info("🎮 Insira pelo menos 5 resultados para começar a análise inteligente e gerar sugestões!")
 
+
+# --- EXIBIÇÃO DO HISTÓRICO (AGORA ABAIXO DA SUGESTÃO) ---
+st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
+
+if not st.session_state.historico:
+    st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
+else:
+    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
+    
+    # Renderiza o histórico em linhas de 9
+    results_per_row = 9
+    for i in range(0, len(st.session_state.historico), results_per_row):
+        row_results = st.session_state.historico[i:i + results_per_row]
+        row_html = '<div class="historic-row">'
+        for resultado in row_results:
+            row_html += get_resultado_html(resultado)
+        row_html += '</div>'
+        st.markdown(row_html, unsafe_allow_html=True)
+            
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- ANÁLISE DE PADRÕES (DETALHADA) - SÓ SE show_advanced ESTIVER ATIVO ---
+if show_advanced and len(st.session_state.historico) >= 5:
+    try:
+        analyzer = AnalisePadroes(st.session_state.historico) # Recria o analyzer para esta seção, se necessário
+        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Todos)</h2></div>', unsafe_allow_html=True)
+        
+        padroes_encontrados = analyzer.analisar_todos()
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.markdown("### ✅ Padrões Ativos")
+            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+            
+            if encontrados:
+                for padrao in encontrados:
+                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+            else:
+                st.info("Nenhum padrão detectado no histórico atual.")
+        
+        with col_right:
+            st.markdown("### ❌ Padrões Inativos")
+            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+            
+            if nao_encontrados:
+                for padrao in nao_encontrados[:15]:
+                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+                if len(nao_encontrados) > 15:
+                    st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
+            else:
+                st.info("Todos os padrões foram encontrados (muito raro).")
+        
+    except Exception as e:
+        st.error(f"Ocorreu um erro inesperado durante a análise detalhada dos padrões. Por favor, verifique os logs na barra lateral.")
+        st.exception(e)
+        log_message("critical", f"Erro crítico na análise detalhada de padrões: {e}")
+
+# --- ANÁLISE ESTATÍSTICA GERAL ---
+st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+
+# Garante que o analyzer é criado para esta seção, caso a sugestão não tenha sido gerada
+if 'analyzer' not in locals() or analyzer is None:
+    analyzer = AnalisePadroes(st.session_state.historico)
+
+frequencias = analyzer.calcular_frequencias()
+
+with col1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>🏠 Casa</h3>
+        <p style="color: #FF4B4B;">{frequencias.get('C', 0.0)}%</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>✈️ Visitante</h3>
+        <p style="color: #4B4BFF;">{frequencias.get('F', 0.0)}%</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3>⚖️ Empate</h3>
+        <p style="color: #FFD700;">{frequencias.get('E', 0.0)}%</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Gráfico de frequências
+if show_advanced:
+    st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
+    chart_data = pd.DataFrame({
+        'Resultado': ['Casa', 'Visitante', 'Empate'],
+        'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
+        'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
+    })
+    
+    st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
+
 # --- RODAPÉ ---
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
-    <p>⚽ Football Studio Live Analyzer v2.3 | Análise Inteligente de Padrões</p>
+    <p>⚽ Football Studio Live Analyzer v2.5 | Análise Inteligente de Padrões</p>
     <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
 </div>
 """, unsafe_allow_html=True)
