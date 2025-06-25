@@ -973,6 +973,8 @@ with col5:
         limpar_historico()
         st.rerun()
 
+import streamlit.components.v1 as components
+
 # --- EXIBIÇÃO DO HISTÓRICO EM LINHAS DE 9 ---
 st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
 
@@ -982,15 +984,15 @@ else:
     grid_html_content = ""
     for resultado_cell in st.session_state.historico:
         grid_html_content += get_resultado_html(resultado_cell)
-    
-    # Envolve todo o conteúdo da grade no div principal com a classe CSS
-    import streamlit.components.v1 as components
 
-components.html(f"""
-<div class="roadmap-grid-container">
-    {grid_html_content}
-</div>
-""", height=200, scrolling=False)
+    components.html(f"""
+    <div class="roadmap-grid-container">
+        {grid_html_content}
+    </div>
+    """, height=300, scrolling=False)
+
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
+
 
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
 
