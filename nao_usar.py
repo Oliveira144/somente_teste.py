@@ -14,15 +14,15 @@ class AnalisePadroes:
     def __init__(self, historico: list):
         """
         Inicializa a classe com um histórico de resultados.
-        O histórico é truncado para os últimos 50 jogos para foco na análise recente.
+        O histórico é truncado para os últimos 54 jogos para foco na análise recente.
 
         Args:
             historico (list): Uma lista de strings representando os resultados dos jogos.
                                Ex: ['C', 'F', 'E', 'C', 'C']
         """
-        # Limita o histórico aos últimos 50 jogos para análise.
+        # Limita o histórico aos últimos 54 jogos para análise.
         # Assume que o histórico está sempre com o mais recente primeiro (insert(0))
-        self.historico = historico[:50] if len(historico) > 50 else historico[:]
+        self.historico = historico[:54] if len(historico) > 54 else historico[:]
 
         self.padroes_ativos_map = {
             # Padrões Básicos
@@ -755,8 +755,8 @@ def adicionar_resultado(resultado):
         st.session_state.ultima_sugestao = None
     
     st.session_state.historico.insert(0, resultado) # Adiciona no início
-    if len(st.session_state.historico) > 50:
-        st.session_state.historico = st.session_state.historico[:50]
+    if len(st.session_state.historico) > 54: # ALTERADO PARA 54
+        st.session_state.historico = st.session_state.historico[:54] # ALTERADO PARA 54
     st.session_state.estatisticas['total_jogos'] = len(st.session_state.historico) # Atualiza total de jogos
     log_message("info", f"Resultado '{resultado}' adicionado. Histórico atualizado.")
 
@@ -1064,7 +1064,7 @@ with st.sidebar:
     if total_jogos > 0:
         taxa_acerto = (acertos / total_jogos) * 100
         st.metric("Total de Jogos", total_jogos)
-        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f}%")
+        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f} %")
         st.metric("Acertos", acertos)
         st.metric("Erros", erros)
     else:
@@ -1200,47 +1200,8 @@ else:
             
     st.markdown('</div>', unsafe_allow_html=True) # Fecha o contêiner flexível
     
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True) # ALTERADO PARA 54
 
-
-# --- ANÁLISE DE PADRÕES (DETALHADA) - SÓ SE show_advanced ESTIVER ATIVO ---
-if show_advanced and len(st.session_state.historico) >= 5:
-    try:
-        analyzer = AnalisePadroes(st.session_state.historico) # Recria o analyzer para esta seção, se necessário
-        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Todos)</h2></div>', unsafe_allow_html=True)
-        
-        padroes_encontrados = analyzer.analisar_todos()
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.markdown("### ✅ Padrões Ativos")
-            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-            
-            if encontrados:
-                for padrao in encontrados:
-                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-            else:
-                st.info("Nenhum padrão detectado no histórico atual.")
-        
-        with col_right:
-            st.markdown("### ❌ Padrões Inativos")
-            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-            
-            if nao_encontrados:
-                # Exibir apenas os primeiros X inativos para não poluir a tela
-                for padrao in nao_encontrados[:15]: 
-                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                if len(nao_encontrados) > 15:
-                    st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
-            else:
-                st.info("Todos os padrões foram encontrados (muito raro).")
-        
-    except Exception as e:
-        st.error(f"Ocorreu um erro inesperado durante a análise detalhada dos padrões. Por favor, verifique os logs na barra lateral.")
-        st.exception(e)
-        log_message("critical", f"Erro crítico na análise detalhada de padrões: {e}")
 
 # --- ANÁLISE ESTATÍSTICA GERAL ---
 st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
@@ -1277,16 +1238,16 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 
-# Gráfico de frequências
-if show_advanced:
-    st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
-    chart_data = pd.DataFrame({
-        'Resultado': ['Casa', 'Visitante', 'Empate'],
-        'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
-        'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
-    })
+# REMOVIDO: Gráfico de frequências
+# if show_advanced:
+#     st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
+#     chart_data = pd.DataFrame({
+#         'Resultado': ['Casa', 'Visitante', 'Empate'],
+#         'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
+#         'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
+#     })
     
-    st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
+#     st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
 
 # --- RODAPÉ ---
 st.markdown("---")
