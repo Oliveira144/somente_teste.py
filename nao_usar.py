@@ -802,18 +802,18 @@ def get_resultado_html(resultado):
     
     return f"""
     <div style='
-        display: inline-flex; /* Use inline-flex for the circle itself */
-        width: 32px; /* Slightly larger for better touch on mobile */
+        display: inline-flex;
+        width: 32px;
         height: 32px; 
         border-radius: 50%; 
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 2px; /* Keep margin for spacing between circles */
-        align-items: center; /* Center content vertically */
-        justify-content: center; /* Center content horizontally */
+        margin: 2px;
+        align-items: center;
+        justify-content: center;
         font-size: 14px;
         color: {"black" if resultado == "E" else "white"};
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        flex-shrink: 0; /* Prevent shrinking */
+        flex-shrink: 0;
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -838,7 +838,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Aprimorado
+# CSS Aprimorado (removendo historic-row e adaptando historic-container)
 st.markdown("""
 <style>
 /* Estilo geral */
@@ -962,16 +962,12 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* Histórico de resultados - NOVO ESTILO PARA LINHAS */
-.historic-row {
+/* Histórico de resultados - NOVO ESTILO PARA LINHAS FIXAS */
+.historic-row-container {
     display: flex;
-    flex-wrap: wrap; /* Changed from nowrap to wrap */
+    flex-wrap: wrap; /* Permite quebras de linha */
     justify-content: flex-start;
     align-items: center;
-    margin-bottom: 5px; /* Spacing between rows */
-}
-
-.historic-container {
     background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 10px;
@@ -979,19 +975,27 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     border: 1px solid #dee2e6;
 }
 
-/* Ensure circles are inline-block for proper flow within flex */
-.historic-container div { /* Targeting the result circles */
-    display: inline-flex; /* Use inline-flex for the circle itself */
+/* Tamanho fixo para cada círculo do resultado para garantir 9 por linha */
+.historic-row-container div[data-testid="stHtml"] { /* Target Streamlit's div wrapping the HTML */
+    flex: 0 0 calc(100% / 9 - 4px); /* Força 9 itens por linha, considerando a margem */
+    max-width: calc(100% / 9 - 4px); /* Garante que não ultrapasse */
+    display: flex; /* Para centralizar o conteúdo do círculo */
+    justify-content: center;
+    align-items: center;
+}
+/* Estilo específico para o círculo interno (gerado por get_resultado_html) */
+.historic-row-container div[data-testid="stHtml"] > div {
     width: 32px; 
     height: 32px; 
     border-radius: 50%; 
-    margin: 2px; /* Spacing between circles */
-    align-items: center; 
-    justify-content: center; 
+    margin: 2px; /* Margem entre os círculos */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 14px;
     color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1143,17 +1147,16 @@ st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2><
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
+    st.markdown('<div class="historic-row-container">', unsafe_allow_html=True) # Container flexbox
     
-    # Renderiza o histórico em linhas com quebra automática
-    # A classe CSS 'historic-row' já usa 'flex-wrap: wrap;' para quebrar automaticamente.
-    st.markdown('<div class="historic-row">', unsafe_allow_html=True)
+    # Iterar sobre o histórico e adicionar cada círculo. O CSS cuidará da quebra de linha.
     for resultado in st.session_state.historico:
         st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha a div historic-row
             
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha a div historic-row-container
+    
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- ANÁLISE DE PADRÕES (DETALHADA) - SÓ SE show_advanced ESTIVER ATIVO ---
 if show_advanced and len(st.session_state.historico) >= 5:
