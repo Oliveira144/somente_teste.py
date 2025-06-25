@@ -8,8 +8,9 @@ import pandas as pd
 # --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
-        # Limita o histórico para análise, sempre os 54 mais recentes
-        self.historico = historico[:54] # Máximo de 54 resultados para o roadmap
+        # Inverte o histórico para que o mais recente seja analisado primeiro,
+        # mas o armazenamento na sessão será do mais antigo para o mais recente.
+        self.historico = historico[::-1][:54] # Limitado e invertido para análise.
         
         self.padroes_ativos = {
             # Padrões básicos existentes
@@ -757,7 +758,7 @@ if 'estatisticas' not in st.session_state:
     }
 
 def adicionar_resultado(resultado):
-    """Adiciona novo resultado ao histórico e registra validação da sugestão anterior, se houver"""
+    """Adiciona novo resultado ao histórico (na ordem mais antiga para mais recente) e registra validação da sugestão anterior, se houver"""
     if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao['sugerir']:
         sugestao_anterior = st.session_state.ultima_sugestao
         # Valida a sugestão anterior com o resultado real agora inserido
@@ -780,9 +781,13 @@ def adicionar_resultado(resultado):
         # Limpa a última sugestão após a validação
         del st.session_state.ultima_sugestao
 
-    st.session_state.historico.insert(0, resultado) # Adiciona no início (mais recente)
-    if len(st.session_state.historico) > 54: # Limita a 54 resultados (9 colunas x 6 linhas)
-        st.session_state.historico = st.session_state.historico[:54]
+    st.session_state.historico.append(resultado) # ADICIONA NO FINAL (MAIS RECENTE)
+    
+    # Manter o histórico com um número máximo de resultados, pois o roadmap precisa de um limite
+    # e resultados muito antigos eventualmente saem do display. 54 é o limite da sua análise.
+    if len(st.session_state.historico) > 54:
+        st.session_state.historico.pop(0) # Remove o mais antigo do início
+    
     st.session_state.estatisticas['total_jogos'] += 1
 
 def limpar_historico():
@@ -801,29 +806,21 @@ def limpar_historico():
 def desfazer_ultimo():
     """Remove o último resultado e ajusta as estatísticas se aplicável"""
     if st.session_state.historico:
-        # Se houve uma sugestão ativa antes do resultado que será desfeito, não ajustamos estatísticas
-        # pois a sugestão não foi validada por este resultado específico.
-        # A complexidade de desfazer a validação exigiria um controle mais granular das sugestões.
-        # Por simplicidade, desfazer remove apenas o resultado do histórico principal.
-        st.session_state.historico.pop(0)
+        # Remove o último resultado adicionado (que agora é o mais recente no final da lista)
+        st.session_state.historico.pop() 
         if st.session_state.estatisticas['total_jogos'] > 0:
             st.session_state.estatisticas['total_jogos'] -= 1
         
         # Se a última sugestão foi armazenada e não validada, ela é "perdida"
-        # para evitar confusão nas estatísticas de acerto/erro.
         if 'ultima_sugestao' in st.session_state:
              del st.session_state.ultima_sugestao
 
 def get_resultado_html(resultado):
     """Retorna HTML para visualização do resultado com cores e símbolos"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'} # Vermelho, Azul, Amarelo
-    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'} # Símbolos simples, se quiser mais próximos dos da imagem (C e V em círculo)
-                                               # Pode usar ícones de imagem ou CSS mais complexo
-    
-    # Para se parecer mais com a imagem, os símbolos podem ser substituídos por círculos vazios
-    # e apenas a cor do background ser usada, ou um ponto central.
     
     # Exemplo para se parecer mais com a imagem, apenas a cor:
+    # Ajustei um pouco a borda para ser mais visível em branco e preto
     return f"""
     <div style='
         display: flex;
@@ -832,11 +829,11 @@ def get_resultado_html(resultado):
         width: 25px; /* Tamanho do círculo */
         height: 25px;
         border-radius: 50%; 
-        background-color: {color_map.get(resultado, 'gray')}; 
+        background-color: {color_map.get(resultado, 'lightgray')}; 
         margin: 2px; /* Espaçamento entre os círculos */
         font-size: 14px;
         color: {"black" if resultado == "E" else "white"};
-        border: 1px solid rgba(255,255,255,0.3); /* Borda sutil */
+        border: 1px solid rgba(0,0,0,0.2); /* Borda sutil para contornar os círculos */
     '>
         {"E" if resultado == "E" else ""} </div>
     """
@@ -994,6 +991,8 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
     overflow-x: auto; /* Permite rolagem horizontal se muitas colunas */
     scroll-behavior: smooth;
     padding-bottom: 10px; /* Espaço para barra de rolagem */
+    flex-direction: row; /* Colunas lado a lado */
+    justify-content: flex-end; /* Alinha as colunas à direita (as mais recentes) */
 }
 
 .historic-column {
@@ -1086,87 +1085,67 @@ st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2><
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    # Parâmetros para o roadmap
     NUM_LINHAS_ROADMAP = 6 # Fixado em 6 linhas como no placar
     MAX_COLUNAS_ROADMAP = 9 # Para um total de 54 resultados (9 colunas * 6 linhas)
     
-    # Preparar os dados para exibição no formato de colunas
-    # O histórico está em ordem inversa (mais recente no índice 0)
-    # Precisamos preencher as colunas do mais novo para o mais antigo, de cima para baixo
+    # Grid que representa o roadmap visível.
+    # Inicialmente, todas as células estão vazias.
+    roadmap_grid_display = [['' for _ in range(MAX_COLUNAS_ROADMAP)] for _ in range(NUM_LINHAS_ROADMAP)]
     
-    # Preenche um grid com None para os espaços vazios
-    grid_resultados = [['' for _ in range(MAX_COLUNAS_ROADMAP)] for _ in range(NUM_LINHAS_ROADMAP)]
+    current_col = MAX_COLUNAS_ROADMAP - 1 # Começa da última coluna à direita
+    current_row = 0 # Começa da primeira linha (topo)
     
-    col_idx = 0
-    row_idx = 0
+    # Vamos trabalhar com o histórico na ordem inversa (mais recente no índice 0)
+    # para preencher a grade da direita para a esquerda.
+    historico_para_preencher = list(st.session_state.historico[::-1]) 
     
-    # Percorre o histórico e preenche a grid, simulando o preenchimento do roadmap
-    for i, res in enumerate(st.session_state.historico):
-        if row_idx >= NUM_LINHAS_ROADMAP:
-            # Se a coluna está cheia, move para a próxima coluna
-            col_idx += 1
-            row_idx = 0 # Reinicia a linha
-            # Se chegamos ao fim das colunas visíveis, paramos
-            if col_idx >= MAX_COLUNAS_ROADMAP:
+    if historico_para_preencher:
+        # O primeiro resultado (mais recente) sempre vai para a posição inicial da última coluna
+        roadmap_grid_display[current_row][current_col] = historico_para_preencher[0]
+
+        for i in range(1, len(historico_para_preencher)):
+            prev_result = historico_para_preencher[i-1] # O resultado anterior (que já foi posicionado)
+            current_result = historico_para_preencher[i] # O resultado que estamos posicionando agora (que é mais antigo)
+
+            if current_result == prev_result:
+                # Se o resultado é o mesmo, desce na coluna atual
+                if current_row < NUM_LINHAS_ROADMAP - 1:
+                    current_row += 1
+                else:
+                    # Rabo de Dragão: se a coluna está cheia, move para a próxima coluna à esquerda
+                    current_col -= 1 # Move para a esquerda
+                    # A linha permanece na última posição para o rabo de dragão
+                    
+            else:
+                # Se o resultado é diferente, inicia uma nova coluna à esquerda
+                current_col -= 1
+                current_row = 0 # Volta para o topo da nova coluna
+
+            # Se a coluna atual saiu do limite visível, paramos de preencher
+            if current_col < 0:
                 break
-        
-        grid_resultados[row_idx][col_idx] = res
-        row_idx += 1
-    
-    # Inverte as colunas para que as mais recentes fiquem à esquerda na exibição
-    # A imagem mostra os resultados mais recentes nas colunas da esquerda,
-    # e os mais antigos nas colunas da direita, com as colunas sendo preenchidas de cima para baixo.
-    # Nossa lógica preenche da esquerda para a direita, de cima para baixo,
-    # então precisamos inverter as colunas para a exibição.
-    
-    # Se você quiser que o placar "empurre" da direita para a esquerda:
-    # A maneira mais fácil de simular é criar as colunas da direita para a esquerda
-    # no HTML, ou renderizar o grid invertido.
-    
-    # Para o formato da imagem (mais recente à esquerda, preenchido de cima para baixo)
-    # A lista `st.session_state.historico` já está do mais recente (índice 0) para o mais antigo.
-    # O preenchimento da grid deve simular a rolagem para a esquerda.
-    
-    # Crio um container flex para as colunas
+            
+            roadmap_grid_display[current_row][current_col] = current_result
+            
+    # --- RENDERIZAÇÃO DA GRADE ---
     st.markdown('<div class="historic-container">', unsafe_allow_html=True)
     
-    # As colunas mais recentes ficam à esquerda.
-    # Itero de MAX_COLUNAS_ROADMAP - 1 até 0 para exibir da direita para a esquerda,
-    # mas os resultados são do mais recente (índice 0) para o mais antigo.
-    # Isso significa que a primeira coluna exibida (mais à esquerda) deve conter
-    # os resultados mais recentes.
-    
-    # Vamos re-pensar o preenchimento para ser mais direto com o visual:
-    # Imagine o histórico como uma fila. O item 0 é o mais recente.
-    # A primeira coluna (mais à esquerda) do roadmap deve conter os itens 0, 1, 2, 3, 4, 5.
-    # A segunda coluna deve conter 6, 7, 8, 9, 10, 11, e assim por diante.
-    
-    roadmap_columns = [[] for _ in range(MAX_COLUNAS_ROADMAP)]
-    
-    for i, res in enumerate(st.session_state.historico):
-        col = i // NUM_LINHAS_ROADMAP # Qual coluna este resultado pertence
-        row = i % NUM_LINHAS_ROADMAP # Qual linha dentro da coluna
-        
-        if col < MAX_COLUNAS_ROADMAP: # Garante que não excede o número de colunas
-            roadmap_columns[col].append(res)
-    
-    # Renderiza as colunas da esquerda para a direita (mais recentes para os mais antigos visíveis)
-    for col_data in roadmap_columns:
-        if not col_data: # Não renderiza colunas vazias
-            continue
-        
+    # Itera sobre as colunas da esquerda para a direita para exibição
+    for col_idx in range(MAX_COLUNAS_ROADMAP):
         st.markdown('<div class="historic-column">', unsafe_allow_html=True)
-        for res in col_data:
-            st.markdown(get_resultado_html(res), unsafe_allow_html=True)
-        # Preenche os espaços vazios na coluna se ela não estiver cheia (6 resultados)
-        for _ in range(NUM_LINHAS_ROADMAP - len(col_data)):
-            st.markdown(get_resultado_html(''), unsafe_allow_html=True) # Renderiza um círculo vazio
+        for row_idx in range(NUM_LINHAS_ROADMAP):
+            result_to_display = roadmap_grid_display[row_idx][col_idx]
+            st.markdown(get_resultado_html(result_to_display), unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True) # Fecha historic-container
     
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # A div '</div>' extra no final do bloco 'else' abaixo foi removida,
+    # pois não era necessária e poderia causar problemas no layout.
+
+else:
+    st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
 
 # --- ANÁLISE PRINCIPAL ---
 st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
