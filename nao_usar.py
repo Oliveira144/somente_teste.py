@@ -804,21 +804,21 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # Reduzi o tamanho do círculo para 30px e a fonte para 13px para caber 9 em linha
+    # *** AINDA MENOR E SEM MARGEM ***
     return f"""
     <div style='
-        display: flex; /* Usar flex para centralizar o conteúdo dentro do círculo */
-        width: 30px; /* Levemente menor */
-        height: 30px; /* Levemente menor */
+        display: flex; 
+        width: 28px; /* Reduzido para 28px */
+        height: 28px; /* Reduzido para 28px */
         border-radius: 50%; 
         background-color: {color_map.get(resultado, 'gray')}; 
-        margin: 1px; /* Margem reduzida */
+        margin: 0px; /* Margem removida */
         align-items: center;
         justify-content: center;
-        font-size: 13px; /* Fonte levemente menor */
+        font-size: 12px; /* Fonte reduzida para 12px */
         color: {"black" if resultado == "E" else "white"};
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        flex-shrink: 0; /* Garante que não vai encolher */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Sombra mais suave */
+        flex-shrink: 0; 
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -843,7 +843,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Aprimorado (Removendo historic-row-container para usar st.columns)
+# CSS Aprimorado
 st.markdown("""
 <style>
 /* Estilo geral */
@@ -967,30 +967,32 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* NOVO ESTILO PARA O CONTÊINER DO HISTÓRICO */
+/* *** NOVO ESTILO PARA O CONTÊINER DO HISTÓRICO *** */
 .historic-container {
     display: flex;
-    flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
-    justify-content: flex-start; /* Alinha os itens ao início */
+    flex-wrap: wrap; 
+    justify-content: flex-start;
     align-items: center;
-    gap: 0px; /* Ajusta o espaço entre os itens */
+    /* Adicionado flex-basis para tentar forçar uma largura para cada grupo de 9 */
+    /* flex-basis: calc(9 * 28px + 0 * 8px); /* 9 itens * 28px + 8px de gap (se tivesse) */
+    /* width: calc(9 * 28px); /* Tenta uma largura fixa para o container */
+    overflow-x: auto; /* Adiciona barra de rolagem se não couber */
+    white-space: nowrap; /* Tenta manter tudo na mesma linha */
 }
 
 /* Estilo para o círculo do resultado */
-/* O estilo abaixo é redundante se você já aplica o estilo inline no get_resultado_html,
-   mas pode ser útil como fallback ou para ajustes finos globais. */
 .resultado-circulo {
-    display: inline-flex;
-    width: 30px; /* Levemente menor */
-    height: 30px; /* Levemente menor */
+    display: inline-flex; /* Alterado para inline-flex para melhor controle com white-space: nowrap */
+    width: 28px; 
+    height: 28px; 
     border-radius: 50%; 
-    margin: 1px; /* Margem reduzida */
+    margin: 0px; /* Margem removida */
     align-items: center;
     justify-content: center;
-    font-size: 13px; /* Fonte levemente menor */
+    font-size: 12px; 
     color: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    flex-shrink: 0; /* Garante que não vai encolher */
 }
 
 </style>
