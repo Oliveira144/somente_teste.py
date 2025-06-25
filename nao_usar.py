@@ -984,7 +984,7 @@ div.stButton > button[data-testid="stButton-Limpar"] { /* Ajustado para remover 
     border-radius: 8px !important;
     /* Adiciona uma largura máxima que possa acomodar 9 círculos + suas margens + alguma folga */
     /* 9 * (28px de largura + 2*2px de margem) = 9 * 32px = 288px */
-    max-width: 298px !important; /* 288px + 10px de folga ou padding */
+    max-width: 298px !important; /* CRÍTICO: Força a largura para 9 elementos */
     gap: 0px !important; /* Garante que não haja gap extra */
 }
 
