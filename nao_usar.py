@@ -8,9 +8,8 @@ import pandas as pd
 # --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
-        # Inverte o histórico para que o mais recente seja analisado primeiro,
-        # mas o armazenamento na sessão será do mais antigo para o mais recente.
-        self.historico = historico[::-1][:54] # Limitado e invertido para análise.
+        # Limita o histórico para análise, sempre os 54 mais recentes
+        self.historico = historico[:54] # Máximo de 54 resultados para o roadmap
         
         self.padroes_ativos = {
             # Padrões básicos existentes
@@ -758,7 +757,7 @@ if 'estatisticas' not in st.session_state:
     }
 
 def adicionar_resultado(resultado):
-    """Adiciona novo resultado ao histórico (na ordem mais antiga para mais recente) e registra validação da sugestão anterior, se houver"""
+    """Adiciona novo resultado ao histórico e registra validação da sugestão anterior, se houver"""
     if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao['sugerir']:
         sugestao_anterior = st.session_state.ultima_sugestao
         # Valida a sugestão anterior com o resultado real agora inserido
@@ -781,13 +780,9 @@ def adicionar_resultado(resultado):
         # Limpa a última sugestão após a validação
         del st.session_state.ultima_sugestao
 
-    st.session_state.historico.append(resultado) # ADICIONA NO FINAL (MAIS RECENTE)
-    
-    # Manter o histórico com um número máximo de resultados, pois o roadmap precisa de um limite
-    # e resultados muito antigos eventualmente saem do display. 54 é o limite da sua análise.
-    if len(st.session_state.historico) > 54:
-        st.session_state.historico.pop(0) # Remove o mais antigo do início
-    
+    st.session_state.historico.insert(0, resultado) # Adiciona no início (mais recente)
+    if len(st.session_state.historico) > 54: # Limita a 54 resultados (9 colunas x 6 linhas)
+        st.session_state.historico = st.session_state.historico[:54]
     st.session_state.estatisticas['total_jogos'] += 1
 
 def limpar_historico():
@@ -806,12 +801,16 @@ def limpar_historico():
 def desfazer_ultimo():
     """Remove o último resultado e ajusta as estatísticas se aplicável"""
     if st.session_state.historico:
-        # Remove o último resultado adicionado (que agora é o mais recente no final da lista)
-        st.session_state.historico.pop() 
+        # Se houve uma sugestão ativa antes do resultado que será desfeito, não ajustamos estatísticas
+        # pois a sugestão não foi validada por este resultado específico.
+        # A complexidade de desfazer a validação exigiria um controle mais granular das sugestões.
+        # Por simplicidade, desfazer remove apenas o resultado do histórico principal.
+        st.session_state.historico.pop(0)
         if st.session_state.estatisticas['total_jogos'] > 0:
             st.session_state.estatisticas['total_jogos'] -= 1
         
         # Se a última sugestão foi armazenada e não validada, ela é "perdida"
+        # para evitar confusão nas estatísticas de acerto/erro.
         if 'ultima_sugestao' in st.session_state:
              del st.session_state.ultima_sugestao
 
@@ -819,8 +818,6 @@ def get_resultado_html(resultado):
     """Retorna HTML para visualização do resultado com cores e símbolos"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'} # Vermelho, Azul, Amarelo
     
-    # Exemplo para se parecer mais com a imagem, apenas a cor:
-    # Ajustei um pouco a borda para ser mais visível em branco e preto
     return f"""
     <div style='
         display: flex;
@@ -829,11 +826,12 @@ def get_resultado_html(resultado):
         width: 25px; /* Tamanho do círculo */
         height: 25px;
         border-radius: 50%; 
-        background-color: {color_map.get(resultado, 'lightgray')}; 
+        background-color: {color_map.get(resultado, 'gray')}; 
         margin: 2px; /* Espaçamento entre os círculos */
         font-size: 14px;
         color: {"black" if resultado == "E" else "white"};
-        border: 1px solid rgba(0,0,0,0.2); /* Borda sutil para contornar os círculos */
+        border: 1px solid rgba(255,255,255,0.3); /* Borda sutil */
+        flex-shrink: 0; /* Impede que os itens encolham */
     '>
         {"E" if resultado == "E" else ""} </div>
     """
@@ -981,28 +979,11 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-.historic-container {
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 10px;
-    margin: 1rem 0;
-    border: 1px solid #dee2e6;
-    display: flex; /* Para roadmap */
-    overflow-x: auto; /* Permite rolagem horizontal se muitas colunas */
-    scroll-behavior: smooth;
-    padding-bottom: 10px; /* Espaço para barra de rolagem */
-    flex-direction: row; /* Colunas lado a lado */
-    justify-content: flex-end; /* Alinha as colunas à direita (as mais recentes) */
-}
-
-.historic-column {
-    display: flex;
-    flex-direction: column; /* Resultados em coluna */
+.historic-row {
+    display: flex; /* Para os resultados na linha */
+    justify-content: flex-start; /* Alinha do início (esquerda) */
     align-items: center;
-    margin: 0 2px; /* Espaçamento entre colunas */
-}
-.historic-column div {
-    margin-bottom: 2px; /* Espaçamento entre itens na coluna */
+    margin-bottom: 5px; /* Espaçamento entre as linhas */
 }
 
 /* Ajuste para o texto dentro dos botões de resultado */
@@ -1079,73 +1060,49 @@ with col5:
         limpar_historico()
         st.rerun()
 
-# --- EXIBIÇÃO DO HISTÓRICO NO FORMATO ROADMAP ---
+# --- EXIBIÇÃO DO HISTÓRICO NO FORMATO DE LINHAS DA ESQUERDA PARA A DIREITA ---
 st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
 
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    NUM_LINHAS_ROADMAP = 6 # Fixado em 6 linhas como no placar
-    MAX_COLUNAS_ROADMAP = 9 # Para um total de 54 resultados (9 colunas * 6 linhas)
+    # Parâmetros para a exibição em linhas
+    RESULTADOS_POR_LINHA = 9
+    NUM_LINHAS_MAX = 6 # Para limitar a 54 resultados no total
     
-    # Grid que representa o roadmap visível.
-    # Inicialmente, todas as células estão vazias.
-    roadmap_grid_display = [['' for _ in range(MAX_COLUNAS_ROADMAP)] for _ in range(NUM_LINHAS_ROADMAP)]
+    # Cria um container para as linhas de resultados
+    # Adicionei um CSS .historic-results-grid para controlar o layout
+    st.markdown('<div class="historic-results-grid" style="display: flex; flex-direction: column;">', unsafe_allow_html=True)
     
-    current_col = MAX_COLUNAS_ROADMAP - 1 # Começa da última coluna à direita
-    current_row = 0 # Começa da primeira linha (topo)
-    
-    # Vamos trabalhar com o histórico na ordem inversa (mais recente no índice 0)
-    # para preencher a grade da direita para a esquerda.
-    historico_para_preencher = list(st.session_state.historico[::-1]) 
-    
-    if historico_para_preencher:
-        # O primeiro resultado (mais recente) sempre vai para a posição inicial da última coluna
-        roadmap_grid_display[current_row][current_col] = historico_para_preencher[0]
+    # Itera sobre o histórico e agrupa em linhas
+    for i in range(NUM_LINHAS_MAX):
+        start_index = i * RESULTADOS_POR_LINHA
+        end_index = start_index + RESULTADOS_POR_LINHA
+        
+        # Pega a fatia do histórico para a linha atual
+        # Lembre-se que st.session_state.historico está do mais recente para o mais antigo.
+        # Então, o fatiamento já garante a ordem correta para a exibição da esquerda para a direita.
+        current_line_results = st.session_state.historico[start_index:end_index]
+        
+        if not current_line_results and i == 0: # Não há resultados ainda
+            break
+        elif not current_line_results and i > 0: # Se uma linha é vazia e não é a primeira, já preenchemos tudo
+            break
 
-        for i in range(1, len(historico_para_preencher)):
-            prev_result = historico_para_preencher[i-1] # O resultado anterior (que já foi posicionado)
-            current_result = historico_para_preencher[i] # O resultado que estamos posicionando agora (que é mais antigo)
+        # Cria uma linha de divs para cada resultado, mantendo o flexbox
+        st.markdown('<div class="historic-row">', unsafe_allow_html=True)
+        for res in current_line_results:
+            st.markdown(get_resultado_html(res), unsafe_allow_html=True)
+        
+        # Preenche com espaços vazios se a linha não estiver completa
+        for _ in range(RESULTADOS_POR_LINHA - len(current_line_results)):
+            st.markdown(get_resultado_html(''), unsafe_allow_html=True) # Círculo vazio
+        
+        st.markdown('</div>', unsafe_allow_html=True) # Fecha a linha
 
-            if current_result == prev_result:
-                # Se o resultado é o mesmo, desce na coluna atual
-                if current_row < NUM_LINHAS_ROADMAP - 1:
-                    current_row += 1
-                else:
-                    # Rabo de Dragão: se a coluna está cheia, move para a próxima coluna à esquerda
-                    current_col -= 1 # Move para a esquerda
-                    # A linha permanece na última posição para o rabo de dragão
-                    
-            else:
-                # Se o resultado é diferente, inicia uma nova coluna à esquerda
-                current_col -= 1
-                current_row = 0 # Volta para o topo da nova coluna
+    st.markdown('</div>', unsafe_allow_html=True) # Fecha o grid principal
 
-            # Se a coluna atual saiu do limite visível, paramos de preencher
-            if current_col < 0:
-                break
-            
-            roadmap_grid_display[current_row][current_col] = current_result
-            
-    # --- RENDERIZAÇÃO DA GRADE ---
-    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
-    
-    # Itera sobre as colunas da esquerda para a direita para exibição
-    for col_idx in range(MAX_COLUNAS_ROADMAP):
-        st.markdown('<div class="historic-column">', unsafe_allow_html=True)
-        for row_idx in range(NUM_LINHAS_ROADMAP):
-            result_to_display = roadmap_grid_display[row_idx][col_idx]
-            st.markdown(get_resultado_html(result_to_display), unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha historic-container
-    
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 54)", unsafe_allow_html=True)
-    # A div '</div>' extra no final do bloco 'else' abaixo foi removida,
-    # pois não era necessária e poderia causar problemas no layout.
-
-else:
-    st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
 
 # --- ANÁLISE PRINCIPAL ---
 st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
@@ -1244,202 +1201,6 @@ if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entra
         
         with col2:
             st.markdown(f"""
-            # ...
-# Linha 983
-if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entradas
-    analyzer = AnalisePadroes(st.session_state.historico)
-    sugestao = analyzer.sugestao_inteligente()
-    
-    # Armazena a última sugestão para validação futura
-    st.session_state.ultima_sugestao = sugestao
-
-    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
-        confianca_color = get_confianca_color(sugestao['confianca'])
-        
-        st.markdown(f"""
-        <div class="suggestion-box">
-            <h3>🎯 Próxima Sugestão</h3>
-            <h2 style="color: {confianca_color}; margin: 1rem 0;">
-                {sugestao['entrada']} ({sugestao['entrada_codigo']})
-            </h2>
-            <p><strong>Confiança:</strong> 
-                <span style="color: {confianca_color}; font-weight: bold;">
-                    {sugestao['confianca']}%
-                </span>
-            </p>
-            <p><strong>Tendência Atual:</strong> {sugestao['tendencia']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Detalhes da análise
-        if show_advanced:
-            with st.expander("📋 Detalhes da Análise"):
-                st.write("**Padrões Identificados que influenciaram a sugestão:**")
-                if sugestao['motivos']:
-                    for motivo in sugestao['motivos']:
-                        st.write(f"• {motivo}")
-                else:
-                    st.info("Nenhum padrão específico detectado, sugestão baseada em estatísticas gerais.")
-                
-                if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
-                    st.write("**Análise por Categoria de Padrões:**")
-                    for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                        st.write(f"**{categoria}:** {', '.join(padroes_list)}")
-    else: # <-- O problema estaria *neste* bloco 'else' ou no seu 'if' correspondente.
-        if len(st.session_state.historico) < 9:
-             st.info(f"🤔 Insira mais {9 - len(st.session_state.historico)} resultados para iniciar a sugestão inteligente.")
-        else:
-             st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão, ou nenhum padrão relevante detectado no momento.")
-    
-    # --- ANÁLISE DE PADRÕES (DETALHADA) ---
-    if show_advanced:
-        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Detalhado)</h2></div>', unsafe_allow_html=True)
-        
-        padroes_encontrados = analyzer.analisar_todos()
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.markdown("### ✅ Padrões Ativos")
-            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-            
-            if encontrados:
-                for padrao in encontrados:
-                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-            else:
-                st.info("Nenhum padrão específico detectado no histórico atual.")
-        
-        with col_right:
-            st.markdown("### ❌ Outros Padrões (Inativos)")
-            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-            
-            if nao_encontrados:
-                for padrao in nao_encontrados[:15]: # Limita a exibição para não sobrecarregar
-                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                if len(nao_encontrados) > 15:
-                    st.write(f"E mais {len(nao_encontrados) - 15} padrões inativos...")
-            else:
-                st.info("Todos os padrões estão ativos (improvável).")
-        
-    # --- ANÁLISE ESTATÍSTICA GERAL ---
-    if show_advanced:
-        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        frequencias = analyzer.calcular_frequencias()
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔴 Casa</h3>
-                <p style="color: #FF4B4B;">{frequencias['C']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔵 Visitante</h3>
-                <p style="color: #4B4BFF;">{frequencias['V']}%</p>
-            </div>
-            # ...
-# Linha 983
-if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entradas
-    analyzer = AnalisePadroes(st.session_state.historico)
-    sugestao = analyzer.sugestao_inteligente()
-    
-    # Armazena a última sugestão para validação futura
-    st.session_state.ultima_sugestao = sugestao
-
-    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
-        confianca_color = get_confianca_color(sugestao['confianca'])
-        
-        st.markdown(f"""
-        <div class="suggestion-box">
-            <h3>🎯 Próxima Sugestão</h3>
-            <h2 style="color: {confianca_color}; margin: 1rem 0;">
-                {sugestao['entrada']} ({sugestao['entrada_codigo']})
-            </h2>
-            <p><strong>Confiança:</strong> 
-                <span style="color: {confianca_color}; font-weight: bold;">
-                    {sugestao['confianca']}%
-                </span>
-            </p>
-            <p><strong>Tendência Atual:</strong> {sugestao['tendencia']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Detalhes da análise
-        if show_advanced:
-            with st.expander("📋 Detalhes da Análise"):
-                st.write("**Padrões Identificados que influenciaram a sugestão:**")
-                if sugestao['motivos']:
-                    for motivo in sugestao['motivos']:
-                        st.write(f"• {motivo}")
-                else:
-                    st.info("Nenhum padrão específico detectado, sugestão baseada em estatísticas gerais.")
-                
-                if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
-                    st.write("**Análise por Categoria de Padrões:**")
-                    for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                        st.write(f"**{categoria}:** {', '.join(padroes_list)}")
-    else: # <-- O problema estaria *neste* bloco 'else' ou no seu 'if' correspondente.
-        if len(st.session_state.historico) < 9:
-             st.info(f"🤔 Insira mais {9 - len(st.session_state.historico)} resultados para iniciar a sugestão inteligente.")
-        else:
-             st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão, ou nenhum padrão relevante detectado no momento.")
-    
-    # --- ANÁLISE DE PADRÕES (DETALHADA) ---
-    if show_advanced:
-        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Detalhado)</h2></div>', unsafe_allow_html=True)
-        
-        padroes_encontrados = analyzer.analisar_todos()
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.markdown("### ✅ Padrões Ativos")
-            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-            
-            if encontrados:
-                for padrao in encontrados:
-                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-            else:
-                st.info("Nenhum padrão específico detectado no histórico atual.")
-        
-        with col_right:
-            st.markdown("### ❌ Outros Padrões (Inativos)")
-            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-            
-            if nao_encontrados:
-                for padrao in nao_encontrados[:15]: # Limita a exibição para não sobrecarregar
-                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                if len(nao_encontrados) > 15:
-                    st.write(f"E mais {len(nao_encontrados) - 15} padrões inativos...")
-            else:
-                st.info("Todos os padrões estão ativos (improvável).")
-        
-    # --- ANÁLISE ESTATÍSTICA GERAL ---
-    if show_advanced:
-        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        frequencias = analyzer.calcular_frequencias()
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔴 Casa</h3>
-                <p style="color: #FF4B4B;">{frequencias['C']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
             <div class="metric-card">
                 <h3>🔵 Visitante</h3>
                 <p style="color: #4B4BFF;">{frequencias['V']}%</p>
@@ -1477,8 +1238,6 @@ if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entra
             else:
                 st.info("Nenhuma sugestão foi validada ainda.")
 
-# Linha 1147 - o 'else' que está causando o erro
-# Este 'else' se refere ao `if len(st.session_state.historico) >= 9:` que começa na linha 983
 else:
     st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
 
