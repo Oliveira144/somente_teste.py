@@ -824,19 +824,9 @@ def get_resultado_html(resultado):
         text_content = "E"
 
     return f"""
-    <div style='
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 25px; /* Tamanho do círculo */
-        height: 25px;
-        border-radius: 50%; 
-        background-color: {color_map.get(resultado, 'gray')}; 
-        font-size: 14px;
-        color: {"black" if resultado == "E" else "white"};
-        border: 1px solid rgba(255,255,255,0.3); /* Borda sutil */
-        flex-shrink: 0; /* Impede que os itens encolham */
-        box-sizing: border-box; /* Garante que padding e border não aumentem o tamanho total */
+    <div class='roadmap-item' style='
+        background-color: {color_map.get(resultado, 'gray')} !important; 
+        color: {"black" if resultado == "E" else "white"} !important;
     '>
         {text_content}
     </div>
@@ -985,36 +975,42 @@ div.stButton > button[data-testid*="stButton-Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* Styles for the roadmap grid */
+/* Styles for the roadmap grid - APLICAR AO CONTAINER PAI */
 .roadmap-grid-container {
-    display: grid;
-    /* Define o número de colunas (9) e o tamanho de cada uma */
-    grid-template-columns: repeat(9, min-content); 
-    /* grid-template-rows: repeat(6, min-content);  // Removido para permitir que flua */
-    gap: 2px; /* Espaçamento entre os círculos */
-    justify-content: start; /* Alinha a grade à esquerda */
-    align-items: start; /* Alinha os itens ao topo */
-    padding: 5px;
-    border: 1px solid #333; /* Borda para o roadmap */
-    border-radius: 5px;
-    background-color: #1a1a1a; /* Fundo escuro para a grade */
-    max-width: fit-content; /* Ajusta a largura ao conteúdo */
+    display: grid !important; /* Force grid display */
+    grid-template-columns: repeat(9, 25px) !important; /* 9 colunas de 25px fixos */
+    gap: 2px !important; /* Espaçamento entre os círculos */
+    justify-content: start !important; /* Alinha a grade à esquerda */
+    align-items: start !important; /* Alinha os itens ao topo */
+    padding: 5px !important;
+    border: 1px solid #333 !important; /* Borda para o roadmap */
+    border-radius: 5px !important;
+    background-color: #1a1a1a !important; /* Fundo escuro para a grade */
+    max-width: fit-content !important; /* Ajusta a largura ao conteúdo */
+    overflow-x: hidden !important; /* Garante que não haja barra de rolagem horizontal desnecessária */
 }
 
-/* Make sure the circle items fit well */
-.roadmap-grid-container > div {
-    width: 25px; /* Same as in get_resultado_html */
-    height: 25px;
-    box-sizing: border-box; /* Important for consistent sizing */
+/* Styles for each roadmap item (the circles) */
+.roadmap-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 25px !important; /* Tamanho do círculo */
+    height: 25px !important;
+    border-radius: 50% !important; 
+    font-size: 14px !important;
+    border: 1px solid rgba(255,255,255,0.3) !important; /* Borda sutil */
+    flex-shrink: 0 !important; /* Impede que os itens encolham */
+    box-sizing: border-box !important; /* Garante que padding e border não aumentem o tamanho total */
 }
 
 /* Ajuste para o texto dentro dos botões de resultado */
 div.stButton > button[data-testid*="stButton-CASA"] div,
 div.stButton > button[data-testid*="stButton-EMPATE"] div,
 div.stButton > button[data-testid*="stButton-VISITANTE"] div {
-    white-space: nowrap; /* Impede que o texto quebre em várias linhas */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important; /* Impede que o texto quebre em várias linhas */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 </style>
@@ -1089,7 +1085,7 @@ if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
     # Cria uma única string HTML com todos os círculos
-    # O CSS do roadmap-grid-container com grid-template-columns: repeat(9, min-content);
+    # O CSS do roadmap-grid-container com grid-template-columns: repeat(9, 25px);
     # fará com que os itens se organizem automaticamente em linhas de 9.
     grid_html_content = ""
     for resultado_cell in st.session_state.historico:
