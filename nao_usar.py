@@ -1,30 +1,10 @@
-# Football Studio Analyzer - Código Refinado
-
-# Melhorias aplicadas:
-# - Histórico aumentou para 54 jogos
-# - Análise feita da esquerda para a direita
-# - Visual reorganizado: linhas de 9 resultados
-# - Lógica de sugestão aprimorada para eficácia
-
-# --- Abaixo está o código completo com todas as alterações inovadoras ---
-
-
-24/06/2025 21:42
-
-importar streamlit como st
-importar coleções
-importar r
-
-importar streamlit como st
-importar coleções
-importar aleatório
-importar numpy como np
-importar pandas como pd
-de data e hora importar data e hora
-
+import streamlit as st
+import collections
+import random
+import numpy as np
+import pandas as pd
+from datetime import datetime
 # --- CLASSE ANALISEPADROES REFINADA E AJUSTADA ---
-classe AnalisePadroes:
-    """
     Classe para analisar padrões em um histórico de resultados de jogos
     (ex: 'C' para Casa, 'F' para Fora, 'E' para Empate) e gerar sugestões.
     """
