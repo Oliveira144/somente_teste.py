@@ -58,9 +58,16 @@ class AnalisePadroes:
             "Ciclo de Respiração": self._ciclo_respiracao,
             "Padrão de Resistência": self._padrao_resistencia,
             "Sequência de Breakout": self._sequencia_breakout,
+            
+            # Padrões solicitados pelo usuário
+            "Padrão 2x1x2": self._padrao_2x1x2,
+            "Padrão 2x2": self._padrao_2x2,
+            "Padrão 3x3": self._padrao_3x3,
+            "Padrão 4x4": self._padrao_4x4,
         }
 
         # Pesos dos padrões para calcular a confiança e sugestão.
+        # Ajustei os pesos para os padrões novos darem mais relevância ao "surf"
         self.pesos_padroes = {
             "Sequência (Surf de Cor)": 1.2,
             "Zig-Zag Perfeito": 1.0,
@@ -92,6 +99,12 @@ class AnalisePadroes:
             "Ciclo de Respiração": 0.9,
             "Padrão de Resistência": 1.1,
             "Sequência de Breakout": 1.2,
+            
+            # Pesos para os novos padrões (aumentados para priorizar o "surf")
+            "Padrão 2x1x2": 1.6, # Peso alto para indicar continuidade (AA B AA)
+            "Padrão 2x2": 1.4,   # Relevância para o 2x2
+            "Padrão 3x3": 1.7,   # Peso mais alto para sequências mais longas de duplas
+            "Padrão 4x4": 1.9,   # Peso ainda mais alto
         }
 
     def analisar_todos(self) -> dict:
@@ -153,6 +166,7 @@ class AnalisePadroes:
 
     def _duplas_repetidas(self) -> bool:
         if len(self.historico) < 4: return False
+        # Este padrão específico é C C F F
         return (self.historico[0] == self.historico[1] and
                 self.historico[2] == self.historico[3] and
                 self.historico[0] != self.historico[2])
@@ -160,10 +174,11 @@ class AnalisePadroes:
     def _empate_recorrente(self) -> bool:
         empates_indices = [i for i, r in enumerate(self.historico) if r == 'E']
         if len(empates_indices) < 3: return False
-        intervals = np.diff(empates_indices)
+        intervals = np.diff(empates)
         if len(intervals) >= 2:
             media_intervalo = np.mean(intervals)
-            return 2 <= media_intervalo <= 8 and np.std(intervals) < media_intervalo * 0.5
+            # Ajustando a tolerância para ser mais flexível em "recorrente"
+            return 2 <= media_intervalo <= 8 and np.std(intervals) < media_intervalo * 0.8
         return False
 
     def _padrao_escada(self) -> bool:
@@ -195,14 +210,15 @@ class AnalisePadroes:
     # --- NOVOS PADRÕES ESPECÍFICOS DO FOOTBALL STUDIO ---
     def _padrao_fibonacci(self) -> bool:
         if len(self.historico) < 8: return False
-        fib_lengths = [1, 1, 2, 3]
+        fib_lengths = [1, 1, 2, 3] # Representa C, F, C C, F F F (alternando)
         current_idx = 0
         results_to_check = self.historico[:]
         try:
             for length in fib_lengths:
                 if current_idx + length > len(results_to_check): return False
                 block = results_to_check[current_idx : current_idx + length]
-                if not block or not all(x == block[0] for x in block): return False
+                if not block or not all(x == block[0] for x in block): return False # Verifica se o bloco é uniforme
+                # Verifica se o bloco atual é diferente do anterior, garantindo alternância
                 if current_idx > 0 and block[0] == results_to_check[current_idx - 1]: return False
                 current_idx += length
             return True
@@ -210,49 +226,61 @@ class AnalisePadroes:
         
     def _sequencia_dourada(self) -> bool:
         if len(self.historico) < 8: return False
-        return (self.historico[0] == self.historico[1] == self.historico[2] and
-                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7] and
-                self.historico[0] != self.historico[3])
+        return (self.historico[0] == self.historico[1] == self.historico[2] and # 3 do mesmo
+                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7] and # 5 do mesmo
+                self.historico[0] != self.historico[3]) # Mas diferentes entre si
 
     def _padrao_triangular(self) -> bool:
         if len(self.historico) < 9: return False
         segment = self.historico[:9]
+        # Padrão: A B C D C B A E A (onde A é o resultado mais externo, e E é o do meio)
         return (segment[0] == segment[8] and segment[1] == segment[7] and 
                 segment[2] == segment[6] and segment[3] == segment[5] and
+                # A condição abaixo verifica se o centro do triângulo é diferente da base,
+                # e que a parte central é uniforme (ex: C C C)
                 len(set(segment[2:7])) == 1 and segment[0] != segment[4])
 
     def _ciclo_empates(self) -> bool:
         empates = [i for i, x in enumerate(self.historico) if x == 'E']
         if len(empates) < 3: return False
-        if len(empates) >= 3:
-            intervals = np.diff(empates)
-            if np.mean(intervals) >= 2 and np.std(intervals) < 2: return True
-        return False
+        # Procura por intervalos regulares entre empates
+        intervals = np.diff(empates)
+        if len(intervals) >= 2:
+            media_intervalo = np.mean(intervals)
+            # Um ciclo é mais forte se os intervalos são consistentes
+            return np.std(intervals) < 1.5 and 2 <= media_intervalo <= 7 # Intervalos médios entre 2 e 7 jogos
 
     def _padrao_martingale(self) -> bool:
         if len(self.historico) < 7: return False
-        return (self.historico[0] != self.historico[1] and
-                self.historico[1] == self.historico[2] and
-                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] and
-                self.historico[1] != self.historico[3])
+        # Ex: A B B C C C C (após uma quebra, uma sequência forte)
+        return (self.historico[0] != self.historico[1] and # A quebra
+                self.historico[1] == self.historico[2] and # B B
+                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] and # C C C C
+                self.historico[1] != self.historico[3]) # B diferente de C
 
     def _fibonacci_invertida(self) -> bool:
         if len(self.historico) < 8: return False
-        return (self.historico[0] == self.historico[1] and self.historico[2] != self.historico[0] and
-                self.historico[3] == self.historico[4] and self.historico[5] != self.historico[3] and
-                self.historico[6] == self.historico[7] and self.historico[0] != self.historico[3])
+        # Ex: C C F F C C F F (sequências curtas e alternadas)
+        return (self.historico[0] == self.historico[1] and self.historico[2] != self.historico[0] and # 2x A, então B
+                self.historico[3] == self.historico[4] and self.historico[5] != self.historico[3] and # 2x C, então D
+                self.historico[6] == self.historico[7] and # 2x E
+                self.historico[0] != self.historico[3]) # A != C
 
     def _padrao_dragon_tiger(self) -> bool:
         if len(self.historico) < 6: return False
-        return (self.historico[0] != self.historico[1] and self.historico[1] != self.historico[2] and
-                self.historico[3] == 'E' and self.historico[4] == self.historico[5] and
-                self.historico[4] != 'E')
+        # Ex: C F C E F F (Alternância, um empate, e uma dupla)
+        return (self.historico[0] != self.historico[1] and self.historico[1] != self.historico[2] and # Zig-zag inicial
+                self.historico[3] == 'E' and # Um empate no meio
+                self.historico[4] == self.historico[5] and # Uma dupla
+                self.historico[4] != 'E') # E não pode ser o da dupla
 
     def _sequencia_paroli(self) -> bool:
         if len(self.historico) < 8: return False
-        return (self.historico[0] != self.historico[1] and self.historico[1] == self.historico[2] and
-                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] and
-                self.historico[0] == self.historico[7])
+        # Ex: C F F C C C C C (Quebra, dupla, sequência longa, e o primeiro e o último são iguais)
+        return (self.historico[0] != self.historico[1] and # Quebra
+                self.historico[1] == self.historico[2] and # Dupla
+                self.historico[3] == self.historico[4] == self.historico[5] == self.historico[6] and # Sequência de 4
+                self.historico[0] == self.historico[7]) # O primeiro e o oitavo são iguais
 
     def _ondas_longas(self) -> bool:
         if len(self.historico) < 5: return False
@@ -260,7 +288,7 @@ class AnalisePadroes:
         for i in range(1, len(self.historico)):
             if self.historico[i] == self.historico[i-1]:
                 count += 1
-                if count >= 5: return True
+                if count >= 5: return True # Detecta qualquer sequência de 5 ou mais
             else: count = 1
         return False
 
@@ -269,78 +297,130 @@ class AnalisePadroes:
         window = self.historico[:10]
         counter = collections.Counter(window)
         for _, count in counter.items():
-            if count >= 7: return True
+            if count >= 7: return True # Um resultado domina 70% da janela
+
         return False
 
     def _padrao_tensao(self) -> bool:
         if len(self.historico) < 7: return False
+        # Ex: C F C F C C C (Alternância que se "quebra" em uma sequência forte)
         alternations = 0
-        for i in range(3):
+        for i in range(3): # Verifica os 4 primeiros (0 a 3) para alternância
             if self.historico[i] != self.historico[i+1]: alternations += 1
-            else: return False
-        return (alternations == 3 and self.historico[4] == self.historico[5] == self.historico[6])
+            else: return False # Se quebrar antes, não é o padrão
+        return (alternations == 3 and # Garante 4 alternâncias iniciais
+                self.historico[4] == self.historico[5] == self.historico[6]) # Uma sequência de 3 no final
 
     def _sequencia_labouchere(self) -> bool:
         if len(self.historico) < 6: return False
+        # Ex: C F X X F C (primeiro e último iguais, segundo e penúltimo iguais, meio diferente)
         segment = self.historico[:6]
         return (segment[0] == segment[5] and segment[1] == segment[4] and
-                segment[2] != segment[0] and segment[3] != segment[0] and segment[2] == segment[3])
+                segment[2] != segment[0] and segment[3] != segment[0] and segment[2] == segment[3]) # Meio é uma dupla diferente
 
     def _ritmo_cardiaco(self) -> bool:
         if len(self.historico) < 8: return False
+        # Ex: C C F C C F F F (Dupla, quebra, dupla, quebra, tripla)
         segment = self.historico[:8]
         return (segment[0] == segment[1] and segment[2] != segment[0] and
                 segment[3] == segment[4] and segment[5] == segment[6] == segment[7] and
-                segment[3] != segment[5])
+                segment[3] != segment[5]) # A segunda dupla é diferente da tripla
 
     def _ciclo_pressao(self) -> bool:
         if len(self.historico) < 9: return False
-        return (self.historico[0] != self.historico[1] and self.historico[1] == self.historico[2] and
-                self.historico[3] == self.historico[4] == self.historico[5] and self.historico[6] == self.historico[0] and
-                self.historico[7] == self.historico[1] and self.historico[8] == self.historico[2])
+        # Ex: A B B C C C A B B (repetição de padrões pequenos em um ciclo)
+        return (self.historico[0] != self.historico[1] and self.historico[1] == self.historico[2] and # A B B
+                self.historico[3] == self.historico[4] == self.historico[5] and # C C C
+                self.historico[6] == self.historico[0] and # Repete A
+                self.historico[7] == self.historico[1] and self.historico[8] == self.historico[2]) # Repete B B
 
     def _padrao_clusters(self) -> bool:
         if len(self.historico) < 12: return False
+        # Procura por "blocos" densos de resultados do mesmo tipo
         window = self.historico[:12]
         cluster1 = window[0:4]
         cluster2 = window[4:8]
         cluster3 = window[8:12]
+        # Pelo menos 3 do mesmo em cada cluster de 4
         return (collections.Counter(cluster1).most_common(1)[0][1] >= 3 and
                 collections.Counter(cluster2).most_common(1)[0][1] >= 3 and
                 collections.Counter(cluster3).most_common(1)[0][1] >= 3)
 
     def _sequencia_polar(self) -> bool:
         if len(self.historico) < 10: return False
+        # Alternância extrema entre dois resultados sem empates
         window = self.historico[:10]
         unique_results = set(window)
         if len(unique_results) == 2 and 'E' not in unique_results:
             changes = sum(1 for j in range(len(window)-1) if window[j] != window[j+1])
-            return changes >= 6
+            return changes >= 6 # Pelo menos 6 mudanças em 9 possíveis (alta alternância)
         return False
 
     def _padrao_momentum(self) -> bool:
         if len(self.historico) < 10: return False
-        return (self.historico[0] != self.historico[1] and self.historico[1] == self.historico[2] and
-                self.historico[3] == self.historico[4] == self.historico[5] and
-                self.historico[6] == self.historico[7] == self.historico[8] == self.historico[9] and
-                self.historico[1] != self.historico[3] and self.historico[3] != self.historico[6])
+        # Ex: A B B C C C D D D D (sequências crescentes de diferentes resultados)
+        return (self.historico[0] != self.historico[1] and self.historico[1] == self.historico[2] and # 1x A, 2x B
+                self.historico[3] == self.historico[4] == self.historico[5] and # 3x C
+                self.historico[6] == self.historico[7] == self.historico[8] == self.historico[9] and # 4x D
+                self.historico[1] != self.historico[3] and self.historico[3] != self.historico[6]) # B != C != D
 
     def _ciclo_respiracao(self) -> bool:
         if len(self.historico) < 8: return False
-        return (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and
-                self.historico[4] != self.historico[0] and self.historico[5] == self.historico[6] == self.historico[7] and
-                self.historico[5] != self.historico[4])
+        # Ex: A A A A B C C C (Sequência longa, quebra, e nova sequência)
+        return (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and # Sequência de 4
+                self.historico[4] != self.historico[0] and # Quebra
+                self.historico[5] == self.historico[6] == self.historico[7] and # Nova sequência de 3
+                self.historico[5] != self.historico[4]) # E a nova sequência é diferente da quebra
 
     def _padrao_resistencia(self) -> bool:
         if len(self.historico) < 6: return False
-        return (self.historico[0] == self.historico[2] == self.historico[4] == self.historico[5] and
-                self.historico[1] != self.historico[0] and self.historico[3] != self.historico[0])
+        # Ex: A B A C A A (um resultado 'A' aparece e 'resiste' a interrupções)
+        return (self.historico[0] == self.historico[2] == self.historico[4] == self.historico[5] and # A em posições específicas
+                self.historico[1] != self.historico[0] and self.historico[3] != self.historico[0]) # Interrupções são diferentes de A
 
     def _sequencia_breakout(self) -> bool:
         if len(self.historico) < 8: return False
-        return (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and
-                self.historico[4] != self.historico[0] and self.historico[5] == self.historico[6] == self.historico[7] and
-                self.historico[5] == self.historico[4])
+        # Ex: A A A A B B B B (sequência longa, quebra e nova sequência longa do tipo da quebra)
+        return (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and # Sequência AAAA
+                self.historico[4] != self.historico[0] and # Quebra para B
+                self.historico[5] == self.historico[6] == self.historico[7] and # Sequência BBB
+                self.historico[5] == self.historico[4]) # O resultado da quebra inicia a nova sequência
+
+    # --- NOVOS PADRÕES SOLICITADOS ---
+    def _padrao_2x1x2(self) -> bool:
+        if len(self.historico) < 5: return False
+        # Ex: C C F C C ou F F C F F.
+        # Verifica se os dois primeiros são iguais, o terceiro é diferente,
+        # e o quarto e quinto são iguais ao primeiro e segundo.
+        return (self.historico[0] == self.historico[1] and           # Dois do mesmo (primeira dupla)
+                self.historico[2] != self.historico[0] and          # Um diferente
+                self.historico[3] == self.historico[4] and           # Dois do mesmo (segunda dupla)
+                self.historico[0] == self.historico[3])              # As duplas são do mesmo tipo
+
+    def _padrao_2x2(self) -> bool:
+        if len(self.historico) < 4: return False
+        # Ex: C C F F ou F F C C.
+        # Verifica se os dois primeiros são iguais e os dois próximos são iguais, mas diferentes entre si.
+        return (self.historico[0] == self.historico[1] and           # Dois do mesmo
+                self.historico[2] == self.historico[3] and           # Dois do outro
+                self.historico[0] != self.historico[2])              # Os pares são de tipos diferentes
+
+    def _padrao_3x3(self) -> bool:
+        if len(self.historico) < 6: return False
+        # Ex: C C C F F F ou F F F C C C.
+        # Verifica se os três primeiros são iguais e os três próximos são iguais, mas diferentes entre si.
+        return (self.historico[0] == self.historico[1] == self.historico[2] and # Três do mesmo
+                self.historico[3] == self.historico[4] == self.historico[5] and # Três do outro
+                self.historico[0] != self.historico[3])             # Os trios são de tipos diferentes
+
+    def _padrao_4x4(self) -> bool:
+        if len(self.historico) < 8: return False
+        # Ex: C C C C F F F F ou F F F F C C C C.
+        # Verifica se os quatro primeiros são iguais e os quatro próximos são iguais, mas diferentes entre si.
+        return (self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and # Quatro do mesmo
+                self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7] and # Quatro do outro
+                self.historico[0] != self.historico[4])             # Os quartetos são de tipos diferentes
+
 
     def calcular_frequencias(self):
         """Calcula frequências dos resultados"""
@@ -361,9 +441,14 @@ class AnalisePadroes:
         ultimos_5 = self.historico[:5]
         contador = collections.Counter(ultimos_5)
         
-        if contador.most_common(1)[0][1] >= 4: return f"Forte tendência: {contador.most_common(1)[0][0]}"
-        elif contador.most_common(1)[0][1] >= 3: return f"Tendência moderada: {contador.most_common(1)[0][0]}"
-        else: return "Sem tendência clara"
+        # Considera a tendência se um resultado aparece 3 ou mais vezes nos últimos 5.
+        # Ajustado para ser mais sensível
+        if contador.most_common(1)[0][1] >= 4: 
+            return f"Forte tendência: {contador.most_common(1)[0][0]}"
+        elif contador.most_common(1)[0][1] == 3: 
+            return f"Tendência moderada: {contador.most_common(1)[0][0]}"
+        else: 
+            return "Sem tendência clara"
 
     def gerar_sugestao(self) -> dict:
         """
@@ -385,156 +470,176 @@ class AnalisePadroes:
         last_result = self._get_last_result()
         second_last_result = self._get_second_last_result()
         
-        motivos_sugestao = []
+        motives_sugestao = [] # Corrigido de 'motivos_sugestao' para 'motives_sugestao' para consistência
         total_peso_padroes = 0.0
         
         for nome_padrao, ativo in padroes_ativos.items():
             if ativo:
                 peso = self.pesos_padroes.get(nome_padrao, 0.5)
-                motivos_sugestao.append(nome_padrao)
+                motives_sugestao.append(nome_padrao)
                 total_peso_padroes += peso
 
+                # Lógica de pontuação para cada padrão ativo
                 if nome_padrao == "Sequência (Surf de Cor)":
-                    if last_result: pontuacoes[last_result] += peso * 1.5
+                    if last_result: pontuacoes[last_result] += peso * 2.0 # Maior peso para continuar o surf
 
                 elif nome_padrao == "Zig-Zag Perfeito":
                     if last_result == 'C': pontuacoes['F'] += peso
                     elif last_result == 'F': pontuacoes['C'] += peso
                     
                 elif nome_padrao == "Quebra de Surf":
+                    # Este padrão indica que a sequência anterior de 3 foi quebrada pelo 4º resultado.
+                    # A sugestão seria apostar NO resultado que QUEBROU a sequência.
                     if len(self.historico) >= 4 and self.historico[0] == self.historico[1] == self.historico[2] and self.historico[2] != self.historico[3]:
-                        pontuacoes[self.historico[3]] += peso * 1.2
-                    
-                elif nome_padrao == "Quebra de Zig-Zag":
-                    if len(self.historico) >= 5 and self.historico[3] == self.historico[4]:
-                        pontuacoes[self.historico[3]] += peso * 1.2
+                        pontuacoes[self.historico[3]] += peso * 0.8 # Menor peso, pois é uma quebra
 
-                elif nome_padrao == "Duplas Repetidas":
-                    if len(self.historico) >= 4 and self.historico[0] == self.historico[1] and self.historico[2] == self.historico[3]:
-                        pontuacoes[self.historico[0]] += peso
+                elif nome_padrao == "Quebra de Zig-Zag":
+                    # Este padrão indica que o zig-zag foi quebrado.
+                    # A sugestão é seguir o resultado que quebrou a alternância.
+                    if len(self.historico) >= 5 and self.historico[3] == self.historico[4]:
+                        pontuacoes[self.historico[3]] += peso * 0.8 # Menor peso para quebra
+
+                elif nome_padrao == "Duplas Repetidas": # C C F F
+                    if len(self.historico) >= 4 and self.historico[0] == self.historico[1] and self.historico[2] == self.historico[3] and self.historico[0] != self.historico[2]:
+                        pontuacoes[self.historico[0]] += peso # Sugere a continuação da primeira dupla
 
                 elif nome_padrao == "Empate Recorrente":
                     pontuacoes['E'] += peso * 1.5
 
                 elif nome_padrao == "Padrão Escada":
+                    # Ex: A B B C C C. Sugere quebrar o C C C e voltar para B (ou E se aplicável)
                     if len(self.historico) >= 6 and self.historico[1] == self.historico[2] and self.historico[3] == self.historico[4] == self.historico[5]:
-                        if self.historico[0] == 'C': pontuacoes['F'] += peso
-                        elif self.historico[0] == 'F': pontuacoes['C'] += peso
-                        else: pontuacoes['E'] += peso
+                        if self.historico[0] == 'C': pontuacoes['F'] += peso # Se A foi C, sugerir F
+                        elif self.historico[0] == 'F': pontuacoes['C'] += peso # Se A foi F, sugerir C
+                        else: pontuacoes['E'] += peso # Se A foi E, sugerir E (menos provável)
                         
                 elif nome_padrao == "Espelho":
-                    if last_result == 'C': pontuacoes['F'] += peso * 0.5
-                    elif last_result == 'F': pontuacoes['C'] += peso * 0.5
-                    elif last_result == 'E': pontuacoes['E'] += peso * 0.5
+                    # Se há um espelho (e.g., C F E F C), o próximo seria a 'continuação' do espelho.
+                    # Se o último foi C, o próximo seria F para espelhar C. Mas geralmente espelho é para prever o centro.
+                    # Para simplificar, pode-se sugerir o oposto do último para manter a simetria ou o próximo do "espelho"
+                    if last_result == 'C': pontuacoes['F'] += peso * 0.7
+                    elif last_result == 'F': pontuacoes['C'] += peso * 0.7
+                    elif last_result == 'E': pontuacoes['E'] += peso * 0.5 # Empates podem quebrar espelhos facilmente
 
                 elif nome_padrao == "Alternância com Empate":
+                    # Ex: C E F. O próximo seria C.
                     if len(self.historico) >= 3 and self.historico[1] == 'E' and self.historico[0] != self.historico[2]:
-                        if self.historico[0] == 'C': pontuacoes['F'] += peso
-                        elif self.historico[0] == 'F': pontuacoes['C'] += peso
+                        pontuacoes[self.historico[0]] += peso * 1.0 # Sugere o que alternou com E
 
-                elif nome_padrao == "Padrão Onda":
+                elif nome_padrao == "Padrão Onda": # C F C F C F
                     if len(self.historico) >= 6 and self.historico[0] == self.historico[2] == self.historico[4] and self.historico[1] == self.historico[3] == self.historico[5]:
-                        pontuacoes[self.historico[1]] += peso
+                        pontuacoes[self.historico[1]] += peso # Sugere o oposto do último resultado
 
-                elif nome_padrao == "Padrão Fibonacci":
+                elif nome_padrao == "Padrão Fibonacci": # 1, 1, 2, 3 (alternando)
+                    # Se terminou em uma sequência de 3 (ex: F F F), o próximo seria C (inversão)
                     if last_result == 'C': pontuacoes['F'] += peso * 1.1
                     elif last_result == 'F': pontuacoes['C'] += peso * 1.1
                     elif last_result == 'E': pontuacoes['E'] += peso * 0.8
 
-                elif nome_padrao == "Sequência Dourada":
+                elif nome_padrao == "Sequência Dourada": # 3 de um, 5 do outro
                     if len(self.historico) >= 8 and self.historico[3] == self.historico[4]:
-                        pontuacoes[self.historico[3]] += peso * 1.2
+                        pontuacoes[self.historico[3]] += peso * 1.2 # Sugere continuar a sequência de 5
 
-                elif nome_padrao == "Padrão Triangular":
+                elif nome_padrao == "Padrão Triangular": # A B C D C B A E A
                     if len(self.historico) >= 9 and self.historico[0] == self.historico[8]:
-                        if self.historico[4] == 'C': pontuacoes['F'] += peso
+                        if self.historico[4] == 'C': pontuacoes['F'] += peso # Sugere o oposto do meio
                         elif self.historico[4] == 'F': pontuacoes['C'] += peso
                         elif self.historico[4] == 'E': pontuacoes['E'] += peso * 0.8
 
                 elif nome_padrao == "Ciclo de Empates":
-                    pontuacoes['E'] += peso * 1.8
+                    pontuacoes['E'] += peso * 1.8 # Forte sugestão de Empate
 
-                elif nome_padrao == "Padrão Martingale":
+                elif nome_padrao == "Padrão Martingale": # A B B C C C C
                     if len(self.historico) >= 7 and self.historico[3] == self.historico[4]:
-                        pontuacoes[self.historico[3]] += peso * 1.5
+                        pontuacoes[self.historico[3]] += peso * 1.5 # Sugere continuar a sequência forte
 
-                elif nome_padrao == "Sequência de Fibonacci Invertida":
+                elif nome_padrao == "Sequência de Fibonacci Invertida": # 2x, 1x, 2x, 1x
                     if last_result == 'C': pontuacoes['F'] += peso * 1.1
                     elif last_result == 'F': pontuacoes['C'] += peso * 1.1
                     elif last_result == 'E': pontuacoes['E'] += peso * 0.8
 
-                elif nome_padrao == "Padrão Dragon Tiger":
+                elif nome_padrao == "Padrão Dragon Tiger": # C F C E F F
                     if len(self.historico) >= 6 and self.historico[4] == self.historico[5]:
-                        pontuacoes[self.historico[4]] += peso * 1.3
+                        pontuacoes[self.historico[4]] += peso * 1.3 # Sugere continuar a última dupla
 
-                elif nome_padrao == "Sequência de Paroli":
+                elif nome_padrao == "Sequência de Paroli": # C F F C C C C C
                     if len(self.historico) >= 8 and self.historico[0] == self.historico[7]:
-                        pontuacoes[self.historico[0]] += peso * 1.2
+                        pontuacoes[self.historico[0]] += peso * 1.2 # Sugere o resultado que "fechou" a sequência
 
                 elif nome_padrao == "Padrão de Ondas Longas":
-                    if last_result: pontuacoes[last_result] += peso * 1.6
+                    if last_result: pontuacoes[last_result] += peso * 2.0 # Muito forte para continuar a onda
 
                 elif nome_padrao == "Ciclo de Dominância":
                     dominant_result = collections.Counter(self.historico[:10]).most_common(1)[0][0]
-                    pontuacoes[dominant_result] += peso * 1.1
+                    pontuacoes[dominant_result] += peso * 1.1 # Sugere o dominante
 
-                elif nome_padrao == "Padrão de Tensão":
+                elif nome_padrao == "Padrão de Tensão": # C F C F C C C
                     if len(self.historico) >= 7 and self.historico[4] == self.historico[5] == self.historico[6]:
-                        pontuacoes[self.historico[4]] += peso * 1.2
+                        pontuacoes[self.historico[4]] += peso * 1.2 # Sugere continuar a sequência final
 
-                elif nome_padrao == "Sequência de Labouchere":
+                elif nome_padrao == "Sequência de Labouchere": # C F X X F C
                     if len(self.historico) >= 6 and self.historico[0] == self.historico[5]:
-                        if last_result == 'C': pontuacoes['F'] += peso
-                        elif last_result == 'F': pontuacoes['C'] += peso
-                        elif last_result == 'E': pontuacoes['E'] += peso
+                        if last_result == 'C': pontuacoes['F'] += peso * 0.8 # Sugere alternância se o padrão for de espelho
+                        elif last_result == 'F': pontuacoes['C'] += peso * 0.8
+                        elif last_result == 'E': pontuacoes['E'] += peso * 0.5
 
-                elif nome_padrao == "Padrão Ritmo Cardíaco":
+                elif nome_padrao == "Padrão Ritmo Cardíaco": # C C F C C F F F
                     if len(self.historico) >= 8:
                         if self.historico[5] == self.historico[6] == self.historico[7]:
-                            if self.historico[5] == 'C': pontuacoes['F'] += peso * 0.7
+                            if self.historico[5] == 'C': pontuacoes['F'] += peso * 0.7 # Sugere o oposto da última sequência
                             elif self.historico[5] == 'F': pontuacoes['C'] += peso * 0.7
                             elif self.historico[5] == 'E': pontuacoes['E'] += peso * 0.7
 
-                elif nome_padrao == "Ciclo de Pressão":
+                elif nome_padrao == "Ciclo de Pressão": # A B B C C C A B B
                     if len(self.historico) >= 9 and self.historico[6] == self.historico[0]:
-                        pontuacoes[self.historico[0]] += peso * 1.1
+                        pontuacoes[self.historico[0]] += peso * 1.1 # Sugere a continuação do ciclo
 
                 elif nome_padrao == "Padrão de Clusters":
                     if len(self.historico) >= 12:
                         last_cluster_dominant = collections.Counter(self.historico[8:12]).most_common(1)[0][0]
-                        pontuacoes[last_cluster_dominant] += peso * 1.0
+                        pontuacoes[last_cluster_dominant] += peso * 1.0 # Sugere continuar o último cluster
 
                 elif nome_padrao == "Sequência Polar":
                     if len(self.historico) >= 10:
-                        if last_result == 'C': pontuacoes['F'] += peso * 1.0
+                        if last_result == 'C': pontuacoes['F'] += peso * 1.0 # Sugere o oposto para manter a polaridade
                         elif last_result == 'F': pontuacoes['C'] += peso * 1.0
 
-                elif nome_padrao == "Padrão de Momentum":
+                elif nome_padrao == "Padrão de Momentum": # A B B C C C D D D D
                     if len(self.historico) >= 10 and self.historico[6] == self.historico[7]:
-                        pontuacoes[self.historico[6]] += peso * 1.4
+                        pontuacoes[self.historico[6]] += peso * 1.4 # Sugere continuar a última sequência forte
 
-                elif nome_padrao == "Ciclo de Respiração":
-                    if len(self.historico) < 8: return False # Adicionando verificação de tamanho aqui
-                    if self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and \
-                       self.historico[4] != self.historico[0] and \
-                       self.historico[5] == self.historico[6] == self.historico[7] and \
-                       self.historico[5] != self.historico[4]:
-                        pontuacoes[self.historico[5]] += peso * 1.1
+                elif nome_padrao == "Ciclo de Respiração": # A A A A B C C C
+                    if len(self.historico) < 8: pass # Já verificado na função do padrão
+                    else:
+                        pontuacoes[self.historico[5]] += peso * 1.1 # Sugere continuar a última sequência
 
-                elif nome_padrao == "Padrão de Resistência":
-                    if len(self.historico) < 6: return False # Adicionando verificação de tamanho aqui
-                    if self.historico[0] == self.historico[2] == self.historico[4] == self.historico[5] and \
-                       self.historico[1] != self.historico[0] and \
-                       self.historico[3] != self.historico[0]:
+                elif nome_padrao == "Padrão de Resistência": # A B A C A A
+                    if len(self.historico) < 6: pass # Já verificado na função do padrão
+                    else:
+                        pontuacoes[self.historico[0]] += peso * 1.2 # Sugere continuar o resultado "resistente"
+
+                elif nome_padrao == "Sequência de Breakout": # A A A A B B B B
+                    if len(self.historico) < 8: pass # Já verificado na função do padrão
+                    else:
+                        pontuacoes[self.historico[5]] += peso * 1.5 # Sugere continuar a sequência que se "consolidou"
+
+                # Lógica de pontuação para os NOVOS PADRÕES SOLICITADOS
+                elif nome_padrao == "Padrão 2x1x2": # C C F C C -> Sugere C (o tipo que se repete)
+                    if len(self.historico) >= 4 and self.historico[0] == self.historico[1] and self.historico[0] == self.historico[3]:
+                        pontuacoes[self.historico[0]] += peso * 1.5 # Forte sugestão de continuar o resultado dominante
+
+                elif nome_padrao == "Padrão 2x2": # C C F F -> Sugere C (o tipo da primeira dupla para reiniciar o ciclo)
+                    if len(self.historico) >= 4 and self.historico[0] == self.historico[1] and self.historico[2] == self.historico[3]:
+                        pontuacoes[self.historico[0]] += peso * 1.0
+                        
+                elif nome_padrao == "Padrão 3x3": # C C C F F F -> Sugere C (o tipo da primeira tripla para reiniciar o ciclo)
+                    if len(self.historico) >= 6 and self.historico[0] == self.historico[1] == self.historico[2] and self.historico[3] == self.historico[4] == self.historico[5]:
                         pontuacoes[self.historico[0]] += peso * 1.2
 
-                elif nome_padrao == "Sequência de Breakout":
-                    if len(self.historico) < 8: return False # Adicionando verificação de tamanho aqui
-                    if self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and \
-                       self.historico[4] != self.historico[0] and \
-                       self.historico[5] == self.historico[6] == self.historico[7] and \
-                       self.historico[5] == self.historico[4]:
-                        pontuacoes[self.historico[5]] += peso * 1.5
+                elif nome_padrao == "Padrão 4x4": # C C C C F F F F -> Sugere C (o tipo da primeira sequência de 4 para reiniciar o ciclo)
+                    if len(self.historico) >= 8 and self.historico[0] == self.historico[1] == self.historico[2] == self.historico[3] and \
+                       self.historico[4] == self.historico[5] == self.historico[6] == self.historico[7]:
+                        pontuacoes[self.historico[0]] += peso * 1.4
         
         # 2. Adicionar uma pontuação baseada na tendência mais recente (últimos 3-5 jogos)
         recentes_window = self.historico[:min(len(self.historico), 5)]
@@ -553,12 +658,15 @@ class AnalisePadroes:
             melhor_sugestao_codigo = resultados_ordenados[0][0]
             maior_pontuacao = resultados_ordenados[0][1]
 
-            if 'E' in pontuacoes and pontuacoes['E'] > 0 and \
-               (maior_pontuacao > 0 and (pontuacoes['E'] >= maior_pontuacao * 0.9 and pontuacoes['E'] < maior_pontuacao)):
-                melhor_sugestao_codigo = 'E'
+            # Lógica para favorecer Empate se a pontuação for próxima (ajuste delicado)
+            # if 'E' in pontuacoes and pontuacoes['E'] > 0 and \
+            #    (maior_pontuacao > 0 and (pontuacoes['E'] >= maior_pontuacao * 0.9 and pontuacoes['E'] < maior_pontuacao)):
+            #     melhor_sugestao_codigo = 'E'
         else:
+            # Se nenhuma pontuação for gerada pelos padrões, use a frequência mais baixa como sugestão
             frequencias = self.calcular_frequencias()
             if frequencias:
+                # Sugere o resultado com menor frequência (equilíbrio)
                 melhor_sugestao_codigo = min(frequencias, key=frequencias.get)
             else:
                 melhor_sugestao_codigo = random.choice(['C', 'F', 'E'])
@@ -572,23 +680,25 @@ class AnalisePadroes:
             "sugerir": True,
             "entrada": mapeamento_legivel.get(melhor_sugestao_codigo, "N/A"),
             "entrada_codigo": melhor_sugestao_codigo,
-            "motivos": motivos_sugestao,
+            "motivos": motives_sugestao,
             "confianca": min(99, int(confianca_percentual)),
             "frequencias": self.calcular_frequencias(),
             "tendencia": self.calcular_tendencia(),
             "ultimos_resultados": self.historico[:5],
-            "analise_detalhada": self._gerar_analise_detalhada(motivos_sugestao),
+            "analise_detalhada": self._gerar_analise_detalhada(motives_sugestao),
             "pontuacoes_brutas": pontuacoes # Adicionado para depuração
         }
 
     def _gerar_analise_detalhada(self, padroes):
         """Gera análise detalhada dos padrões encontrados"""
+        # Adicionando uma nova categoria para "Padrões de Bloco/Duplas"
         categorias = {
-            "Padrões de Sequência": ["Sequência", "Surf", "Ondas", "Fibonacci", "Momentum", "Paroli"],
+            "Padrões de Sequência": ["Sequência", "Surf", "Ondas", "Fibonacci", "Momentum", "Paroli", "Ciclo de Respiração", "Sequência Dourada"],
             "Padrões de Quebra": ["Quebra", "Breakout", "Tensão"],
             "Padrões Cíclicos": ["Ciclo", "Respiração", "Ritmo", "Pressão", "Empate Recorrente"],
-            "Padrões de Simetria/Alternância": ["Espelho", "Alternância", "Zig-Zag", "Escada", "Duplas", "Polar", "Labouchere", "Triangular"],
-            "Padrões de Dominância": ["Clusters", "Resistência", "Dominância", "Dragon Tiger"]
+            "Padrões de Simetria/Alternância": ["Espelho", "Alternância", "Zig-Zag", "Escada", "Duplas", "Polar", "Labouchere", "Triangular", "Fibonacci Invertida", "Dragon Tiger"],
+            "Padrões de Dominância": ["Clusters", "Resistência", "Dominância", "Martingale"],
+            "Padrões de Bloco/Duplas": ["2x1x2", "2x2", "3x3", "4x4"] # Nova categoria
         }
         
         analise = {}
@@ -950,7 +1060,7 @@ else:
 # --- ANÁLISE PRINCIPAL ---
 st.markdown('<div class="section-header"><h2>✨ Próxima Sugestão</h2></div>', unsafe_allow_html=True)
 
-if len(st.session_state.historico) >= 5:
+if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
     try:
         analyzer = AnalisePadroes(st.session_state.historico)
         log_message("info", "Objeto AnalisePadroes criado com histórico atual.")
@@ -1089,8 +1199,7 @@ else:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
-    <p>⚽ Football Studio Live Analyzer v2.1 | Análise Inteligente de Padrões</p>
+    <p>⚽ Football Studio Live Analyzer v2.3 | Análise Inteligente de Padrões</p>
     <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
 </div>
 """, unsafe_allow_html=True)
-
