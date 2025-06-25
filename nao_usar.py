@@ -800,15 +800,16 @@ def validar_sugestao(sugestao_obj, resultado_real):
         return False
 
 def get_resultado_html(resultado):
-    """Retorna HTML para visualização do resultado"""
+    """Retorna HTML para visualização do resultado com letra correspondente"""
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
-    symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # *** AJUSTES DE COLUNAS (TENTATIVA 6) - FOCO NO flex-wrap: wrap ***
+    # Cor do texto: preto para Empate (amarelo), branco para Casa (vermelho) e Fora (azul)
+    text_color = "black" if resultado == "E" else "white"
+
     return f"""
     <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')} !important; 
-        color: {"black" if resultado == "E" else "white"} !important;
+        color: {text_color} !important; /* Cor do texto ajustada */
         width: 28px !important; /* CRÍTICO: Força a largura */
         height: 28px !important; /* CRÍTICO: Força a altura */
         border-radius: 50% !important; 
@@ -817,14 +818,15 @@ def get_resultado_html(resultado):
         display: inline-flex !important; /* Mantém o inline-flex */
         align-items: center !important;
         justify-content: center !important;
-        font-size: 12px !important; /* Fonte reduzida */
+        font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
+        font-weight: bold !important; /* Negrito para as letras */
         box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
         flex-shrink: 0 !important; /* Impede que o item encolha */
         flex-grow: 0 !important; /* Impede que o item cresça */
         line-height: 1 !important; /* Garante que o texto não adicione altura extra */
         box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
     '>
-        {symbol_map.get(resultado, '?')}
+        {resultado}
     </div>
     """
 
@@ -892,21 +894,21 @@ div.stButton > button:first-child:hover {
 }
 
 /* Botões específicos */
-div.stButton > button[data-testid="stButton-🏠 Casa (C)"] {
+div.stButton > button[data-testid="stButton-Casa (C)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #FF6B6B, #FF4B4B);
 }
 
-div.stButton > button[data-testid="stButton-✈️ Visitante (F)"] {
+div.stButton > button[data-testid="stButton-Visitante (F)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #4ECDC4, #4B4BFF);
 }
 
-div.stButton > button[data-testid="stButton-⚖️ Empate (E)"] {
+div.stButton > button[data-testid="stButton-Empate (E)"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #FFE66D, #FFD700);
     color: black;
 }
 
-div.stButton > button[data-testid="stButton-↩️ Desfazer"],
-div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
+div.stButton > button[data-testid="stButton-Desfazer"], /* Ajustado para remover símbolo */
+div.stButton > button[data-testid="stButton-Limpar"] { /* Ajustado para remover símbolo */
     background: linear-gradient(135deg, #95A5A6, #7F8C8D);
 }
 
@@ -996,7 +998,8 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     padding: 0px !important; /* CRÍTICO: Remove todo o padding */
     align-items: center !important;
     justify-content: center !important;
-    font-size: 12px !important; /* Fonte reduzida */
+    font-size: 14px !important; /* Fonte ligeiramente maior para as letras */
+    font-weight: bold !important; /* Negrito para as letras */
     box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
     flex-shrink: 0 !important; /* Impede que o item encolha */
     flex-grow: 0 !important; /* Impede que o item cresça */
@@ -1024,7 +1027,7 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     .resultado-circulo {
         width: 28px !important; 
         height: 28px !important; 
-        font-size: 12px !important; 
+        font-size: 14px !important; /* Manteve o tamanho para as letras */
     }
     /* Garante que o contêiner se ajuste em telas menores, mas ainda permitindo 9 por linha se houver espaço */
     .historic-container {
@@ -1085,27 +1088,27 @@ st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2>
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    if st.button("🏠 Casa (C)", key="CasaC", use_container_width=True, help="Vitória da Casa"):
+    if st.button("Casa (C)", key="CasaC", use_container_width=True, help="Vitória da Casa"): # Texto do botão atualizado
         adicionar_resultado('C')
         st.rerun()
 
 with col2:
-    if st.button("✈️ Visitante (F)", key="VisitanteF", use_container_width=True, help="Vitória do Visitante"):
+    if st.button("Visitante (F)", key="VisitanteF", use_container_width=True, help="Vitória do Visitante"): # Texto do botão atualizado
         adicionar_resultado('F')
         st.rerun()
 
 with col3:
-    if st.button("⚖️ Empate (E)", key="EmpateE", use_container_width=True, help="Empate"):
+    if st.button("Empate (E)", key="EmpateE", use_container_width=True, help="Empate"): # Texto do botão atualizado
         adicionar_resultado('E')
         st.rerun()
 
 with col4:
-    if st.button("↩️ Desfazer", key="Desfazer", use_container_width=True, help="Desfazer último resultado"):
+    if st.button("Desfazer", key="Desfazer", use_container_width=True, help="Desfazer último resultado"): # Texto do botão atualizado
         desfazer_ultimo()
         st.rerun()
 
 with col5:
-    if st.button("🗑️ Limpar", key="Limpar", use_container_width=True, help="Limpar todo o histórico"):
+    if st.button("Limpar", key="Limpar", use_container_width=True, help="Limpar todo o histórico"): # Texto do botão atualizado
         limpar_historico()
         st.rerun()
 
@@ -1118,7 +1121,7 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
         log_message("info", "Objeto AnalisePadroes criado com histórico atual.")
         
         # Gera a sugestão
-        sugestao = analyzer.gerar_sugestao() # CORRIGIDO: Chamando o método com o nome correto
+        sugestao = analyzer.gerar_sugestao() # Chamando o método com o nome correto
         log_message("info", f"Sugestão gerada: {sugestao['entrada_codigo']} (Confiança: {sugestao['confianca']}%)")
         
         # Armazena a sugestão e define uma flag para que ela seja processada na próxima adição de resultado
