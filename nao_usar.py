@@ -714,23 +714,16 @@ def desfazer_ultimo():
              del st.session_state.ultima_sugestao
 
 def get_resultado_html(resultado):
-    """Retorna HTML para visualização do resultado com cores e símbolos"""
+    """Retorna apenas uma bolinha colorida com base no resultado"""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
-    
-    text_content = ""
-    if resultado == "E":
-        text_content = "E"
 
-    # Retornamos apenas o item, sem o container de grid
     return f"""
     <div class='roadmap-item' style='
         background-color: {color_map.get(resultado, 'gray')} !important;
-        color: {"black" if resultado == "E" else "white"} !important;
+        color: transparent !important;
     '>
-        {text_content}
     </div>
     """
-
 def get_confianca_color(confianca):
     if confianca >= 80:
         return "#4CAF50"
