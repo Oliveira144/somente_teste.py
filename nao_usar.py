@@ -1244,6 +1244,202 @@ if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entra
         
         with col2:
             st.markdown(f"""
+            # ...
+# Linha 983
+if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entradas
+    analyzer = AnalisePadroes(st.session_state.historico)
+    sugestao = analyzer.sugestao_inteligente()
+    
+    # Armazena a última sugestão para validação futura
+    st.session_state.ultima_sugestao = sugestao
+
+    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
+        confianca_color = get_confianca_color(sugestao['confianca'])
+        
+        st.markdown(f"""
+        <div class="suggestion-box">
+            <h3>🎯 Próxima Sugestão</h3>
+            <h2 style="color: {confianca_color}; margin: 1rem 0;">
+                {sugestao['entrada']} ({sugestao['entrada_codigo']})
+            </h2>
+            <p><strong>Confiança:</strong> 
+                <span style="color: {confianca_color}; font-weight: bold;">
+                    {sugestao['confianca']}%
+                </span>
+            </p>
+            <p><strong>Tendência Atual:</strong> {sugestao['tendencia']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Detalhes da análise
+        if show_advanced:
+            with st.expander("📋 Detalhes da Análise"):
+                st.write("**Padrões Identificados que influenciaram a sugestão:**")
+                if sugestao['motivos']:
+                    for motivo in sugestao['motivos']:
+                        st.write(f"• {motivo}")
+                else:
+                    st.info("Nenhum padrão específico detectado, sugestão baseada em estatísticas gerais.")
+                
+                if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
+                    st.write("**Análise por Categoria de Padrões:**")
+                    for categoria, padroes_list in sugestao['analise_detalhada'].items():
+                        st.write(f"**{categoria}:** {', '.join(padroes_list)}")
+    else: # <-- O problema estaria *neste* bloco 'else' ou no seu 'if' correspondente.
+        if len(st.session_state.historico) < 9:
+             st.info(f"🤔 Insira mais {9 - len(st.session_state.historico)} resultados para iniciar a sugestão inteligente.")
+        else:
+             st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão, ou nenhum padrão relevante detectado no momento.")
+    
+    # --- ANÁLISE DE PADRÕES (DETALHADA) ---
+    if show_advanced:
+        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Detalhado)</h2></div>', unsafe_allow_html=True)
+        
+        padroes_encontrados = analyzer.analisar_todos()
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.markdown("### ✅ Padrões Ativos")
+            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+            
+            if encontrados:
+                for padrao in encontrados:
+                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+            else:
+                st.info("Nenhum padrão específico detectado no histórico atual.")
+        
+        with col_right:
+            st.markdown("### ❌ Outros Padrões (Inativos)")
+            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+            
+            if nao_encontrados:
+                for padrao in nao_encontrados[:15]: # Limita a exibição para não sobrecarregar
+                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+                if len(nao_encontrados) > 15:
+                    st.write(f"E mais {len(nao_encontrados) - 15} padrões inativos...")
+            else:
+                st.info("Todos os padrões estão ativos (improvável).")
+        
+    # --- ANÁLISE ESTATÍSTICA GERAL ---
+    if show_advanced:
+        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        frequencias = analyzer.calcular_frequencias()
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🔴 Casa</h3>
+                <p style="color: #FF4B4B;">{frequencias['C']}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🔵 Visitante</h3>
+                <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+            </div>
+            # ...
+# Linha 983
+if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entradas
+    analyzer = AnalisePadroes(st.session_state.historico)
+    sugestao = analyzer.sugestao_inteligente()
+    
+    # Armazena a última sugestão para validação futura
+    st.session_state.ultima_sugestao = sugestao
+
+    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
+        confianca_color = get_confianca_color(sugestao['confianca'])
+        
+        st.markdown(f"""
+        <div class="suggestion-box">
+            <h3>🎯 Próxima Sugestão</h3>
+            <h2 style="color: {confianca_color}; margin: 1rem 0;">
+                {sugestao['entrada']} ({sugestao['entrada_codigo']})
+            </h2>
+            <p><strong>Confiança:</strong> 
+                <span style="color: {confianca_color}; font-weight: bold;">
+                    {sugestao['confianca']}%
+                </span>
+            </p>
+            <p><strong>Tendência Atual:</strong> {sugestao['tendencia']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Detalhes da análise
+        if show_advanced:
+            with st.expander("📋 Detalhes da Análise"):
+                st.write("**Padrões Identificados que influenciaram a sugestão:**")
+                if sugestao['motivos']:
+                    for motivo in sugestao['motivos']:
+                        st.write(f"• {motivo}")
+                else:
+                    st.info("Nenhum padrão específico detectado, sugestão baseada em estatísticas gerais.")
+                
+                if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
+                    st.write("**Análise por Categoria de Padrões:**")
+                    for categoria, padroes_list in sugestao['analise_detalhada'].items():
+                        st.write(f"**{categoria}:** {', '.join(padroes_list)}")
+    else: # <-- O problema estaria *neste* bloco 'else' ou no seu 'if' correspondente.
+        if len(st.session_state.historico) < 9:
+             st.info(f"🤔 Insira mais {9 - len(st.session_state.historico)} resultados para iniciar a sugestão inteligente.")
+        else:
+             st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão, ou nenhum padrão relevante detectado no momento.")
+    
+    # --- ANÁLISE DE PADRÕES (DETALHADA) ---
+    if show_advanced:
+        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Detalhado)</h2></div>', unsafe_allow_html=True)
+        
+        padroes_encontrados = analyzer.analisar_todos()
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.markdown("### ✅ Padrões Ativos")
+            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+            
+            if encontrados:
+                for padrao in encontrados:
+                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+            else:
+                st.info("Nenhum padrão específico detectado no histórico atual.")
+        
+        with col_right:
+            st.markdown("### ❌ Outros Padrões (Inativos)")
+            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+            
+            if nao_encontrados:
+                for padrao in nao_encontrados[:15]: # Limita a exibição para não sobrecarregar
+                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+                if len(nao_encontrados) > 15:
+                    st.write(f"E mais {len(nao_encontrados) - 15} padrões inativos...")
+            else:
+                st.info("Todos os padrões estão ativos (improvável).")
+        
+    # --- ANÁLISE ESTATÍSTICA GERAL ---
+    if show_advanced:
+        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        frequencias = analyzer.calcular_frequencias()
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🔴 Casa</h3>
+                <p style="color: #FF4B4B;">{frequencias['C']}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
             <div class="metric-card">
                 <h3>🔵 Visitante</h3>
                 <p style="color: #4B4BFF;">{frequencias['V']}%</p>
@@ -1281,6 +1477,8 @@ if len(st.session_state.historico) >= 9: # Começa a sugerir a partir de 9 entra
             else:
                 st.info("Nenhuma sugestão foi validada ainda.")
 
+# Linha 1147 - o 'else' que está causando o erro
+# Este 'else' se refere ao `if len(st.session_state.historico) >= 9:` que começa na linha 983
 else:
     st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
 
