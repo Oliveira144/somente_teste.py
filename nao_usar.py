@@ -804,7 +804,7 @@ def get_resultado_html(resultado):
     color_map = {'C': '#FF4B4B', 'F': '#4B4BFF', 'E': '#FFD700'}
     symbol_map = {'C': '🏠', 'F': '✈️', 'E': '⚖️'}
     
-    # *** AJUSTES DE COLUNAS (TENTATIVA 5) - FOCO NO !important E MEDIDAS ***
+    # *** AJUSTES DE COLUNAS (TENTATIVA 6) - FOCO NO flex-wrap: wrap ***
     return f"""
     <div class="resultado-circulo" style='
         background-color: {color_map.get(resultado, 'gray')} !important; 
@@ -812,16 +812,17 @@ def get_resultado_html(resultado):
         width: 28px !important; /* CRÍTICO: Força a largura */
         height: 28px !important; /* CRÍTICO: Força a altura */
         border-radius: 50% !important; 
-        margin: 0px !important; /* CRÍTICO: Remove toda a margem */
-        padding: 0px !important; /* CRÍTICO: Remove todo o padding */
-        display: inline-flex !important; /* Força inline-flex */
+        margin: 2px !important; /* Pequena margem para espaçamento entre eles */
+        padding: 0px !important; /* Remove padding */
+        display: inline-flex !important; /* Mantém o inline-flex */
         align-items: center !important;
         justify-content: center !important;
-        font-size: 12px !important; /* Fonte reduzida para caber */
+        font-size: 12px !important; /* Fonte reduzida */
         box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important; /* Sombra suave */
         flex-shrink: 0 !important; /* Impede que o item encolha */
         flex-grow: 0 !important; /* Impede que o item cresça */
         line-height: 1 !important; /* Garante que o texto não adicione altura extra */
+        box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
     '>
         {symbol_map.get(resultado, '?')}
     </div>
@@ -836,7 +837,7 @@ def get_confianca_color(confianca):
     elif confianca >= 40:
         return "#FFC107"  # Amarelo
     else:
-        return "#F44336"  # Vermelho
+        return "#F4436A"  # Vermelho (um pouco mais vivo)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -970,29 +971,29 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
 .confidence-medium { color: #F39C12; font-weight: bold; }
 .confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* *** AJUSTES DE COLUNAS (TENTATIVA 5) *** */
+/* *** AJUSTES DE COLUNAS (TENTATIVA 6) *** */
 .historic-container {
-    display: flex !important; /* Força o display flex */
-    flex-wrap: nowrap !important; /* Força a não quebrar linha */
+    display: flex !important;
+    flex-wrap: wrap !important; /* AGORA O WRAP ESTÁ ATIVO */
     justify-content: flex-start !important;
     align-items: center !important;
-    overflow-x: auto !important; /* Adiciona barra de rolagem se não couber */
-    white-space: nowrap !important; /* Ajuda a manter inline-block na mesma linha */
-    padding: 5px !important; /* Pequeno padding para rolagem não colar na borda */
-    border: 1px solid #eee !important; /* Borda leve para visualização do container */
+    padding: 5px !important;
+    border: 1px solid #eee !important;
     border-radius: 8px !important;
-    gap: 0px !important; /* Garante que não há gap entre os flex items */
-    min-width: 260px !important; /* Tenta garantir espaço para 9x28px + folga */
+    /* Adiciona uma largura máxima que possa acomodar 9 círculos + suas margens + alguma folga */
+    /* 9 * (28px de largura + 2*2px de margem) = 9 * 32px = 288px */
+    max-width: 298px !important; /* 288px + 10px de folga ou padding */
+    gap: 0px !important; /* Garante que não haja gap extra */
 }
 
 /* Estilo para o círculo do resultado */
 .resultado-circulo {
-    display: inline-flex !important; /* Melhor para o white-space: nowrap */
+    display: inline-flex !important; /* Continua inline-flex */
     width: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
     height: 28px !important; /* CRÍTICO: Mantém o tamanho pequeno */
     border-radius: 50% !important; 
-    margin: 0px !important; /* CRÍTICO: remove toda a margem */
-    padding: 0px !important; /* CRÍTICO: remove todo o padding */
+    margin: 2px !important; /* CRÍTICO: Pequena margem para espaçamento */
+    padding: 0px !important; /* CRÍTICO: Remove todo o padding */
     align-items: center !important;
     justify-content: center !important;
     font-size: 12px !important; /* Fonte reduzida */
@@ -1000,8 +1001,7 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
     flex-shrink: 0 !important; /* Impede que o item encolha */
     flex-grow: 0 !important; /* Impede que o item cresça */
     line-height: 1 !important; /* Garante que o texto não adicione altura extra */
-    /* Garante que o elemento se encaixe corretamente */
-    box-sizing: border-box !important; 
+    box-sizing: border-box !important; /* Inclui padding e border na largura/altura total */
 }
 
 /* Ajustes para o layout do Streamlit em telas menores, se aplicável */
@@ -1025,6 +1025,11 @@ div.stButton > button[data-testid="stButton-🗑️ Limpar"] {
         width: 28px !important; 
         height: 28px !important; 
         font-size: 12px !important; 
+    }
+    /* Garante que o contêiner se ajuste em telas menores, mas ainda permitindo 9 por linha se houver espaço */
+    .historic-container {
+        max-width: unset !important; /* Remove max-width em telas pequenas para se ajustar melhor */
+        width: 100% !important; /* Ocupa toda a largura disponível */
     }
 }
 
@@ -1135,151 +1140,4 @@ if len(st.session_state.historico) >= 5: # Mínimo de 5 para algumas análises
                     </span>
                 </p>
                 <p><strong>Tendência Recente:</strong> {sugestao['tendencia']}</p>
-                <p><strong>Frequências (C/F/E):</strong> {sugestao['frequencias'].get('C',0)}% / {sugestao['frequencias'].get('F',0)}% / {sugestao['frequencias'].get('E',0)}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if show_advanced:
-                with st.expander("📋 Detalhes da Análise"):
-                    st.write("**Padrões Identificados que Contribuíram:**")
-                    if sugestao['motivos']:
-                        for motivo in sugestao['motivos']:
-                            st.write(f"• {motivo}")
-                    else:
-                        st.info("Nenhum padrão específico contribuiu para a sugestão com peso suficiente.")
-                    
-                    if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
-                        st.write("**Análise por Categoria de Padrões:**")
-                        for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                            st.write(f"**{categoria}:** {', '.join(padroes_list)}")
-                    else:
-                        st.info("Nenhuma análise detalhada de categorias de padrões disponível.")
-                    
-                    st.write("**Pontuações Brutas por Resultado:**")
-                    st.json(sugestao['pontuacoes_brutas']) # Para depuração
-
-        else:
-            st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão forte. Limite: {confidence_threshold}%.")
-            st.info("Continue inserindo resultados para aumentar a precisão da análise.")
-            log_message("warn", f"Sugestão não exibida: Confiança {sugestao['confianca']}% abaixo do limite {confidence_threshold}%.")
-
-    except Exception as e:
-        st.error(f"Ocorreu um erro inesperado durante a análise da sugestão. Por favor, verifique os logs na barra lateral.")
-        st.exception(e) # Exibe o traceback completo para depuração em desenvolvimento
-        log_message("critical", f"Erro crítico na análise: {e}")
-
-else:
-    st.info("🎮 Insira pelo menos 5 resultados para começar a análise inteligente e gerar sugestões!")
-
-
-# --- EXIBIÇÃO DO HISTÓRICO (AGORA ABAIXO DA SUGESTÃO) ---
-st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
-
-if not st.session_state.historico:
-    st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
-else:
-    # Cria um contêiner flexível para todos os resultados do histórico
-    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
-    
-    # Renderiza todos os resultados em sequência. O CSS fará o agrupamento de 9 em 9
-    for resultado in st.session_state.historico:
-        st.markdown(get_resultado_html(resultado), unsafe_allow_html=True)
-            
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha o contêiner flexível
-    
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
-
-
-# --- ANÁLISE DE PADRÕES (DETALHADA) - SÓ SE show_advanced ESTIVER ATIVO ---
-if show_advanced and len(st.session_state.historico) >= 5:
-    try:
-        analyzer = AnalisePadroes(st.session_state.historico) # Recria o analyzer para esta seção, se necessário
-        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Todos)</h2></div>', unsafe_allow_html=True)
-        
-        padroes_encontrados = analyzer.analisar_todos()
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.markdown("### ✅ Padrões Ativos")
-            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-            
-            if encontrados:
-                for padrao in encontrados:
-                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-            else:
-                st.info("Nenhum padrão detectado no histórico atual.")
-        
-        with col_right:
-            st.markdown("### ❌ Padrões Inativos")
-            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-            
-            if nao_encontrados:
-                # Exibir apenas os primeiros X inativos para não poluir a tela
-                for padrao in nao_encontrados[:15]: 
-                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                if len(nao_encontrados) > 15:
-                    st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 15}</div>', unsafe_allow_html=True)
-            else:
-                st.info("Todos os padrões foram encontrados (muito raro).")
-        
-    except Exception as e:
-        st.error(f"Ocorreu um erro inesperado durante a análise detalhada dos padrões. Por favor, verifique os logs na barra lateral.")
-        st.exception(e)
-        log_message("critical", f"Erro crítico na análise detalhada de padrões: {e}")
-
-# --- ANÁLISE ESTATÍSTICA GERAL ---
-st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns(3)
-
-# Garante que o analyzer é criado para esta seção, caso a sugestão não tenha sido gerada
-if 'analyzer' not in locals() or analyzer is None:
-    analyzer = AnalisePadroes(st.session_state.historico)
-
-frequencias = analyzer.calcular_frequencias()
-
-with col1:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h3>🏠 Casa</h3>
-        <p style="color: #FF4B4B;">{frequencias.get('C', 0.0)}%</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h3>✈️ Visitante</h3>
-        <p style="color: #4B4BFF;">{frequencias.get('F', 0.0)}%</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
-    <div class="metric-card">
-        <h3>⚖️ Empate</h3>
-        <p style="color: #FFD700;">{frequencias.get('E', 0.0)}%</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Gráfico de frequências
-if show_advanced:
-    st.markdown("### 📈 Distribuição dos Resultados no Histórico Completo")
-    chart_data = pd.DataFrame({
-        'Resultado': ['Casa', 'Visitante', 'Empate'],
-        'Frequência': [frequencias.get('C', 0.0), frequencias.get('F', 0.0), frequencias.get('E', 0.0)],
-        'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
-    })
-    
-    st.bar_chart(chart_data.set_index('Resultado')['Frequência'])
-
-# --- RODAPÉ ---
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
-    <p>⚽ Football Studio Live Analyzer v2.5 | Análise Inteligente de Padrões</p>
-    <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
-</div>
-""", unsafe_allow_html=True)
+                <p><strong>Frequências (C/F/E):</strong> {sugestao['frequencias'].get('C',0)}% / {sugestao['frequencias'].get('F',0)}% / {sugest
