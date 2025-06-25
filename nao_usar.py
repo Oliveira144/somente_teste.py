@@ -724,7 +724,7 @@ def get_resultado_html(resultado):
         border-radius: 50% !important;
         display: inline-block !important;
         margin: 2px !important;
-        border: 1px solid #ccc !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
     '>
     </div>
     """
