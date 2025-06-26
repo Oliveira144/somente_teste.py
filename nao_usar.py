@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+from streamlit.components.v1 import html
 
 # Inicialização de sessão
 if 'history' not in st.session_state:
@@ -17,7 +18,6 @@ def analyze_patterns(results):
         return None
 
     recent = results[-10:]
-    last3 = results[-3:]
     last5 = results[-5:]
 
     # Surf de Cor
@@ -115,11 +115,11 @@ def clear_history():
     st.session_state.streak = {'type': None, 'count': 0}
 
 
-# Estilo
+# Título
 st.title("⚽ Football Studio Pro")
 st.caption("Análise Inteligente de Padrões - Evolution Gaming")
 
-# Botões
+# Botões de entrada
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("🏠 Casa"):
@@ -143,39 +143,68 @@ if st.session_state.suggestion:
 
     st.markdown("#### 📊 Padrões Detectados")
     if patterns['surf']:
-        st.success(f"Surf de Cor ({patterns['surfStreak']}x)")
+        st.success(f"⚡ Surf de Cor ({patterns['surfStreak']}x)")
     if patterns['quebrarSurf']:
         st.warning("⚠️ Quebra de Surf detectada")
     if patterns['zigzag']:
-        st.info("Zig-Zag detectado")
+        st.info("📈 Zig-Zag detectado")
     if patterns['empateRecorrente']:
-        st.info("Empate Recorrente possível")
+        st.info("🎯 Empate Recorrente possível")
 
-# Histórico
+# Histórico visual em bolinhas
 st.divider()
 st.markdown(f"### Últimos Resultados ({len(st.session_state.history)})")
 if st.button("🧹 Limpar Histórico"):
     clear_history()
 
 if st.session_state.history:
-    st.markdown("#### Resultado Recente")
-    st.write(" → ".join(reversed(st.session_state.history)))
+    colors = {
+        "Casa": "#dc2626",        # Vermelho
+        "Empate": "#4b5563",      # Cinza
+        "Visitante": "#2563eb"    # Azul
+    }
 
+    html_content = "<div style='display: flex; flex-wrap: wrap; gap: 8px;'>"
+    for result in reversed(st.session_state.history):
+        letra = 'C' if result == 'Casa' else 'V' if result == 'Visitante' else 'E'
+        cor = colors[result]
+        html_content += f"""
+            <div style="
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background-color: {cor};
+                color: white;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+            ">
+                {letra}
+            </div>
+        """
+    html_content += "</div>"
+
+    html(html_content, height=120)
+
+    # Estatísticas
     total = len(st.session_state.history)
     casa = st.session_state.history.count("Casa")
     empate = st.session_state.history.count("Empate")
     visitante = st.session_state.history.count("Visitante")
 
     st.markdown("#### Estatísticas")
-    st.metric("Casa", f"{casa} ({(casa / total * 100):.1f}%)")
-    st.metric("Empate", f"{empate} ({(empate / total * 100):.1f}%)")
-    st.metric("Visitante", f"{visitante} ({(visitante / total * 100):.1f}%)")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Casa", f"{casa}", f"{(casa / total * 100):.1f}%")
+    col2.metric("Empate", f"{empate}", f"{(empate / total * 100):.1f}%")
+    col3.metric("Visitante", f"{visitante}", f"{(visitante / total * 100):.1f}%")
 
-# Streak
+# Streak atual
 if st.session_state.streak['type']:
-    count = st.session_state.streak['count']
     tipo = st.session_state.streak['type']
-    aviso = "⚠️ Possível quebra de padrão" if count >= 3 and tipo != 'Empate' else ""
+    count = st.session_state.streak['count']
+    aviso = "⚠️ Possível quebra" if count >= 3 and tipo != 'Empate' else ""
     st.markdown(f"### 🔁 Streak Atual: {count}x {tipo} {aviso}")
 
 # Rodapé
