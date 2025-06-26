@@ -670,13 +670,8 @@ if 'estatisticas' not in st.session_state:
     }
 
 def adicionar_resultado(resultado):
-    if (
-        'ultima_sugestao' in st.session_state and
-        st.session_state.ultima_sugestao['sugerir'] and
-        st.session_state.estatisticas['total_jogos'] == len(st.session_state.estatisticas['historico_sugestoes'])
-    ):
+    if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao['sugerir']:
         sugestao_anterior = st.session_state.ultima_sugestao
-
         if sugestao_anterior['entrada_codigo'] == resultado:
             st.session_state.estatisticas['acertos'] += 1
             acertou = True
@@ -692,12 +687,11 @@ def adicionar_resultado(resultado):
             'acertou': acertou,
             'motivos': sugestao_anterior['motivos']
         })
-
         del st.session_state.ultima_sugestao
 
     st.session_state.historico.insert(0, resultado)
     st.session_state.estatisticas['total_jogos'] += 1
- 
+
 def limpar_historico():
     st.session_state.historico = []
     st.session_state.estatisticas = {
@@ -960,20 +954,14 @@ with col1:
         st.rerun()
 
 with col2:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h3>🔵 Visitante</h3>
-            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
-        </div>
-    """, unsafe_allow_html=True)
+    if st.button("🟡 EMPATE (E)", key="stButton-EMPATE", use_container_width=True, help="Empate"):
+        adicionar_resultado('E')
+        st.rerun()
 
 with col3:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h3>🟡 Empate</h3>
-            <p style="color: #FFD700;">{frequencias['E']}%</p>
-        </div>
-    """, unsafe_allow_html=True)
+    if st.button("🔵 VISITANTE (V)", key="stButton-VISITANTE", use_container_width=True, help="Vitória do Visitante"):
+        adicionar_resultado('V')
+        st.rerun()
 
 with col4:
     if st.button("↩️ DESFAZER ÚLTIMO", key="stButton-Desfazer", use_container_width=True, help="Remove o último resultado inserido"):
@@ -1001,22 +989,25 @@ else:
     <div class="roadmap-grid-container">
         {grid_html_content}
     </div>
-""", height=300, scrolling=False)
+    """, height=300, scrolling=False)
 
-st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
+
+
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
+
 
 # --- ANÁLISE PRINCIPAL ---
 st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
 
 if len(st.session_state.historico) >= 9:
-    analyzer = AnalisePadroes(st.session_state.historico[::-1])
+    analyzer = AnalisePadroes(st.session_state.historico)
     sugestao = analyzer.sugestao_inteligente()
-
-if 'ultima_sugestao' not in st.session_state:
+    
     st.session_state.ultima_sugestao = sugestao
 
-if not sugestao['sugerir'] or sugestao['confianca'] < confidence_threshold:
-    st.warning(f"Nenhuma sugestão com confiança suficiente. Confiança atual: {sugestao['confianca']}%")
+    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
+        confianca_color = get_confianca_color(sugestao['confianca'])
         
         st.markdown(f"""
         <div class="suggestion-box">
@@ -1097,44 +1088,43 @@ if not sugestao['sugerir'] or sugestao['confianca'] < confidence_threshold:
             </div>
             """, unsafe_allow_html=True)
         
-      with col2:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h3>🔵 Visitante</h3>
-            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h3>🟡 Empate</h3>
-            <p style="color: #FFD700;">{frequencias['E']}%</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("### 📈 Distribuição de Frequências (Gráfico)")
-chart_data = pd.DataFrame({
-    'Resultado': ['Casa', 'Visitante', 'Empate'],
-    'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
-})
-chart_colors = {
-    'Casa': '#FF4B4B',
-    'Visitante': '#4B4BFF',
-    'Empate': '#FFD700'
-}
-
-st.bar_chart(chart_data.set_index('Resultado').T, color=[chart_colors[col] for col in chart_data['Resultado']])
-
-with st.expander("Histórico de Sugestões e Resultados Reais"):
-    if st.session_state.estatisticas['historico_sugestoes']:
-        df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
-        df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
-        df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
-        st.dataframe(df_sugestoes_display, use_container_width=True)
-    else:
-        st.info("Nenhuma sugestão foi validada ainda.")
-
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🔵 Visitante</h3>
+                <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>🟡 Empate</h3>
+                <p style="color: #FFD700;">{frequencias['E']}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("### 📈 Distribuição de Frequências (Gráfico)")
+        chart_data = pd.DataFrame({
+            'Resultado': ['Casa', 'Visitante', 'Empate'],
+            'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
+        })
+        chart_colors = {
+            'Casa': '#FF4B4B',
+            'Visitante': '#4B4BFF',
+            'Empate': '#FFD700'
+        }
+        
+        st.bar_chart(chart_data.set_index('Resultado').T, color=[chart_colors[col] for col in chart_data['Resultado']])
+        
+        with st.expander("Histórico de Sugestões e Resultados Reais"):
+            if st.session_state.estatisticas['historico_sugestoes']:
+                df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
+                df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
+                df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
+                st.dataframe(df_sugestoes_display, use_container_width=True)
+            else:
+                st.info("Nenhuma sugestão foi validada ainda.")
 
 else:
     st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
