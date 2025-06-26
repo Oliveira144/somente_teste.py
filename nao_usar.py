@@ -1,105 +1,143 @@
+
+# coding: utf-8
 import streamlit as st
-class FootballStudioAnalyzer:
-    def __init__(self):
-        self.filtered_results = []
 
-    def analyze(self, results):
-        self.filtered_results = results[-54:]
-        pattern = self.detect_pattern(self.filtered_results) or ""
+# InicializaÃ§Ã£o de variÃ¡veis de estado
+if "historico" not in st.session_state:
+    st.session_state.historico = []
+if "acertos" not in st.session_state:
+    st.session_state.acertos = 0
+if "erros" not in st.session_state:
+    st.session_state.erros = 0
+if "ultima_sugestao" not in st.session_state:
+    st.session_state.ultima_sugestao = None
 
-        if "Casa" in pattern:
-            suggestion = "Visitante"
-        elif "Visitante" in pattern:
-            suggestion = "Casa"
-        elif "Empate" in pattern:
-            suggestion = "Empate"
+st.title("ðŸŽ¯ Football Studio Analyzer - Todos os PadrÃµes")
+
+# FunÃ§Ã£o para detectar padrÃµes e sugerir entrada
+def analisar_padroes(historico):
+    if len(historico) < 5:
+        return None, "", 0
+
+    recentes = historico[-10:]
+    ultima = recentes[-1]
+
+    # PadrÃ£o: Surf (mesma cor 3x ou mais)
+    surf_cor = 1
+    for i in range(len(recentes)-2, -1, -1):
+        if recentes[i] == ultima and ultima != "Empate":
+            surf_cor += 1
         else:
-            suggestion = "Casa" if self.filtered_results.count("Casa") < self.filtered_results.count("Visitante") else "Visitante"
+            break
+    tem_surf = surf_cor >= 3
 
-        return suggestion, pattern, 85
+    # PadrÃ£o: Zig-Zag
+    zigzag = True
+    for i in range(2, len(recentes)):
+        if recentes[i] == recentes[i-2] or "Empate" in (recentes[i], recentes[i-1], recentes[i-2]):
+            zigzag = False
+            break
 
-    def detect_pattern(self, r):
-        if len(r) < 10:
-            return None
+    # PadrÃ£o: Empate recorrente (15 a 35 rodadas)
+    empates = [i for i, r in enumerate(historico) if r == "Empate"]
+    empate_recorrente = False
+    if len(empates) >= 2:
+        intervalo = empates[-1] - empates[-2]
+        if 15 <= intervalo <= 35:
+            empate_recorrente = True
 
-        def seq(n, tipo):
-            return all(x == tipo for x in r[-n:])
+    # PadrÃ£o: 3x1, 4x4
+    def match_padroes_blocos(seq, blocos):
+        idx = 0
+        for bloco in blocos:
+            if idx + bloco > len(seq):
+                return False
+            if len(set(seq[idx:idx+bloco])) != 1:
+                return False
+            idx += bloco
+        return True
 
-        if seq(6, "Casa") or seq(6, "Visitante"):
-            return "Surf de Cor"
+    ultimos8 = historico[-8:]
+    padrao_4x4 = match_padroes_blocos(ultimos8, [4, 4])
+    padrao_3x1 = match_padroes_blocos(historico[-4:], [3, 1])
+    padrao_2x1x2x1x1x1x3 = match_padroes_blocos(historico[-11:], [2,1,2,1,1,1,3])
 
-        if all(r[-i] != r[-i-1] and "Empate" not in (r[-i], r[-i-1]) for i in range(1, 5)):
-            return "Zig-Zag"
+    # Gerar sugestÃ£o
+    sugestao = None
+    padrao_detectado = ""
+    confianca = 50
 
-        if r[-4:] == ["Casa", "Casa", "Casa", "Visitante"]:
-            return "3x1"
-        if r[-6:] == ["Casa"]*3 + ["Visitante"]*3:
-            return "3x3"
-        if r[-8:] == ["Casa"]*4 + ["Visitante"]*4:
-            return "4x4"
+    if padrao_2x1x2x1x1x1x3:
+        padrao_detectado = "2x1x2x1x1x1x3"
+        sugestao = "Empate"
+        confianca = 95
+    elif padrao_4x4:
+        padrao_detectado = "4x4"
+        sugestao = "Casa" if ultimos8[-1] == "Visitante" else "Visitante"
+        confianca = 90
+    elif padrao_3x1:
+        padrao_detectado = "3x1"
+        sugestao = historico[-1]
+        confianca = 85
+    elif tem_surf:
+        padrao_detectado = "Surf de Cor"
+        sugestao = ultima
+        confianca = 75 + (surf_cor - 3) * 5
+    elif zigzag:
+        padrao_detectado = "Zig-Zag"
+        sugestao = "Visitante" if ultima == "Casa" else "Casa"
+        confianca = 70
+    elif empate_recorrente:
+        padrao_detectado = "Empate Recorrente"
+        sugestao = "Empate"
+        confianca = 65
+    else:
+        padrao_detectado = "Sem padrÃ£o forte"
+        sugestao = "Casa" if historico.count("Casa") < historico.count("Visitante") else "Visitante"
+        confianca = 55
 
-        if r[-8:] == ["Casa", "Visitante", "Casa", "Visitante", "Empate", "Empate", "Empate", "Casa"]:
-            return "2x1x2x1x1x1x3"
+    return sugestao, padrao_detectado, min(confianca, 98)
 
-        if r[-7:] == ["Casa", "Visitante", "Casa", "Visitante", "Casa", "Visitante", "Casa"]:
-            return "Quebra de Zig-Zag"
-
-        if r[-3:] == ["Casa", "Casa", "Casa"] and r[-4] != "Casa":
-            return "Quebra de Surf"
-
-        if r[-6:] == ["Casa", "Casa", "Visitante", "Visitante", "Casa", "Casa"]:
-            return "Espelhamento"
-
-        if r[-4:] == ["Casa", "Casa", "Visitante", "Visitante"]:
-            return "Duplas Repetidas"
-
-        if r[-6:] == ["Casa", "Visitante", "Visitante", "Casa", "Casa", "Casa"]:
-            return "PadrÃ£o Escada"
-
-        if r[-6:] == ["Casa", "Visitante", "Empate", "Empate", "Visitante", "Casa"]:
-            return "AlternÃ¢ncia com Empate no meio"
-
-        if r[-5:] == ["Casa", "Visitante", "Casa", "Casa", "Visitante"]:
-            return "PadrÃ£o Onda"
-
-        if "Empate" in r:
-            indices = [i for i, val in enumerate(r) if val == "Empate"]
-            if len(indices) >= 2 and 15 <= (indices[-1] - indices[-2]) <= 35:
-                return "Empate Recorrente"
-
-        if r[-5:].count("Casa") >= 4:
-            return "PadrÃ£o 4 de 5 Casa"
-        if r[-5:].count("Visitante") >= 4:
-            return "PadrÃ£o 4 de 5 Visitante"
-
-        return "Nenhum padrÃ£o forte"
-
-st.set_page_config(layout="wide")
-st.title("Football Studio Analyzer - Corrigido e Revisado")
-
-if "history" not in st.session_state:
-    st.session_state.history = []
-
+# BotÃµes
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Casa"):
-        st.session_state.history.append("Casa")
+        st.session_state.historico.append("Casa")
 with col2:
     if st.button("Empate"):
-        st.session_state.history.append("Empate")
+        st.session_state.historico.append("Empate")
 with col3:
     if st.button("Visitante"):
-        st.session_state.history.append("Visitante")
+        st.session_state.historico.append("Visitante")
 
 if st.button("Limpar HistÃ³rico"):
-    st.session_state.history = []
+    st.session_state.historico = []
+    st.session_state.acertos = 0
+    st.session_state.erros = 0
+    st.session_state.ultima_sugestao = None
 
-st.subheader("HistÃ³rico de Resultados")
-st.write(st.session_state.history)
+st.subheader("ðŸ“œ HistÃ³rico de Resultados")
+st.write(st.session_state.historico)
 
-if st.session_state.history:
-    analyzer = FootballStudioAnalyzer()
-    suggestion, pattern, confidence = analyzer.analyze(st.session_state.history)
-    st.markdown(f"**SugestÃ£o:** {suggestion}")
-    st.markdown(f"**PadrÃ£o Detectado:** {pattern}")
-    st.markdown(f"**ConfianÃ§a:** {confidence}%")
+# AnÃ¡lise e sugestÃ£o
+if st.session_state.historico:
+    sugestao, padrao, confianca = analisar_padroes(st.session_state.historico)
+
+    st.markdown(f"**SugestÃ£o:** {sugestao}")
+    st.markdown(f"**PadrÃ£o Detectado:** {padrao}")
+    st.markdown(f"**ConfianÃ§a:** {confianca}%")
+
+    # Conferidor de acerto/erro
+    if st.session_state.ultima_sugestao:
+        resultado_real = st.session_state.historico[-1]
+        if resultado_real == st.session_state.ultima_sugestao:
+            st.session_state.acertos += 1
+        else:
+            st.session_state.erros += 1
+
+    st.session_state.ultima_sugestao = sugestao
+
+    total = st.session_state.acertos + st.session_state.erros
+    if total > 0:
+        taxa = (st.session_state.acertos / total) * 100
+        st.success(f"ðŸŽ¯ Acertos: {st.session_state.acertos} | âŒ Erros: {st.session_state.erros} | âœ… PrecisÃ£o: {taxa:.1f}%")
