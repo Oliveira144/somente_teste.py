@@ -4,13 +4,18 @@ import random
 import numpy as np
 from datetime import datetime
 import pandas as pd
+import os # Para lidar com arquivos
 
-# --- CLASSE ANALISEPADROES REFINADA (mantida a mesma, foco no CSS) ---
+# --- CONFIGURAÇÕES DE ARQUIVO ---
+DATA_FILE = 'football_studio_data.csv'
+
+# --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
-        self.historico = historico[:54] # Limita o histórico para análise, sempre os 54 mais recentes
-        
+        # Aumentado para 50 jogos para melhor análise
+        self.historico = historico[:50]  
         self.padroes_ativos = {
+            # Padrões básicos existentes
             "Sequência (Surf de Cor)": self._sequencia_simples,
             "Zig-Zag Perfeito": self._zig_zag,
             "Quebra de Surf": self._quebra_de_surf,
@@ -21,6 +26,8 @@ class AnalisePadroes:
             "Espelho": self._espelho,
             "Alternância com Empate": self._alternancia_empate_meio,
             "Padrão Onda": self._padrao_onda,
+            
+            # Novos padrões específicos do Football Studio
             "Padrão Fibonacci": self._padrao_fibonacci,
             "Sequência Dourada": self._sequencia_dourada,
             "Padrão Triangular": self._padrao_triangular,
@@ -41,45 +48,26 @@ class AnalisePadroes:
             "Ciclo de Respiração": self._ciclo_respiracao,
             "Padrão de Resistência": self._padrao_resistencia,
             "Sequência de Breakout": self._sequencia_breakout,
-            "Padrão 3x1": self._padrao_3x1,
-            "Padrão 4x1": self._padrao_4x1,
-            "Empate em Zonas de Frequência": self._empate_zonas_frequencia,
         }
         
+        # Pesos dos padrões para calcular confiança (ajustados)
+        # Ajuste esses pesos com base nos seus testes e experiência!
         self.pesos_padroes = {
             "Sequência (Surf de Cor)": 0.9,
             "Zig-Zag Perfeito": 0.8,
             "Quebra de Surf": 0.85,
             "Quebra de Zig-Zag": 0.8,
-            "Duplas Repetidas": 0.7,
-            "Empate Recorrente": 0.75,
-            "Padrão Escada": 0.6,
-            "Espelho": 0.7,
-            "Alternância com Empate": 0.65,
-            "Padrão Onda": 0.75,
-            "Padrão Fibonacci": 0.95,
-            "Sequência Dourada": 0.9,
-            "Padrão Triangular": 0.8,
-            "Ciclo de Empates": 0.85,
-            "Padrão Martingale": 0.85,
-            "Sequência de Fibonacci Invertida": 0.8,
-            "Padrão Dragon Tiger": 0.85,
-            "Sequência de Paroli": 0.75,
-            "Padrão de Ondas Longas": 0.9,
-            "Ciclo de Dominância": 0.8,
-            "Padrão de Tensão": 0.7,
-            "Sequência de Labouchere": 0.6,
-            "Padrão Ritmo Cardíaco": 0.65,
-            "Ciclo de Pressão": 0.75,
-            "Padrão de Clusters": 0.7,
-            "Sequência Polar": 0.7,
+            "Padrão Fibonacci": 0.7, # Reduzido - padrão conceitual complexo
+            "Sequência Dourada": 0.8,
+            "Padrão Dragon Tiger": 0.9, # Alta relevância em jogos de cartas
+            "Ciclo de Dominância": 0.95, # Padrão forte
             "Padrão de Momentum": 0.9,
-            "Ciclo de Respiração": 0.65,
-            "Padrão de Resistência": 0.6,
-            "Sequência de Breakout": 0.95,
-            "Padrão 3x1": 0.7,
-            "Padrão 4x1": 0.75,
-            "Empate em Zonas de Frequência": 0.8,
+            "Sequência de Breakout": 0.95, # Padrão forte
+            "Empate Recorrente": 0.8,
+            "Ciclo de Empates": 0.85,
+            "Padrão Martingale": 0.75,
+            "Padrão de Ondas Longas": 0.85,
+            "Espelho": 0.7,
         }
 
     def analisar_todos(self):
@@ -88,9 +76,11 @@ class AnalisePadroes:
             try:
                 resultados[nome] = func()
             except Exception as e:
-                resultados[nome] = False
+                # print(f"Erro ao analisar padrão {nome}: {e}") # Descomente para depurar
+                resultados[nome] = False # Retorna False em caso de erro
         return resultados
 
+    # --- PADRÕES BÁSICOS EXISTENTES ---
     def _sequencia_simples(self):
         for i in range(len(self.historico) - 2):
             if self.historico[i] == self.historico[i+1] == self.historico[i+2]:
@@ -118,11 +108,10 @@ class AnalisePadroes:
         return False
 
     def _quebra_de_zig_zag(self):
-        if len(self.historico) < 4:
+        if len(self.historico) < 5:
             return False
-        for i in range(len(self.historico) - 3):
-            if (self.historico[i] != self.historico[i+1] and 
-                self.historico[i+1] != self.historico[i+2] and
+        for i in range(len(self.historico) - 4):
+            if (self.historico[i] != self.historico[i+1] != self.historico[i+2] and 
                 self.historico[i+2] == self.historico[i+3]):
                 return True
         return False
@@ -142,32 +131,35 @@ class AnalisePadroes:
         if len(empates_indices) < 3:
             return False
         
+        # Verifica se há um padrão de intervalos regulares entre empates
         intervalos = []
         for i in range(len(empates_indices) - 1):
             intervalos.append(empates_indices[i+1] - empates_indices[i])
         
         if len(intervalos) >= 2:
+            # Verifica se os intervalos seguem um padrão (ex: variação baixa)
             media_intervalo = sum(intervalos) / len(intervalos)
-            if 2 <= media_intervalo <= 8:
-                consistent_intervals = [x for x in intervalos if abs(x - media_intervalo) <= 2]
-                return len(consistent_intervals) / len(intervalos) >= 0.75
+            if media_intervalo > 0: # Evita divisão por zero
+                desvio_padrao = (sum((x - media_intervalo) ** 2 for x in intervalos) / len(intervalos)) ** 0.5
+                # Um desvio padrão baixo indica regularidade
+                return desvio_padrao < 2 and 2 <= media_intervalo <= 8
         return False
 
     def _padrao_escada(self):
         if len(self.historico) < 6:
             return False
         for i in range(len(self.historico) - 5):
-            if (self.historico[i] != self.historico[i+1] and
-                self.historico[i+1] == self.historico[i+2] and
-                self.historico[i+2] != self.historico[i+3] and
-                self.historico[i+3] == self.historico[i+4] == self.historico[i+5]):
+            if (self.historico[i] != self.historico[i+1] == self.historico[i+2] and
+                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] and
+                self.historico[i+1] != self.historico[i+3]):
                 return True
         return False
 
     def _espelho(self):
         if len(self.historico) < 4:
             return False
-        for tamanho in range(4, min(len(self.historico) + 1, 13)):
+        # Limitado a 10 para não buscar espelhos muito grandes e raros
+        for tamanho in range(4, min(len(self.historico) + 1, 11)): 
             if tamanho % 2 == 0:
                 metade = tamanho // 2
                 for start in range(len(self.historico) - tamanho + 1):
@@ -196,121 +188,164 @@ class AnalisePadroes:
                 return True
         return False
 
+    # --- NOVOS PADRÕES ESPECÍFICOS DO FOOTBALL STUDIO ---
+    
     def _padrao_fibonacci(self):
-        if len(self.historico) < 8:
+        """Detecta padrões baseados na sequência de Fibonacci em blocos de resultados"""
+        # Ex: C, V, CC, VVV, CCCC, VVVVVV... (1, 1, 2, 3, 5, 8...)
+        if len(self.historico) < 10: # Necessita de um histórico maior para detectar bem
             return False
         
-        fib_sequence = [1, 1, 2, 3, 5]
+        fib_sequence = [1, 1, 2, 3, 5, 8]
         
-        current_seq_len = []
-        if self.historico:
-            count = 1
-            for i in range(1, len(self.historico)):
-                if self.historico[i] == self.historico[i-1]:
-                    count += 1
-                else:
-                    current_seq_len.append(count)
-                    count = 1
-            current_seq_len.append(count)
-        
-        for i in range(len(current_seq_len) - len(fib_sequence) + 1):
-            if current_seq_len[i:i+len(fib_sequence)] == fib_sequence:
+        for start_idx in range(len(self.historico) - sum(fib_sequence) + 1):
+            current_idx = start_idx
+            pattern_match = True
+            last_result_type = None
+
+            for fib_num in fib_sequence:
+                if current_idx + fib_num > len(self.historico):
+                    pattern_match = False
+                    break
+                
+                segment = self.historico[current_idx : current_idx + fib_num]
+                
+                # Todos os elementos do segmento devem ser iguais
+                if not all(res == segment[0] for res in segment):
+                    pattern_match = False
+                    break
+                
+                # Alternância entre os blocos (C/V) e não Empate
+                if last_result_type is not None and segment[0] == last_result_type:
+                    pattern_match = False # O bloco atual não é alternado
+                    break
+                
+                if segment[0] == 'E': # Ignora empates para esta sequência (Fibonacci de cores)
+                    pattern_match = False
+                    break
+
+                last_result_type = segment[0]
+                current_idx += fib_num
+            
+            if pattern_match:
                 return True
         return False
 
+
     def _sequencia_dourada(self):
-        if len(self.historico) < 8:
+        """Detecta sequências baseadas na proporção áurea (ex: 3 de um, 5 do outro, 8 do primeiro)"""
+        if len(self.historico) < 16: # 3+5+8 = 16
             return False
-        for i in range(len(self.historico) - 7):
-            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] and
-                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
-                self.historico[i] != self.historico[i+3]):
+        
+        for i in range(len(self.historico) - 15):
+            seg = self.historico[i:i+16]
+            if (all(x == seg[0] for x in seg[0:3]) and  # 3 do primeiro
+                all(x == seg[3] for x in seg[3:8]) and  # 5 do segundo
+                all(x == seg[8] for x in seg[8:16]) and # 8 do terceiro
+                seg[0] != seg[3] and seg[3] != seg[8] and seg[0] == seg[8]):
                 return True
         return False
 
     def _padrao_triangular(self):
+        """Detecta padrões triangulares: 1, 2, 3, 2, 1 (simétrico)"""
         if len(self.historico) < 9:
             return False
+        
         for i in range(len(self.historico) - 8):
             segment = self.historico[i:i+9]
-            if (segment[0] == segment[8] and
-                segment[1] == segment[7] and
-                segment[0] != segment[1] and
-                segment[2] == segment[3] == segment[4] == segment[5] == segment[6] and
-                segment[1] != segment[2]):
+            # Ex: C, VV, CCC, VV, C
+            if (segment[0] != segment[1] and segment[1] == segment[2] and
+                segment[2] != segment[3] and segment[3] == segment[4] == segment[5] and
+                segment[5] != segment[6] and segment[6] == segment[7] and
+                segment[7] != segment[8] and segment[0] == segment[8]):
                 return True
         return False
+
 
     def _ciclo_empates(self):
-        empates = [i for i, x in enumerate(self.historico) if x == 'E']
-        if len(empates) < 3:
+        """Detecta ciclos específicos de empates (ex: E a cada 5-8 jogos)"""
+        empates_indices = [i for i, x in enumerate(self.historico) if x == 'E']
+        if len(empates_indices) < 3: # Mínimo de 3 empates para detectar ciclo
             return False
         
-        for cycle_length in range(3, 11):
-            is_cyclic = True
-            if len(empates) >= 2:
-                for i in range(len(empates) - 1):
-                    actual_interval = empates[i+1] - empates[i]
-                    if not (cycle_length - 2 <= actual_interval <= cycle_length + 2):
-                        is_cyclic = False
-                        break
-            else:
-                is_cyclic = False
-            if is_cyclic:
+        # Verifica se os intervalos entre os empates são consistentes
+        intervalos = [empates_indices[i+1] - empates_indices[i] for i in range(len(empates_indices) - 1)]
+        
+        if len(intervalos) > 1:
+            primeiro_intervalo = intervalos[0]
+            # Se a maioria dos intervalos está dentro de uma pequena variação do primeiro
+            if all(abs(inv - primeiro_intervalo) <= 2 for inv in intervalos):
                 return True
         return False
 
+
     def _padrao_martingale(self):
+        """Detecta padrões de duplicação de sequência (Martingale: 1, 2, 4 do mesmo resultado)"""
         if len(self.historico) < 7:
             return False
+        
         for i in range(len(self.historico) - 6):
-            if (self.historico[i] != self.historico[i+1] and
-                self.historico[i+1] == self.historico[i+2] and
-                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] and
-                self.historico[i+1] != self.historico[i+3]):
+            # Padrão: 1 resultado (X), 2 iguais (Y,Y), 4 iguais (Z,Z,Z,Z) onde Y e Z são o mesmo e diferente de X
+            if (self.historico[i] != self.historico[i+1] and # Quebra inicial
+                self.historico[i+1] == self.historico[i+2] and # Dupla
+                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] and # Quádrupla
+                self.historico[i+1] != 'E' and self.historico[i+1] == self.historico[i+3]): # Não é empate e continua a progressão
                 return True
         return False
 
     def _fibonacci_invertida(self):
-        if len(self.historico) < 8:
+        """Detecta Fibonacci invertida (Ex: 8 do mesmo, 5 do outro, 3 do mesmo)"""
+        if len(self.historico) < 17: # 8+5+3 = 16
             return False
-        for i in range(len(self.historico) - 7):
-            segment = self.historico[i:i+8]
-            if (len(set(segment[0:4])) == 1 and
-                segment[4] != segment[0] and
-                len(set(segment[5:7])) == 1 and
-                segment[7] != segment[5] and
-                segment[4] == segment[7]):
+        
+        for i in range(len(self.historico) - 16):
+            seg = self.historico[i:i+17]
+            if (all(x == seg[0] for x in seg[0:8]) and # 8 do primeiro
+                all(x == seg[8] for x in seg[8:13]) and # 5 do segundo
+                all(x == seg[13] for x in seg[13:16]) and # 3 do terceiro
+                seg[0] != seg[8] and seg[8] != seg[13] and seg[0] == seg[13]):
                 return True
         return False
 
     def _padrao_dragon_tiger(self):
-        if len(self.historico) < 6:
+        """Padrão específico de Dragon Tiger adaptado: alternância longa seguida de um resultado forte"""
+        if len(self.historico) < 7:
             return False
-        for i in range(len(self.historico) - 5):
+        
+        for i in range(len(self.historico) - 6):
+            # Ex: C,V,C,V,C,V, C (Alternância de 6, seguida de 1 forte)
             if (self.historico[i] != self.historico[i+1] and
                 self.historico[i+1] != self.historico[i+2] and
-                self.historico[i] != self.historico[i+2] and
-                self.historico[i+3] == 'E' and
-                self.historico[i+4] == self.historico[i+5] and
-                self.historico[i+4] != 'E'):
+                self.historico[i+2] != self.historico[i+3] and
+                self.historico[i+3] != self.historico[i+4] and
+                self.historico[i+4] != self.historico[i+5] and # 5 alternâncias
+                self.historico[i+5] == self.historico[i+6] # Quebra com repetição
+                and self.historico[i+5] != 'E' # Não é empate
+                ):
                 return True
         return False
 
+
     def _sequencia_paroli(self):
-        if len(self.historico) < 7:
+        """Detecta padrões de progressão positiva (1, 2, 4 de vitórias, depois volta)"""
+        if len(self.historico) < 8:
             return False
-        for i in range(len(self.historico) - 6):
-            if (self.historico[i] != self.historico[i+1] and
-                self.historico[i+1] == self.historico[i+2] and
-                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] == self.historico[i+6] and
-                self.historico[i] == self.historico[i+3]):
+        
+        for i in range(len(self.historico) - 7):
+            # Ex: C, CC, CCCC, V (1, 2, 4 do mesmo, depois quebra)
+            if (self.historico[i] != 'E' and # Não é empate
+                self.historico[i] == self.historico[i+1] and # 2 do mesmo
+                self.historico[i+2] == self.historico[i+3] == self.historico[i+4] == self.historico[i+5] and # 4 do mesmo
+                self.historico[i] == self.historico[i+2] and # Mesma cor
+                self.historico[i+6] != self.historico[i]): # Quebra
                 return True
         return False
 
     def _ondas_longas(self):
+        """Detecta ondas longas (sequências de 5+ do mesmo resultado)"""
         if len(self.historico) < 5:
             return False
+        
         count = 1
         for i in range(1, len(self.historico)):
             if self.historico[i] == self.historico[i-1]:
@@ -322,185 +357,194 @@ class AnalisePadroes:
         return False
 
     def _ciclo_dominancia(self):
+        """Detecta ciclos de dominância de um resultado (ex: 70%+ de uma cor em 10 jogos)"""
         if len(self.historico) < 10:
             return False
+        
         for i in range(len(self.historico) - 9):
             window = self.historico[i:i+10]
             counter = collections.Counter(window)
             
+            # Verifica se um resultado domina (70%+)
             for resultado, count in counter.items():
-                if count >= 7:
+                if resultado != 'E' and count >= 7: # Considera dominância de C ou V
                     return True
         return False
 
     def _padrao_tensao(self):
+        """Detecta padrões de tensão (alternância seguida de explosão do mesmo resultado)"""
         if len(self.historico) < 8:
             return False
+        
         for i in range(len(self.historico) - 7):
-            alternations = 0
-            for j in range(i, i+4):
-                if j+1 < len(self.historico) and self.historico[j] != self.historico[j+1]:
-                    alternations += 1
-            
-            if alternations >= 3:
-                if (i+4 < len(self.historico) and 
-                    self.historico[i+4] == self.historico[i+5] == self.historico[i+6]):
-                    return True
+            # Padrão: C,V,C,V (4 alternâncias) seguido de C,C,C (3 do mesmo)
+            if (self.historico[i] != self.historico[i+1] and
+                self.historico[i+1] != self.historico[i+2] and
+                self.historico[i+2] != self.historico[i+3] and # Quatro alternâncias
+                self.historico[i+3] != self.historico[i+4] and # Mais uma alternância
+                self.historico[i+4] == self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and # Sequência forte
+                self.historico[i+4] != 'E'): # Não é empate
+                return True
         return False
 
     def _sequencia_labouchere(self):
+        """Detecta padrões de 'cancelamento' (simetria complexa)"""
         if len(self.historico) < 6:
             return False
+        
         for i in range(len(self.historico) - 5):
+            # Padrão: X, Y, Z, Z, Y, X (simetria onde X e Y são diferentes)
             if (self.historico[i] == self.historico[i+5] and
                 self.historico[i+1] == self.historico[i+4] and
-                self.historico[i] != self.historico[i+1] and
-                self.historico[i+2] != self.historico[i+3] and
-                self.historico[i+2] != self.historico[i] and
-                self.historico[i+3] != self.historico[i]):
+                self.historico[i+2] == self.historico[i+3] and
+                self.historico[i] != self.historico[i+1] and # X diferente de Y
+                self.historico[i+1] != self.historico[i+2] and # Y diferente de Z
+                self.historico[i] != 'E' and self.historico[i+1] != 'E' and self.historico[i+2] != 'E'): # Sem empates
                 return True
         return False
 
     def _ritmo_cardiaco(self):
+        """Detecta padrões de ritmo cardíaco (batimentos irregulares, 2, 1, 2, 3...)"""
         if len(self.historico) < 8:
             return False
+        
         for i in range(len(self.historico) - 7):
-            segment = self.historico[i:i+8]
-            if (segment[0] == segment[1] and
-                segment[2] != segment[0] and
-                segment[3] == segment[4] and
-                segment[5] == segment[6] == segment[7] and
-                segment[0] != segment[3] and
-                segment[3] != segment[5]):
+            # Padrão: C C, V, C C, V V V, V
+            if (self.historico[i] == self.historico[i+1] and # Dupla
+                self.historico[i+2] != self.historico[i] and # Quebra
+                self.historico[i+3] == self.historico[i+4] and # Dupla
+                self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and # Tripla
+                self.historico[i] != 'E' and self.historico[i+2] != 'E' and self.historico[i+5] != 'E'): # Sem empates
                 return True
         return False
 
     def _ciclo_pressao(self):
+        """Detecta ciclos de pressão crescente (Ex: 1, 2, 3, 1, 2, 3)"""
         if len(self.historico) < 9:
             return False
+        
         for i in range(len(self.historico) - 8):
-            segment = self.historico[i:i+9]
-            if (segment[0] != segment[1] and
-                segment[1] == segment[2] and
-                segment[3] == segment[4] == segment[5] and
-                segment[6] == segment[0] and
-                segment[7] == segment[8] and
-                segment[6] != segment[7]):
+            # C, VV, CCC, V, CC, VVV
+            if (self.historico[i] != self.historico[i+1] and # Unidade
+                self.historico[i+1] == self.historico[i+2] and # Dupla
+                self.historico[i+3] == self.historico[i+4] == self.historico[i+5] and # Tripla
+                self.historico[i+6] != self.historico[i+5] and # Quebra
+                self.historico[i+7] == self.historico[i+8] and # Dupla
+                self.historico[i] == self.historico[i+6] and # Retorno ao padrão
+                self.historico[i] != 'E' and self.historico[i+1] != 'E' and self.historico[i+3] != 'E' and self.historico[i+6] != 'E'): # Sem empates
                 return True
         return False
 
     def _padrao_clusters(self):
+        """Detecta agrupamentos (clusters) de resultados em janelas"""
         if len(self.historico) < 12:
             return False
+        
+        # Analisa janelas de 12 para encontrar clusters
         for i in range(len(self.historico) - 11):
             window = self.historico[i:i+12]
+            
+            # Divide em 3 clusters de 4
             cluster1 = window[:4]
             cluster2 = window[4:8]
             cluster3 = window[8:12]
             
-            if (collections.Counter(cluster1).most_common(1)[0][1] >= 3 and
-                collections.Counter(cluster2).most_common(1)[0][1] >= 3 and
-                collections.Counter(cluster3).most_common(1)[0][1] >= 3):
-                return True
+            # Verifica se cada cluster tem dominância (3+ iguais) e são diferentes entre si
+            mc1 = collections.Counter(cluster1).most_common(1)
+            mc2 = collections.Counter(cluster2).most_common(1)
+            mc3 = collections.Counter(cluster3).most_common(1)
+
+            if (mc1 and mc1[0][1] >= 3 and mc1[0][0] != 'E' and
+                mc2 and mc2[0][1] >= 3 and mc2[0][0] != 'E' and
+                mc3 and mc3[0][1] >= 3 and mc3[0][0] != 'E'):
+                # Verifica se há uma mudança de maioria entre os clusters principais
+                if mc1[0][0] != mc2[0][0] or mc2[0][0] != mc3[0][0]:
+                    return True
         return False
 
     def _sequencia_polar(self):
+        """Detecta sequências polares (alternância extrema sem empates)"""
         if len(self.historico) < 10:
             return False
+        
         for i in range(len(self.historico) - 9):
             window = self.historico[i:i+10]
+            
+            # Verifica se há polarização (só 2 tipos de resultado, sem empates)
             unique_results = set(window)
             if len(unique_results) == 2 and 'E' not in unique_results:
+                # Verifica alternância polar: pelo menos 7 mudanças em 9 pares
                 changes = sum(1 for j in range(len(window)-1) if window[j] != window[j+1])
-                if changes >= 6:
+                if changes >= 7:  # Muitas mudanças
                     return True
         return False
 
     def _padrao_momentum(self):
+        """Detecta padrões de momentum (aceleração no tamanho da sequência)"""
         if len(self.historico) < 10:
             return False
+        
         for i in range(len(self.historico) - 9):
-            segment = self.historico[i:i+10]
-            if (segment[0] != segment[1] and
-                segment[1] == segment[2] and
-                segment[3] == segment[4] == segment[5] and
-                segment[6] == segment[7] == segment[8] == segment[9] and
-                segment[0] != segment[1] and segment[1] != segment[3] and segment[3] != segment[6]):
+            # Padrão: 1, 2, 3, 4 do mesmo resultado (Ex: C, VV, CCC, VVVV)
+            # Verifica se é o mesmo tipo de resultado crescente, mas não necessariamente quebrando
+            seg = self.historico[i:i+10]
+            if (seg[0] != 'E' and
+                seg[0] == seg[1] and # 2
+                seg[2] == seg[3] == seg[4] and # 3
+                seg[5] == seg[6] == seg[7] == seg[8] and # 4
+                seg[0] != seg[2] and seg[2] != seg[5] and seg[0] != seg[5]): # Tipos diferentes entre os blocos
                 return True
         return False
 
     def _ciclo_respiracao(self):
+        """Detecta padrões de respiração (expansão e contração de sequências)"""
         if len(self.historico) < 8:
             return False
+        
         for i in range(len(self.historico) - 7):
-            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
-                self.historico[i+4] != self.historico[i] and
-                self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
-                self.historico[i+5] == self.historico[i+4]):
+            # Padrão: CCCC (expansão), V (contração), VVV (expansão novamente)
+            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and # 4 do mesmo
+                self.historico[i+4] != self.historico[i] and # Quebra
+                self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and # 3 do mesmo
+                self.historico[i] != 'E' and self.historico[i+4] != 'E' and # Sem empates
+                self.historico[i+4] == self.historico[i+5]): # O da quebra é o que se expande
                 return True
         return False
 
     def _padrao_resistencia(self):
-        if len(self.historico) < 6:
+        """Detecta padrões de resistência (resultado dominante resiste a várias tentativas de quebra)"""
+        if len(self.historico) < 7:
             return False
-        for i in range(len(self.historico) - 5):
-            if (self.historico[i] == self.historico[i+2] == self.historico[i+4] == self.historico[i+5] and
+        
+        for i in range(len(self.historico) - 6):
+            # Padrão: C,V,C,V,C,V,C (Alternância seguida de retorno ao mesmo)
+            # Objetivo é ver se um resultado (Ex: C) se mantém mesmo com alternâncias
+            if (self.historico[i] != 'E' and
+                self.historico[i] == self.historico[i+2] == self.historico[i+4] == self.historico[i+6] and
                 self.historico[i+1] != self.historico[i] and
-                self.historico[i+3] != self.historico[i]):
+                self.historico[i+3] != self.historico[i] and
+                self.historico[i+5] != self.historico[i]):
                 return True
         return False
 
     def _sequencia_breakout(self):
+        """Detecta sequências de breakout (longa estabilidade seguida de mudança abrupta e nova estabilidade)"""
         if len(self.historico) < 8:
             return False
+        
         for i in range(len(self.historico) - 7):
-            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
-                self.historico[i+4] != self.historico[i] and
-                self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and
-                self.historico[i+5] == self.historico[i+4]):
+            # Padrão: C,C,C,C (estabilidade), V (quebra), V,V,V (nova estabilidade)
+            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and # 4 do mesmo
+                self.historico[i+4] != self.historico[i] and # Quebra (breakout)
+                self.historico[i+5] == self.historico[i+6] == self.historico[i+7] and # Nova sequência
+                self.historico[i+4] == self.historico[i+5] and # A quebra inicia a nova sequência
+                self.historico[i] != 'E' and self.historico[i+4] != 'E'): # Sem empates
                 return True
         return False
 
-    def _padrao_3x1(self):
-        if len(self.historico) < 4:
-            return False
-        for i in range(len(self.historico) - 3):
-            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] and
-                self.historico[i+2] != self.historico[i+3]):
-                return True
-        return False
-        
-    def _padrao_4x1(self):
-        if len(self.historico) < 5:
-            return False
-        for i in range(len(self.historico) - 4):
-            if (self.historico[i] == self.historico[i+1] == self.historico[i+2] == self.historico[i+3] and
-                self.historico[i+3] != self.historico[i+4]):
-                return True
-        return False
-
-    def _empate_zonas_frequencia(self):
-        empates_indices = [i for i, r in enumerate(self.historico) if r == 'E']
-        if len(empates_indices) < 2:
-            return False
-
-        intervals = []
-        for i in range(len(empates_indices) - 1):
-            intervals.append(empates_indices[i+1] - empates_indices[i])
-
-        if len(self.historico) >= 2 and self.historico[0] == 'E' and self.historico[1] == 'E':
-            return True
-
-        for interval in intervals:
-            if (8 <= interval <= 11) or (14 <= interval <= 36):
-                return True
-        
-        if len(intervals) > 0 and intervals[0] > 15:
-             return True
-        
-        return False
 
     def calcular_frequencias(self):
+        """Calcula frequências dos resultados"""
         contador = collections.Counter(self.historico)
         total = len(self.historico)
         if total == 0:
@@ -513,34 +557,23 @@ class AnalisePadroes:
         return result
 
     def calcular_tendencia(self):
-        if len(self.historico) < 5:
+        """Calcula tendência dos últimos 18 resultados"""
+        if len(self.historico) < 18:
             return "Dados insuficientes"
         
-        ultimos_5 = self.historico[:5]
-        contador = collections.Counter(ultimos_5)
+        ultimos_18 = self.historico[:18]
+        contador = collections.Counter(ultimos_18)
         
-        most_common_result, most_common_count = contador.most_common(1)[0]
-        
-        if most_common_count >= 4:
-            return f"Forte tendência: {most_common_result}"
-        elif most_common_count >= 3:
-            return f"Tendência moderada: {most_common_result}"
+        # Ajustado para 18 resultados
+        if contador.most_common(1)[0][1] >= 11: # Ex: 11 ou mais (aprox. 61%)
+            return f"Forte tendência: {contador.most_common(1)[0][0]}"
+        elif contador.most_common(1)[0][1] >= 7: # Ex: 7 ou mais (aprox. 39%)
+            return f"Tendência moderada: {contador.most_common(1)[0][0]}"
         else:
             return "Sem tendência clara"
 
     def sugestao_inteligente(self):
-        if len(self.historico) < 9:
-            return {
-                "sugerir": False,
-                "entrada": None,
-                "entrada_codigo": None,
-                "motivos": ["Histórico insuficiente (mínimo 9 jogos para sugestão)"],
-                "confianca": 0,
-                "frequencias": self.calcular_frequencias(),
-                "tendencia": self.calcular_tendencia(),
-                "ultimos_resultados": self.historico[:5]
-            }
-
+        """Gera sugestão inteligente baseada em múltiplos fatores"""
         analise = self.analisar_todos()
         padroes_identificados = [nome for nome, ok in analise.items() if ok]
         
@@ -553,84 +586,113 @@ class AnalisePadroes:
                 "confianca": 0,
                 "frequencias": self.calcular_frequencias(),
                 "tendencia": self.calcular_tendencia(),
-                "ultimos_resultados": self.historico[:5]
+                "ultimos_resultados": self.historico[:5] # Apenas os 5 para visualização rápida
             }
         
+        # Calcula confiança baseada nos pesos dos padrões
         confianca_total = 0
         peso_total = 0
         
         for padrao in padroes_identificados:
-            peso = self.pesos_padroes.get(padrao, 0.5)
+            peso = self.pesos_padroes.get(padrao, 0.5) # Padrões sem peso definido recebem 0.5
             confianca_total += peso
             peso_total += peso
         
         confianca_media = (confianca_total / peso_total) * 100 if peso_total > 0 else 0
         
-        bonus_quantidade = min(20, len(padroes_identificados) * 3)
-        confianca_final = min(99, int(confianca_media + bonus_quantidade))
+        # Ajusta confiança baseada na quantidade de padrões
+        bonus_quantidade = min(20, len(padroes_identificados) * 3) # Bônus reduzido para não inflar demais
+        confianca_final = min(98, int(confianca_media + bonus_quantidade)) # Limite superior de 98%
         
+        # Análise de frequências e tendências
         frequencias = self.calcular_frequencias()
         tendencia = self.calcular_tendencia()
         
         opcoes = ["V", "C", "E"]
         
-        padroes_quebra = [p for p in padroes_identificados if "quebra" in p.lower() or "breakout" in p.lower()]
-        if padroes_quebra:
-            ultimo_resultado = self.historico[0] if self.historico else None
-            if ultimo_resultado:
-                if ultimo_resultado == 'E':
-                    freq_cv = {k: v for k, v in frequencias.items() if k != 'E'}
-                    if freq_cv:
-                        sugerido = min(freq_cv, key=freq_cv.get)
-                    else:
-                        sugerido = random.choice(['C', 'V'])
-                else:
-                    opcoes_opostas = [op for op in ['C', 'V'] if op != ultimo_resultado]
-                    if opcoes_opostas:
-                        sugerido = random.choice(opcoes_opostas)
-                    else:
-                        sugerido = random.choice(opcoes)
-            else:
-                sugerido = random.choice(opcoes)
-        
-        elif any(p for p in padroes_identificados if "sequência" in p.lower() or "dominância" in p.lower() or "onda" in p.lower() or "momentum" in p.lower() or "surf" in p.lower()):
-            ultimos_resultados_para_tendencia = self.historico[:min(len(self.historico), 5)]
-            if ultimos_resultados_para_tendencia:
-                sugerido = collections.Counter(ultimos_resultados_para_tendencia).most_common(1)[0][0]
-            else:
-                sugerido = random.choice(opcoes)
-        
-        elif any(p for p in padroes_identificados if "empate" in p.lower()):
-            sugerido = 'E'
-        
-        else:
-            sugerido = min(opcoes, key=lambda x: frequencias.get(x, 0))
+        entrada_sugerida = None
+        motivos_sugestao = []
 
-            freq_values = list(frequencias.values())
-            if len(set(freq_values)) == 1 or (max(freq_values) - min(freq_values) < 5):
-                ultimos_3 = self.historico[:3]
-                if ultimos_3:
-                    contador_recente = collections.Counter(ultimos_3)
-                    if contador_recente.most_common(1)[0][1] >= 2 and len(set(ultimos_3)) < 3:
-                        resultado_frequente = contador_recente.most_common(1)[0][0]
-                        opcoes_mudanca = [op for op in opcoes if op != resultado_frequente]
-                        if opcoes_mudanca:
-                            sugerido = random.choice(opcoes_mudanca)
-                        else:
-                            sugerido = random.choice(opcoes)
-                    else:
-                        sugerido = min(opcoes, key=lambda x: frequencias.get(x, 0))
+        # 1. Prioriza padrões de QUEBRA/OPORTUNIDADE
+        padroes_oportunidade = [p for p in padroes_identificados if 
+                                "quebra" in p.lower() or "breakout" in p.lower() or 
+                                "tensão" in p.lower() or "martingale" in p.lower()]
+        
+        if padroes_oportunidade and self.historico:
+            ultimo_resultado = self.historico[0]
+            # Se a última sequência foi longa, sugere o oposto
+            if ultimo_resultado != 'E' and collections.Counter(self.historico[:5]).get(ultimo_resultado, 0) >= 3:
+                oposto = 'V' if ultimo_resultado == 'C' else 'C'
+                if oposto in opcoes: # Garante que não tente sugerir algo inválido
+                    entrada_sugerida = oposto
+                    motivos_sugestao.append(f"Padrão de Oportunidade e quebra: sugerindo o oposto de {ultimo_resultado}")
+            elif 'Empate Recorrente' in padroes_identificados or 'Ciclo de Empates' in padroes_identificados:
+                entrada_sugerida = 'E'
+                motivos_sugestao.append("Padrão de Empate Recorrente detectado")
+            
+        # 2. Se não houver padrões de quebra/oportunidade claros, ou empate não é prioridade, usa lógica de frequência/tendência
+        if entrada_sugerida is None:
+            # Prefere a que está menos frequente, buscando equilíbrio
+            menor_freq_val = float('inf')
+            temp_sug = None
+            
+            # Garante que 'C' e 'V' sejam priorizados sobre 'E' se houver muita diferença,
+            # a menos que 'E' seja extremamente raro ou parte de um ciclo.
+            
+            # Se C e V tiverem frequências muito próximas, e E for bem baixo
+            if abs(frequencias['C'] - frequencias['V']) < 10 and frequencias['E'] < 15:
+                # Sugere o que está menos frequente entre C e V
+                if frequencias['C'] < frequencias['V']:
+                    temp_sug = 'C'
                 else:
-                    sugerido = random.choice(opcoes)
+                    temp_sug = 'V'
+                motivos_sugestao.append("Frequências de C/V próximas, buscando equilíbrio.")
+            else:
+                # Caso contrário, sugere o de menor frequência geral
+                for opt in opcoes:
+                    if frequencias.get(opt, 0) < menor_freq_val:
+                        menor_freq_val = frequencias.get(opt, 0)
+                        temp_sug = opt
+                motivos_sugestao.append("Sugestão baseada na menor frequência geral.")
+
+            entrada_sugerida = temp_sug
+
+            # Ajuste final se a tendência for muito forte na direção oposta
+            if "Forte tendência" in tendencia and entrada_sugerida not in tendencia:
+                tendencia_resultado = tendencia.split(': ')[1]
+                if frequencias[tendencia_resultado] > 60 and random.random() > 0.7: # 30% de chance de ir contra tendência muito forte
+                    # Neste caso, mantém a sugestão de menor frequência, apostando na virada.
+                    pass 
+                else:
+                    # Caso contrário, pode ser mais cauteloso e sugerir o da tendência forte.
+                    # Mas para Football Studio, muitas vezes ir contra a onda em algum ponto é a estratégia.
+                    # Mantenho a lógica de menor frequência, que é uma aposta na regressão à média.
+                    pass
+
+        # Lógica de desempate se ainda não houver sugestão forte ou clara
+        if entrada_sugerida is None:
+            if self.historico:
+                # Prioriza o oposto do último se ele foi uma sequência
+                last_result = self.historico[0]
+                if collections.Counter(self.historico[:3]).get(last_result, 0) >= 2 and last_result != 'E':
+                    entrada_sugerida = 'V' if last_result == 'C' else 'C'
+                    motivos_sugestao.append(f"Últimos resultados em sequência, sugerindo o oposto de {last_result}.")
+                else:
+                    entrada_sugerida = random.choice(opcoes) # Último recurso
+                    motivos_sugestao.append("Sugestão aleatória (lógica de desempate).")
+            else:
+                entrada_sugerida = random.choice(opcoes) # Se não há histórico
+                motivos_sugestao.append("Sugestão aleatória (sem histórico).")
+
 
         mapeamento = {"C": "Casa", "V": "Visitante", "E": "Empate"}
-        entrada_legivel = mapeamento[sugerido]
+        entrada_legivel = mapeamento[entrada_sugerida]
         
         return {
             "sugerir": True,
             "entrada": entrada_legivel,
-            "entrada_codigo": sugerido,
-            "motivos": padroes_identificados,
+            "entrada_codigo": entrada_sugerida,
+            "motivos": padroes_identificados + motivos_sugestao, # Combina os padrões com os motivos da sugestão
             "confianca": confianca_final,
             "frequencias": frequencias,
             "tendencia": tendencia,
@@ -639,12 +701,12 @@ class AnalisePadroes:
         }
 
     def _gerar_analise_detalhada(self, padroes):
+        """Gera análise detalhada dos padrões encontrados"""
         categorias = {
-            "Padrões de Sequência e Repetição": ["Sequência", "Surf", "Ondas", "Martingale", "Paroli", "Momentum", "Clusters", "3x1", "4x1"],
-            "Padrões de Quebra e Inversão": ["Quebra", "Breakout", "Tensão", "Resistência"],
-            "Padrões Cíclicos e Recorrência": ["Ciclo", "Empate Recorrente", "Zonas de Frequência", "Respiração", "Ritmo Cardíaco", "Pressão"],
-            "Padrões Estruturais Especiais": ["Espelho", "Escada", "Alternância com Empate", "Triangular", "Labouchere", "Dragon Tiger", "Polar"],
-            "Padrões Fibonacci/Proporção": ["Fibonacci", "Dourada", "Fibonacci Invertida"],
+            "Padrões de Sequência": ["Sequência", "Surf", "Ondas", "Fibonacci", "Paroli", "Momentum"],
+            "Padrões de Quebra/Oportunidade": ["Quebra", "Breakout", "Tensão", "Martingale", "Dragon Tiger"],
+            "Padrões Cíclicos/Repetição": ["Ciclo", "Respiração", "Empate Recorrente", "Ritmo Cardíaco"],
+            "Padrões Simétricos/Estruturais": ["Espelho", "Escada", "Triangular", "Labouchere", "Clusters", "Resistência", "Polar"],
         }
         
         analise = {}
@@ -657,42 +719,91 @@ class AnalisePadroes:
 
 # --- FUNÇÕES DE INTERFACE E LÓGICA DE HISTÓRICO ---
 
-# Inicializa o estado da sessão
-if 'historico' not in st.session_state:
+def load_data():
+    """Carrega o histórico e estatísticas de um arquivo CSV."""
+    if os.path.exists(DATA_FILE):
+        try:
+            df = pd.read_csv(DATA_FILE)
+            # Converte a coluna 'historico' de string para lista
+            # Ex: "['C', 'V', 'E']" -> ['C', 'V', 'E']
+            df['historico'] = df['historico'].apply(eval) 
+            
+            # Carrega o último estado salvo
+            if not df.empty:
+                last_row = df.iloc[-1]
+                st.session_state.historico = last_row['historico']
+                st.session_state.estatisticas = {
+                    'total_jogos': last_row['total_jogos'],
+                    'acertos': last_row['acertos'],
+                    'erros': last_row['erros'],
+                    'historico_sugestoes': eval(last_row['historico_sugestoes'])
+                }
+                return
+        except Exception as e:
+            st.error(f"Erro ao carregar dados: {e}. Iniciando com dados vazios.")
+            # Limpa o arquivo se houver erro de carregamento para evitar loop
+            os.remove(DATA_FILE) 
+    
+    # Se o arquivo não existe ou houve erro, inicializa vazio
     st.session_state.historico = []
-
-if 'estatisticas' not in st.session_state:
     st.session_state.estatisticas = {
         'total_jogos': 0,
         'acertos': 0,
         'erros': 0,
-        'historico_sugestoes': []
+        'historico_sugestoes': [] # Lista de dicionários para registrar sugestões
     }
+
+def save_data():
+    """Salva o histórico e estatísticas em um arquivo CSV."""
+    data_to_save = {
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'historico': [st.session_state.historico], # Salva como lista no DF
+        'total_jogos': st.session_state.estatisticas['total_jogos'],
+        'acertos': st.session_state.estatisticas['acertos'],
+        'erros': st.session_state.estatisticas['erros'],
+        'historico_sugestoes': [st.session_state.estatisticas['historico_sugestoes']] # Salva como lista de dicts
+    }
+    df_to_save = pd.DataFrame(data_to_save)
+
+    # Verifica se o arquivo existe para adicionar cabeçalho apenas na primeira vez
+    header = not os.path.exists(DATA_FILE)
+    df_to_save.to_csv(DATA_FILE, mode='a', index=False, header=header)
+
+
+# Carrega os dados na inicialização
+if 'historico' not in st.session_state:
+    load_data()
+
+# Variável para armazenar a última sugestão antes de um novo resultado
+if 'ultima_sugestao' not in st.session_state:
+    st.session_state.ultima_sugestao = None
 
 def adicionar_resultado(resultado):
-    if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao['sugerir']:
-        sugestao_anterior = st.session_state.ultima_sugestao
-        if sugestao_anterior['entrada_codigo'] == resultado:
-            st.session_state.estatisticas['acertos'] += 1
-            acertou = True
-        else:
-            st.session_state.estatisticas['erros'] += 1
-            acertou = False
+    """Adiciona novo resultado ao histórico e valida a sugestão anterior."""
+    if st.session_state.ultima_sugestao:
+        sugestao_para_validar = st.session_state.ultima_sugestao
+        acertou = validar_sugestao(sugestao_para_validar, resultado)
         
-        st.session_state.estatisticas['historico_sugestoes'].append({
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'sugerido': sugestao_anterior['entrada_codigo'],
-            'real': resultado,
-            'confianca': sugestao_anterior['confianca'],
-            'acertou': acertou,
-            'motivos': sugestao_anterior['motivos']
-        })
-        del st.session_state.ultima_sugestao
+        # Registra a validação no histórico de sugestões
+        log_entry = {
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "sugestao_entrada": sugestao_para_validar['entrada_codigo'],
+            "sugestao_confianca": sugestao_para_validar['confianca'],
+            "sugestao_padroes": sugestao_para_validar['motivos'], # Padrões ativos no momento da sugestão
+            "resultado_real": resultado,
+            "acertou": acertou
+        }
+        st.session_state.estatisticas['historico_sugestoes'].append(log_entry)
+        st.session_state.ultima_sugestao = None # Limpa após validação
 
-    st.session_state.historico.insert(0, resultado)
+    st.session_state.historico.insert(0, resultado) # Novo resultado na primeira posição
+    if len(st.session_state.historico) > 50:
+        st.session_state.historico = st.session_state.historico[:50]
     st.session_state.estatisticas['total_jogos'] += 1
+    save_data() # Salva dados após cada adição
 
 def limpar_historico():
+    """Limpa todo o histórico e zera estatísticas."""
     st.session_state.historico = []
     st.session_state.estatisticas = {
         'total_jogos': 0,
@@ -700,43 +811,62 @@ def limpar_historico():
         'erros': 0,
         'historico_sugestoes': []
     }
-    if 'ultima_sugestao' in st.session_state:
-        del st.session_state.ultima_sugestao
-
+    save_data() # Salva dados vazios
+    st.session_state.ultima_sugestao = None # Limpa sugestão pendente
 
 def desfazer_ultimo():
+    """Remove o último resultado e ajusta estatísticas."""
     if st.session_state.historico:
+        # Se houve uma sugestão que não foi validada (porque o último resultado foi desfeito)
+        # não deve impactar acertos/erros.
         st.session_state.historico.pop(0)
         if st.session_state.estatisticas['total_jogos'] > 0:
             st.session_state.estatisticas['total_jogos'] -= 1
-        
-        if 'ultima_sugestao' in st.session_state:
-             del st.session_state.ultima_sugestao
+        st.session_state.ultima_sugestao = None # Cancela qualquer sugestão pendente
+        save_data() # Salva dados após desfazer
+
+def validar_sugestao(sugestao_anterior, resultado_real):
+    """Valida se a sugestão anterior estava correta."""
+    if sugestao_anterior['entrada_codigo'] == resultado_real:
+        st.session_state.estatisticas['acertos'] += 1
+        return True
+    else:
+        st.session_state.estatisticas['erros'] += 1
+        return False
 
 def get_resultado_html(resultado):
+    """Retorna HTML para visualização do resultado."""
     color_map = {'C': '#FF4B4B', 'V': '#4B4BFF', 'E': '#FFD700'}
-
+    symbol_map = {'C': '🏠', 'V': '✈️', 'E': '⚖️'}
+    
     return f"""
-    <div class='roadmap-item' style='
-        background-color: {color_map.get(resultado, 'gray')} !important;
-        width: 25px !important;
-        height: 25px !important;
-        border-radius: 50% !important;
-        display: inline-block !important;
-        margin: 2px !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
+    <span style='
+        display: inline-block; 
+        width: 30px; 
+        height: 30px; 
+        border-radius: 50%; 
+        background-color: {color_map.get(resultado, 'gray')}; 
+        margin: 2px; 
+        text-align: center; 
+        line-height: 30px; 
+        font-size: 14px;
+        color: {"black" if resultado == "E" else "white"};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     '>
-    </div>
+        {symbol_map.get(resultado, '?')}
+    </span>
     """
+
 def get_confianca_color(confianca):
+    """Retorna cor baseada no nível de confiança."""
     if confianca >= 80:
-        return "#4CAF50"
+        return "#4CAF50"  # Verde
     elif confianca >= 60:
-        return "#FF9800"
+        return "#FF9800"  # Laranja
     elif confianca >= 40:
-        return "#FFC107"
+        return "#FFC107"  # Amarelo
     else:
-        return "#F44336"
+        return "#F44336"  # Vermelho
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -746,170 +876,152 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Aprimorado com st.html para melhor injeção
-st.html("""
+# CSS Aprimorado
+st.markdown("""
 <style>
 /* Estilo geral */
 .main-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    padding: 2rem !important;
-    border-radius: 10px !important;
-    margin-bottom: 2rem !important;
-    text-align: center !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    text-align: center;
 }
 
 .main-header h1 {
-    color: white !important;
-    font-size: 2.5rem !important;
-    margin: 0 !important;
+    color: white;
+    font-size: 2.5rem;
+    margin: 0;
 }
 
 .main-header p {
-    color: white !important;
-    font-size: 1.2rem !important;
-    margin: 0.5rem 0 0 0 !important;
-    opacity: 0.9 !important;
+    color: white;
+    font-size: 1.2rem;
+    margin: 0.5rem 0 0 0;
+    opacity: 0.9;
 }
 
 /* Botões */
 div.stButton > button:first-child {
-    font-size: 16px !important;
-    padding: 12px 24px !important;
-    border-radius: 8px !important;
-    cursor: pointer !important;
-    margin: 5px !important;
-    color: white !important;
-    border: none !important;
-    font-weight: bold !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    font-size: 16px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px;
+    color: white;
+    border: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 div.stButton > button:first-child:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
 }
 
 /* Botões específicos */
-div.stButton > button[data-testid*="stButton-CASA"] {
-    background: linear-gradient(135deg, #FF6B6B, #FF4B4B) !important; /* Vermelho */
+div.stButton > button[data-testid="stButton-🏠 Casa (C)"] {
+    background: linear-gradient(135deg, #FF6B6B, #FF4B4B);
 }
 
-div.stButton > button[data-testid*="stButton-EMPATE"] {
-    background: linear-gradient(135deg, #FFE66D, #FFD700) !important; /* Amarelo */
-    color: black !important;
+div.stButton > button[data-testid="stButton-✈️ Visitante (V)"] {
+    background: linear-gradient(135deg, #4ECDC4, #4B4BFF);
 }
 
-div.stButton > button[data-testid*="stButton-VISITANTE"] {
-    background: linear-gradient(135deg, #4ECDC4, #4B4BFF) !important; /* Azul */
+div.stButton > button[data-testid="stButton-⚖️ Empate (E)"] {
+    background: linear-gradient(135deg, #FFE66D, #FFD700);
+    color: black;
 }
 
-div.stButton > button[data-testid*="stButton-Desfazer"],
-div.stButton > button[data-testid*="stButton-Limpar"] {
-    background: linear-gradient(135deg, #95A5A6, #7F8C8D) !important;
+div.stButton > button[data-testid="stButton-↩️ Desfazer"] {
+    background: linear-gradient(135deg, #95A5A6, #7F8C8D);
+}
+
+div.stButton > button[data-testid="stButton-🗑️ Limpar Tudo"] { # Ajustado o key para ser diferente do Desfazer
+    background: linear-gradient(135deg, #E74C3C, #C0392B);
 }
 
 /* Cards de estatísticas */
 .metric-card {
-    background: white !important;
-    padding: 1.5rem !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-    border-left: 4px solid #667eea !important;
-    margin: 1rem 0 !important;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #667eea;
+    margin: 1rem 0;
 }
 
 .metric-card h3 {
-    margin: 0 0 0.5rem 0 !important;
-    color: #2C3E50 !important;
+    margin: 0 0 0.5rem 0;
+    color: #2C3E50;
 }
 
 .metric-card p {
-    margin: 0 !important;
-    font-size: 1.1rem !important;
-    font-weight: bold !important;
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: bold;
 }
 
 /* Seções */
 .section-header {
-    background: linear-gradient(135deg, #74b9ff, #0984e3) !important;
-    color: white !important;
-    padding: 1rem !important;
-    border-radius: 8px !important;
-    margin: 1rem 0 !important;
-    text-align: center !important;
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    text-align: center;
 }
 
 .pattern-found {
-    background: linear-gradient(135deg, #00b894, #55a3ff) !important;
-    color: white !important;
-    padding: 0.5rem 1rem !important;
-    border-radius: 6px !important;
-    margin: 0.25rem 0 !important;
-    font-weight: bold !important;
+    background: linear-gradient(135deg, #00b894, #55a3ff);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin: 0.25rem 0;
+    font-weight: bold;
 }
 
 .pattern-not-found {
-    background: #f8f9fa !important;
-    color: #6c757d !important;
-    padding: 0.5rem 1rem !important;
-    border-radius: 6px !important;
-    margin: 0.25rem 0 !important;
-    border: 1px solid #dee2e6 !important;
+    background: #f8f9fa;
+    color: #6c757d;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin: 0.25rem 0;
+    border: 1px solid #dee2e6;
 }
 
 .suggestion-box {
-    background: linear-gradient(135deg, #a8edea, #fed6e3) !important;
-    padding: 2rem !important;
-    border-radius: 12px !important;
-    margin: 1rem 0 !important;
-    border: 2px solid #667eea !important;
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    padding: 2rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    border: 2px solid #667eea;
 }
 
-.confidence-high { color: #27AE60 !important; font-weight: bold !important; }
-.confidence-medium { color: #F39C12 !important; font-weight: bold !important; }
-.confidence-low { color: #E74C3C !important; font-weight: bold !important; }
+.confidence-high { color: #27AE60; font-weight: bold; }
+.confidence-medium { color: #F39C12; font-weight: bold; }
+.confidence-low { color: #E74C3C; font-weight: bold; }
 
-/* Styles for the roadmap grid - APLICAR AO CONTAINER PAI */
-.roadmap-grid-container {
-    display: grid !important;
-    grid-template-columns: repeat(9, 28px) !important; /* Ajustado para 9 colunas de 28px */
-    gap: 2px !important; /* Espaçamento entre os círculos */
-    justify-content: start !important;
-    align-items: start !important;
-    padding: 5px !important;
-    border: 1px solid #333 !important;
-    border-radius: 5px !important;
-    background-color: #1a1a1a !important;
-    max-width: fit-content !important; /* Ajusta a largura ao conteúdo */
-    overflow-x: hidden !important; /* Garante que não haja scroll horizontal */
+.historic-container {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+    border: 1px solid #dee2e6;
+    display: flex; /* Habilita flexbox para os itens */
+    flex-wrap: wrap; /* Permite que os itens quebrem linha */
+    justify-content: flex-start; /* Alinha itens ao início */
 }
 
-/* Styles for each roadmap item (the circles) */
-.roadmap-item {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 25px !important; /* Tamanho do círculo */
-    height: 25px !important;
-    border-radius: 50% !important; /* Faz o item ser um círculo */
-    font-size: 14px !important;
-    border: 1px solid rgba(255,255,255,0.3) !important;
-    flex-shrink: 0 !important; /* Impede que os itens encolham */
-    box-sizing: border-box !important; /* Garante que padding e border não aumentem o tamanho total */
+/* Garante que os spans de resultado fiquem em linha */
+.historic-container span {
+    display: inline-flex; 
+    align-items: center;
+    justify-content: center;
 }
-
-/* Ajuste para o texto dentro dos botões de resultado */
-div.stButton > button[data-testid*="stButton-CASA"] div,
-div.stButton > button[data-testid*="stButton-EMPATE"] div,
-div.stButton > button[data-testid*="stButton-VISITANTE"] div {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-}
-
 </style>
-""") # Fechamento do st.html
+""", unsafe_allow_html=True)
 
 # --- CABEÇALHO PRINCIPAL ---
 st.markdown("""
@@ -928,20 +1040,21 @@ with st.sidebar:
     erros = st.session_state.estatisticas['erros']
     
     if total_jogos > 0:
-        taxa_acerto = (acertos / (acertos + erros)) * 100 if (acertos + erros) > 0 else 0
-        st.metric("Total de Jogos Registrados", total_jogos)
-        st.metric("Total de Sugestões Validadas", acertos + erros)
-        st.metric("Taxa de Acerto das Sugestões", f"{taxa_acerto:.1f}%")
-        st.metric("Acertos", acertos, delta=acertos-erros)
+        taxa_acerto = (acertos / total_jogos) * 100
+        st.metric("Total de Jogos", total_jogos)
+        st.metric("Taxa de Acerto", f"{taxa_acerto:.1f}%")
+        # delta = acertos - (total_jogos - acertos) # Outra forma de ver o delta
+        st.metric("Acertos", acertos)
         st.metric("Erros", erros)
     else:
-        st.info("Nenhum jogo analisado ainda.")
+        st.info("Nenhum jogo analisado ainda")
     
     st.markdown("---")
     st.markdown("## ⚙️ Configurações")
     
-    show_advanced = st.checkbox("Análise Avançada e Detalhes", value=True)
-    confidence_threshold = st.slider("Limite Mínimo de Confiança para Sugestão", 0, 100, 60)
+    auto_suggest = st.checkbox("Sugestão Automática", value=True)
+    show_advanced = st.checkbox("Análise Avançada", value=True)
+    confidence_threshold = st.slider("Limite de Confiança para Sugestão", 0, 100, 60)
 
 # --- SEÇÃO DE INSERÇÃO DE RESULTADOS ---
 st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2></div>', unsafe_allow_html=True)
@@ -949,61 +1062,60 @@ st.markdown('<div class="section-header"><h2>🎯 Inserir Resultado do Jogo</h2>
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    if st.button("🔴 CASA (C)", key="stButton-CASA", use_container_width=True, help="Vitória da Casa"):
+    if st.button("🏠 Casa (C)", key="🏠 Casa (C)", use_container_width=True, help="Vitória da Casa"):
         adicionar_resultado('C')
         st.rerun()
 
 with col2:
-    if st.button("🟡 EMPATE (E)", key="stButton-EMPATE", use_container_width=True, help="Empate"):
-        adicionar_resultado('E')
-        st.rerun()
-
-with col3:
-    if st.button("🔵 VISITANTE (V)", key="stButton-VISITANTE", use_container_width=True, help="Vitória do Visitante"):
+    if st.button("✈️ Visitante (V)", key="✈️ Visitante (V)", use_container_width=True, help="Vitória do Visitante"):
         adicionar_resultado('V')
         st.rerun()
 
+with col3:
+    if st.button("⚖️ Empate (E)", key="⚖️ Empate (E)", use_container_width=True, help="Empate"):
+        adicionar_resultado('E')
+        st.rerun()
+
 with col4:
-    if st.button("↩️ DESFAZER ÚLTIMO", key="stButton-Desfazer", use_container_width=True, help="Remove o último resultado inserido"):
+    if st.button("↩️ Desfazer", key="↩️ Desfazer", use_container_width=True, help="Desfazer último resultado"):
         desfazer_ultimo()
         st.rerun()
 
 with col5:
-    if st.button("🗑️ LIMPAR TUDO", key="stButton-Limpar", use_container_width=True, help="Limpa todo o histórico e estatísticas"):
+    if st.button("🗑️ Limpar Tudo", key="🗑️ Limpar Tudo", use_container_width=True, help="Limpar todo o histórico e estatísticas"):
         limpar_historico()
         st.rerun()
 
-import streamlit.components.v1 as components
-
-# --- EXIBIÇÃO DO HISTÓRICO EM LINHAS DE 9 ---
+# --- EXIBIÇÃO DO HISTÓRICO ---
 st.markdown('<div class="section-header"><h2>📈 Histórico de Resultados</h2></div>', unsafe_allow_html=True)
 
 if not st.session_state.historico:
     st.info("🎮 Nenhum resultado registrado. Comece inserindo os resultados dos jogos!")
 else:
-    grid_html_content = ""
-    for resultado_cell in st.session_state.historico:
-        grid_html_content += get_resultado_html(resultado_cell)
-
-    components.html(f"""
-    <div class="roadmap-grid-container">
-        {grid_html_content}
-    </div>
-    """, height=300, scrolling=False)
-
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
-
-
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
-
+    st.markdown('<div class="historic-container">', unsafe_allow_html=True)
+    
+    historico_html = ""
+    # Itera sobre o histórico para exibir em blocos de 9
+    for i, resultado in enumerate(st.session_state.historico):
+        historico_html += get_resultado_html(resultado)
+        # Quebra a linha a cada 9 resultados
+        if (i + 1) % 9 == 0 and (i + 1) < len(st.session_state.historico):
+            historico_html += "<br>" # Adiciona uma quebra de linha HTML
+    
+    st.markdown(historico_html, unsafe_allow_html=True)
+    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos (máx. 50)", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ANÁLISE PRINCIPAL ---
-st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
-
-if len(st.session_state.historico) >= 9:
+if len(st.session_state.historico) >= 5: # Mínimo de 5 para iniciar qualquer análise
     analyzer = AnalisePadroes(st.session_state.historico)
+    
+    # --- SUGESTÃO INTELIGENTE ---
+    st.markdown('<div class="section-header"><h2>🎯 Sugestão Inteligente</h2></div>', unsafe_allow_html=True)
+    
     sugestao = analyzer.sugestao_inteligente()
     
+    # Armazena a sugestão atual para validação posterior
     st.session_state.ultima_sugestao = sugestao
 
     if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
@@ -1020,119 +1132,113 @@ if len(st.session_state.historico) >= 9:
                     {sugestao['confianca']}%
                 </span>
             </p>
-            <p><strong>Tendência Atual:</strong> {sugestao['tendencia']}</p>
+            <p><strong>Tendência dos Últimos 18 Jogos:</strong> {sugestao['tendencia']}</p>
         </div>
         """, unsafe_allow_html=True)
         
+        # Detalhes da análise
         if show_advanced:
             with st.expander("📋 Detalhes da Análise"):
-                st.write("**Padrões Identificados que influenciaram a sugestão:**")
-                if sugestao['motivos']:
-                    for motivo in sugestao['motivos']:
-                        st.write(f"• {motivo}")
-                else:
-                    st.info("Nenhum padrão específico detectado, sugestão baseada em estatísticas gerais.")
+                st.write("**Motivos da Sugestão:**")
+                for motivo in sugestao['motivos']:
+                    st.write(f"• {motivo}")
                 
                 if 'analise_detalhada' in sugestao and sugestao['analise_detalhada']:
-                    st.write("**Análise por Categoria de Padrões:**")
-                    for categoria, padroes_list in sugestao['analise_detalhada'].items():
-                        st.write(f"**{categoria}:** {', '.join(padroes_list)}")
+                    st.write("**Análise por Categoria de Padrões Encontrados:**")
+                    for categoria, padroes in sugestao['analise_detalhada'].items():
+                        st.write(f"**{categoria}:** {', '.join(padroes)}")
+                else:
+                    st.write("Nenhum padrão específico encontrado para categorização detalhada.")
     else:
-        if len(st.session_state.historico) < 9:
-             st.info(f"🤔 Insira mais {9 - len(st.session_state.historico)} resultados para iniciar a sugestão inteligente.")
-        else:
-             st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) para uma sugestão, ou nenhum padrão relevante detectado no momento.")
+        st.warning(f"🤔 Confiança insuficiente ({sugestao['confianca']}%) ou nenhum padrão detectado acima do limite. Não há sugestão forte no momento.")
     
+    # --- ANÁLISE DE PADRÕES ---
+    st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados</h2></div>', unsafe_allow_html=True)
+    
+    padroes_encontrados = analyzer.analisar_todos()
+    
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("### ✅ Padrões Encontrados")
+        encontrados = [nome for nome, status in padroes_encontrados.items() if status]
+        
+        if encontrados:
+            for padrao in encontrados:
+                peso = analyzer.pesos_padroes.get(padrao, 0.5)
+                st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
+        else:
+            st.info("Nenhum padrão específico detectado.")
+    
+    with col_right:
+        st.markdown("### ❌ Padrões Não Encontrados (Amostra)")
+        nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
+        
+        # Exibe apenas os primeiros 10 não encontrados para não sobrecarregar
+        for padrao in nao_encontrados[:10]:  
+            st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
+        if len(nao_encontrados) > 10:
+            st.markdown(f'<div class="pattern-not-found">... e mais {len(nao_encontrados) - 10} padrões não encontrados.</div>', unsafe_allow_html=True)
+
+    # --- ANÁLISE ESTATÍSTICA ---
+    st.markdown('<div class="section-header"><h2>📊 Análise Estatística</h2></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    frequencias = analyzer.calcular_frequencias()
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🏠 Casa</h3>
+            <p style="color: #FF4B4B;">{frequencias['C']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✈️ Visitante</h3>
+            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>⚖️ Empate</h3>
+            <p style="color: #FFD700;">{frequencias['E']}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Gráfico de frequências
     if show_advanced:
-        st.markdown('<div class="section-header"><h2>🔍 Padrões Detectados (Detalhado)</h2></div>', unsafe_allow_html=True)
-        
-        padroes_encontrados = analyzer.analisar_todos()
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.markdown("### ✅ Padrões Ativos")
-            encontrados = [nome for nome, status in padroes_encontrados.items() if status]
-            
-            if encontrados:
-                for padrao in encontrados:
-                    peso = analyzer.pesos_padroes.get(padrao, 0.5)
-                    st.markdown(f'<div class="pattern-found">✅ {padrao} (Peso: {peso})</div>', unsafe_allow_html=True)
-            else:
-                st.info("Nenhum padrão específico detectado no histórico atual.")
-        
-        with col_right:
-            st.markdown("### ❌ Outros Padrões (Inativos)")
-            nao_encontrados = [nome for nome, status in padroes_encontrados.items() if not status]
-            
-            if nao_encontrados:
-                for padrao in nao_encontrados[:15]:
-                    st.markdown(f'<div class="pattern-not-found">❌ {padrao}</div>', unsafe_allow_html=True)
-                if len(nao_encontrados) > 15:
-                    st.write(f"E mais {len(nao_encontrados) - 15} padrões inativos...")
-            else:
-                st.info("Todos os padrões estão ativos (improvável).")
-        
-    if show_advanced:
-        st.markdown('<div class="section-header"><h2>📊 Análise Estatística Geral</h2></div>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        frequencias = analyzer.calcular_frequencias()
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔴 Casa</h3>
-                <p style="color: #FF4B4B;">{frequencias['C']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔵 Visitante</h3>
-                <p style="color: #4B4BFF;">{frequencias['V']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🟡 Empate</h3>
-                <p style="color: #FFD700;">{frequencias['E']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("### 📈 Distribuição de Frequências (Gráfico)")
+        st.markdown("### 📈 Distribuição das Frequências de Resultados")
         chart_data = pd.DataFrame({
             'Resultado': ['Casa', 'Visitante', 'Empate'],
-            'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
+            'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']],
+            'Cor': ['#FF4B4B', '#4B4BFF', '#FFD700']
         })
-        chart_colors = {
-            'Casa': '#FF4B4B',
-            'Visitante': '#4B4BFF',
-            'Empate': '#FFD700'
-        }
         
-        st.bar_chart(chart_data.set_index('Resultado').T, color=[chart_colors[col] for col in chart_data['Resultado']])
-        
-        with st.expander("Histórico de Sugestões e Resultados Reais"):
-            if st.session_state.estatisticas['historico_sugestoes']:
-                df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
-                df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
-                df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
-                st.dataframe(df_sugestoes_display, use_container_width=True)
-            else:
-                st.info("Nenhuma sugestão foi validada ainda.")
+        # Cria um gráfico de barras com cores personalizadas
+        st.bar_chart(chart_data.set_index('Resultado')['Frequência'], color=chart_data['Cor'])
+
+        # Detalhes do histórico de sugestões
+        st.markdown("### 📜 Histórico de Sugestões e Validações")
+        if st.session_state.estatisticas['historico_sugestoes']:
+            df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
+            st.dataframe(df_sugestoes)
+        else:
+            st.info("Nenhuma sugestão foi registrada ainda.")
 
 else:
-    st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
+    st.info("🎮 Insira pelo menos 5 resultados para começar a análise inteligente e 18 para a tendência completa!")
 
+# --- RODAPÉ ---
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #7f8c8d; margin-top: 2rem;">
-    <p>⚽ Football Studio Live Analyzer v2.2 | Análise Inteligente de Padrões</p>
+    <p>⚽ Football Studio Live Analyzer v2.0 | Análise Inteligente de Padrões</p>
     <p><small>Desenvolvido para Evolution Gaming Football Studio</small></p>
 </div>
 """, unsafe_allow_html=True)
