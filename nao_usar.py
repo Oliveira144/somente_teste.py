@@ -670,8 +670,13 @@ if 'estatisticas' not in st.session_state:
     }
 
 def adicionar_resultado(resultado):
-    if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao['sugerir']:
+    if (
+        'ultima_sugestao' in st.session_state and
+        st.session_state.ultima_sugestao['sugerir'] and
+        st.session_state.estatisticas['total_jogos'] == len(st.session_state.estatisticas['historico_sugestoes'])
+    ):
         sugestao_anterior = st.session_state.ultima_sugestao
+
         if sugestao_anterior['entrada_codigo'] == resultado:
             st.session_state.estatisticas['acertos'] += 1
             acertou = True
@@ -687,11 +692,12 @@ def adicionar_resultado(resultado):
             'acertou': acertou,
             'motivos': sugestao_anterior['motivos']
         })
+
         del st.session_state.ultima_sugestao
 
     st.session_state.historico.insert(0, resultado)
     st.session_state.estatisticas['total_jogos'] += 1
-
+ 
 def limpar_historico():
     st.session_state.historico = []
     st.session_state.estatisticas = {
@@ -1003,8 +1009,7 @@ st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div
 if len(st.session_state.historico) >= 9:
     analyzer = AnalisePadroes(st.session_state.historico[::-1])
     sugestao = analyzer.sugestao_inteligente()
-    
-    st.session_state.ultima_sugestao = sugestao
+st.session_state.ultima_sugestao = sugestao
 
     if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
         confianca_color = get_confianca_color(sugestao['confianca'])
