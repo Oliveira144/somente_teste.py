@@ -1012,9 +1012,9 @@ if len(st.session_state.historico) >= 9:
 if 'ultima_sugestao' not in st.session_state:
     st.session_state.ultima_sugestao = sugestao
 
+if not sugestao['sugerir'] or sugestao['confianca'] < confidence_threshold:
+    st.warning(f"Nenhuma sugestão com confiança suficiente. Confiança atual: {sugestao['confianca']}%")
 
-   st.warning(f"Nenhuma sugestão com confiança suficiente. Confiança atual: {sugestao['confianca']}%")
-        confianca_color = get_confianca_color(sugestao['confianca'])
         
         st.markdown(f"""
         <div class="suggestion-box">
