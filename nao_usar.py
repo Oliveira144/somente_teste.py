@@ -8,7 +8,9 @@ import pandas as pd
 # --- CLASSE ANALISEPADROES REFINADA ---
 class AnalisePadroes:
     def __init__(self, historico):
-        self.historico = historico[:54] # Limita o histórico para análise, sempre os 54 mais recentes
+        # Limita o histórico para análise, sempre os 54 mais recentes
+        # Inverte a ordem para que o resultado mais recente esteja na posição 0
+        self.historico = list(reversed(historico))[:54] 
         
         # Mapeamento de nomes de padrões para seus métodos correspondentes
         self.padroes_ativos = {
@@ -26,11 +28,9 @@ class AnalisePadroes:
             "Sequência Dourada": self._sequencia_dourada, # 3X, 1Y, 1X
             "Padrão Triangular": self._padrao_triangular,
             "Ciclo de Empates": self._ciclo_empates,
-            # "Padrão Martingale": self._padrao_martingale, # REMOVIDO (duplicado com Sequência Simples)
             "Fibonacci Invertida": self._fibonacci_invertida,
             "Alternância Dupla": self._alternancia_dupla,
             "Momento Explosivo": self._momento_explosivo,
-            # "Surf Invertido": self._surf_invertido # REMOVIDO (duplicado com Sequência Dourada)
         }
         
         # Pesos dos padrões (você pode ajustar estes valores)
@@ -49,11 +49,9 @@ class AnalisePadroes:
             "Sequência Dourada": 0.9, # Era 0.9
             "Padrão Triangular": 0.82,
             "Ciclo de Empates": 0.78,
-            # "Padrão Martingale": 0.65, # REMOVIDO
             "Fibonacci Invertida": 0.93,
             "Alternância Dupla": 0.8,
             "Momento Explosivo": 0.87,
-            # "Surf Invertido": 0.89 # REMOVIDO
         }
 
     def analisar(self):
@@ -292,58 +290,65 @@ class AnalisePadroes:
     def _padrao_fibonacci(self):
         # Padrão: Sequências de 1,1,2,3,5 (ignora empates)
         padroes = []
-        for i in range(len(self.historico) - 11): # Precisa de pelo menos 1+1+2+3+5 = 12 posições sem empates
+        # Para evitar IndexError, garantir que haja histórico suficiente antes de acessar índices
+        if len(self.historico) < 12: # Mínimo de 1+1+2+3+5 = 12 resultados C/V
+            return padroes
+
+        for i in range(len(self.historico)):
+            # Crie um segmento de C/V a partir da posição 'i'
             segmento_c_v = [res for res in self.historico[i:] if res != 'E']
             
-            if len(segmento_c_v) < 12: # Não há resultados C/V suficientes para o padrão
+            if len(segmento_c_v) < 12: # Não há resultados C/V suficientes para o padrão a partir daqui
                 continue
 
             # Tenta encontrar a sequência 1,1,2,3,5
-            sequencia_comprimentos = []
-            
+            # Posições no segmento_c_v:
+            # 0: cor1 (len 1)
+            # 1: cor2 (len 1)
+            # 2,3: cor3 (len 2)
+            # 4,5,6: cor4 (len 3)
+            # 7,8,9,10,11: cor5 (len 5)
+
             # Primeiro 1
-            if len(segmento_c_v) >= 1:
-                sequencia_comprimentos.append(1)
-            else: continue
-
-            # Segundo 1
-            if len(segmento_c_v) >= 2 and segmento_c_v[0] != segmento_c_v[1]:
-                sequencia_comprimentos.append(1)
-            else: continue
-
-            # Terceiro 2
-            if len(segmento_c_v) >= 4 and segmento_c_v[1] != segmento_c_v[2] and segmento_c_v[2] == segmento_c_v[3]:
-                sequencia_comprimentos.append(2)
-            else: continue
+            cor1 = segmento_c_v[0]
             
-            # Quarto 3
-            if len(segmento_c_v) >= 7 and segmento_c_v[3] != segmento_c_v[4] and segmento_c_v[4] == segmento_c_v[5] == segmento_c_v[6]:
-                sequencia_comprimentos.append(3)
-            else: continue
+            # Segundo 1 (deve ser diferente do primeiro)
+            if cor1 == segmento_c_v[1]: continue
+            cor2 = segmento_c_v[1]
 
-            # Quinto 5
-            if len(segmento_c_v) >= 12 and segmento_c_v[6] != segmento_c_v[7] and \
-               segmento_c_v[7] == segmento_c_v[8] == segmento_c_v[9] == segmento_c_v[10] == segmento_c_v[11]:
-                sequencia_comprimentos.append(5)
-            else: continue
+            # Terceiro 2 (deve ser diferente do segundo, e os dois próximos iguais a ele)
+            if cor2 == segmento_c_v[2] or segmento_c_v[2] != segmento_c_v[3]: continue
+            cor3 = segmento_c_v[2]
 
-            if sequencia_comprimentos == [1, 1, 2, 3, 5]:
-                 # Encontra o índice final no histórico original para o segmento
-                current_idx = i
-                count_c_v = 0
-                for length in [1, 1, 2, 3, 5]:
-                    temp_len = 0
-                    while temp_len < length:
-                        if current_idx < len(self.historico) and self.historico[current_idx] != 'E':
-                            temp_len += 1
-                        current_idx += 1
-                posicao_final = current_idx - 1 # Último índice do padrão no histórico original
+            # Quarto 3 (deve ser diferente do terceiro, e os três próximos iguais a ele)
+            if cor3 == segmento_c_v[4] or not (segmento_c_v[4] == segmento_c_v[5] == segmento_c_v[6]): continue
+            cor4 = segmento_c_v[4]
 
-                padroes.append({
-                    "nome": "Padrão Fibonacci",
-                    "segmento": self.historico[i : posicao_final + 1],
-                    "posicao_final": posicao_final
-                })
+            # Quinto 5 (deve ser diferente do quarto, e os cinco próximos iguais a ele)
+            if cor4 == segmento_c_v[7] or not (segmento_c_v[7] == segmento_c_v[8] == segmento_c_v[9] == segmento_c_v[10] == segmento_c_v[11]): continue
+            cor5 = segmento_c_v[7]
+
+            # Se chegamos até aqui, o padrão foi detectado
+            # Encontra o índice final no histórico original para o segmento
+            current_idx_in_original_history = i
+            count_c_v_found = 0
+            required_len_cv = sum([1,1,2,3,5]) # Total de resultados C/V no padrão Fibonacci
+            
+            # Percorre o histórico original para encontrar a posição final exata do padrão
+            for k in range(i, len(self.historico)):
+                if self.historico[k] != 'E':
+                    count_c_v_found += 1
+                if count_c_v_found == required_len_cv:
+                    posicao_final = k
+                    break
+            else: # Caso o loop não encontre, algo deu errado (deveria ter encontrado)
+                continue
+
+            padroes.append({
+                "nome": "Padrão Fibonacci",
+                "segmento": self.historico[i : posicao_final + 1],
+                "posicao_final": posicao_final
+            })
         return padroes
 
 
@@ -395,8 +400,6 @@ class AnalisePadroes:
                 })
         return padroes
 
-    # REMOVIDO: _padrao_martingale era idêntico a _sequencia_simples
-
     def _fibonacci_invertida(self):
         # Padrão: 4 de uma cor, 2 da cor oposta, 1 da primeira cor. Ex: C,C,C,C,V,V,C
         padroes = []
@@ -435,7 +438,7 @@ class AnalisePadroes:
         # Padrão: Sequência de X, seguida por uma sequência MAIOR de Y. Ex: C,C,V,V,V,V
         padroes = []
         min_len_explosao_inicial = 2 # Mínimo de 2 da primeira cor
-        min_len_explosao_final = 3   # Mínimo de 3 da segunda cor (maior que a primeira)
+        min_len_explosao_final = 3    # Mínimo de 3 da segunda cor (maior que a primeira)
 
         for i in range(len(self.historico) - (min_len_explosao_inicial + min_len_explosao_final)):
             cor1 = self.historico[i]
@@ -470,9 +473,7 @@ class AnalisePadroes:
                             "posicao_final": start_seq2 + len2 - 1
                         })
         return padroes
-
-    # REMOVIDO: _surf_invertido era idêntico a _sequencia_dourada
-    
+        
     def _calcular_frequencias(self, historico_parcial=None):
         # Calcula a frequência de C, V, E em um histórico parcial ou total
         hist = historico_parcial if historico_parcial is not None else self.historico
@@ -494,19 +495,28 @@ class AnalisePadroes:
         freq_v_pct = (frequencias['V'] / total) * 100
         freq_e_pct = (frequencias['E'] / total) * 100
 
-        # Encontrar o resultado com menor frequência
-        menor_freq_val = min(frequencias.values())
-        resultados_menor_freq = [k for k, v in frequencias.items() if v == menor_freq_val]
+        # Encontrar o resultado com menor frequência (ignorando 'E' se há C/V)
+        # Se só tem 'E' no histórico, prioriza 'E'
+        if frequencias['C'] == 0 and frequencias['V'] == 0 and frequencias['E'] > 0:
+            return 'E'
+        
+        # Considera apenas C e V para a menor frequência se houver ambos
+        temp_freq = {k: v for k, v in frequencias.items() if k != 'E'}
+        if not temp_freq: # Se só tem 'E' no histórico
+            return 'C' # Ou random, ou outra heurística para o caso de só ter E
+        
+        menor_freq_val = min(temp_freq.values())
+        resultados_menor_freq = [k for k, v in temp_freq.items() if v == menor_freq_val]
 
         if len(resultados_menor_freq) == 1:
             return resultados_menor_freq[0]
         else:
-            # Se houver empate na menor frequência, ou se as frequências são muito próximas
-            # Considerar o último resultado para sugerir o oposto
-            if self.historico and self.historico[0] != 'E': # Se o último não foi empate
-                return 'C' if self.historico[0] == 'V' else 'V'
-            else: # Se o último foi empate ou não há histórico suficiente para essa regra
-                return random.choice(['C', 'V']) # Ou um padrão mais inteligente para empate
+            # Se houver empate na menor frequência entre C e V, sugere o oposto do último C/V
+            if self.historico:
+                for res in self.historico:
+                    if res != 'E':
+                        return 'C' if res == 'V' else 'V'
+            return random.choice(['C', 'V']) # Fallback seguro
 
     def sugestao_inteligente(self):
         padroes_detectados = self.analisar()
@@ -554,10 +564,9 @@ class AnalisePadroes:
                     
                     # Lógica de sugestão para sequência:
                     # Sugere o resultado mais comum nos últimos 5 (ou menos se não houver 5)
-                    ultimos_5 = self.historico[:min(len(self.historico), 5)]
-                    frequencias_5 = self._calcular_frequencias(ultimos_5)
+                    ultimos_5 = [res for res in self.historico[:min(len(self.historico), 5)] if res != 'E']
+                    frequencias_5 = collections.Counter(ultimos_5)
                     
-                    # Ignora 'E' para a decisão de sequência de C ou V
                     freq_c = frequencias_5['C']
                     freq_v = frequencias_5['V']
                     
@@ -616,23 +625,380 @@ class AnalisePadroes:
             menor_freq_val = min(frequencias_gerais.values())
             total = sum(frequencias_gerais.values())
             if total > 0:
-                confianca_final = (menor_freq_val / total) * 100 # Confiança % da menor frequência
+                # Atribui uma confiança base menor para o fallback
+                confianca_final = (menor_freq_val / total) * 50 # Max 50% para fallback
 
         # Bônus por quantidade de padrões detectados (exceto se a confiança já for alta)
         if len(padroes_detectados) > 0:
-            bonus_quantidade = (len(padroes_detectados) - 1) * 0.05 # 5% de bônus por cada padrão extra
-            confianca_final += bonus_quantidade * 100 # Converte para porcentagem
+            # Calcular o bônus de forma mais controlada, para não estourar 100% facilmente
+            # Cada padrão extra (além do primeiro) adiciona um pequeno bônus
+            bonus_por_padrao = 0.05 # 5% de bônus por cada padrão extra, ou um valor fixo por tipo de padrão
             
-        # Garante que a confiança não exceda 100%
-        confianca_final = min(100, confianca_final)
+            # Sumariza os pesos dos padrões detectados para a confiança base
+            soma_pesos = sum(info["peso"] for info in padroes_detectados.values())
+            confianca_final = (confianca_final + (soma_pesos * 100)) / (len(padroes_detectados) + 1 if len(padroes_detectados) > 0 else 1)
+            
+            # Adiciona um bônus adicional se múltiplos padrões são detectados
+            if len(padroes_detectados) > 1:
+                confianca_final += (len(padroes_detectados) - 1) * bonus_por_padrao * 100
         
-        # Filtra motivos únicos
-        motivos = list(set(motivos))
-
+        # Garante que a confiança não exceda 100%
+        confianca_final = min(100, max(0, confianca_final)) # Garante que esteja entre 0 e 100
+            
+        # Filtra motivos únicos e inverte a ordem para exibir os mais recentes/relevantes primeiro
+        motivos = list(dict.fromkeys(motivos)) # Remove duplicatas mantendo a ordem
+        
         return {
             "sugestao": sugestao,
             "confianca": round(confianca_final, 2),
             "motivos": motivos
         }
 
-# O resto do seu código Streamlit permanece o mesmo
+# --- INÍCIO DO CÓDIGO STREAMLIT ---
+
+st.set_page_config(layout="wide", page_title="Analisador de Padrões de Jogo")
+
+# Inicialização do estado da sessão
+if 'historico_resultados' not in st.session_state:
+    st.session_state.historico_resultados = []
+if 'estatisticas' not in st.session_state:
+    st.session_state.estatisticas = {
+        'total_sugestoes': 0,
+        'acertos': 0,
+        'erros': 0,
+        'historico_sugestoes': []
+    }
+if 'ultima_sugestao' not in st.session_state:
+    st.session_state.ultima_sugestao = None
+
+# --- CSS Personalizado ---
+st.markdown("""
+    <style>
+    /* Estilos para o cabeçalho */
+    h1 {
+        color: #4CAF50; /* Verde */
+        text-align: center;
+        font-size: 2.5em;
+        margin-bottom: 0.5em;
+    }
+    h2 {
+        color: #2196F3; /* Azul */
+        font-size: 1.8em;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 0.3em;
+        margin-top: 1.5em;
+    }
+    h3 {
+        color: #FF9800; /* Laranja */
+        font-size: 1.4em;
+        margin-top: 1em;
+    }
+
+    /* Estilos para os botões de resultado */
+    .stButton>button {
+        width: 100%;
+        padding: 10px 0;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        opacity: 0.9;
+    }
+
+    /* Cores específicas para os botões de resultado */
+    /* Botão 'C' (Casa) */
+    /* Ajustado seletor para evitar conflito com outros botões 'primary' */
+    .stButton button[key="add_C"] {
+        background-color: #FF4B4B; /* Vermelho */
+    }
+    /* Botão 'V' (Visitante) */
+    .stButton button[key="add_V"] {
+        background-color: #4B4BFF; /* Azul */
+    }
+    /* Botão 'E' (Empate) */
+    .stButton button[key="add_E"] {
+        background-color: #FFD700; /* Amarelo ouro */
+        color: #333; /* Texto escuro para contraste */
+    }
+    /* Botões de validação (Real) */
+    .stButton button[key^="valid_"] {
+        background-color: #607D8B; /* Cinza para validação */
+        color: white;
+    }
+    .stButton button[key="clear_history"] {
+        background-color: #f44336; /* Vermelho mais suave para limpar */
+        color: white;
+    }
+    
+    /* Estilos para cards de informação/sugestão */
+    div[data-testid="stAlert"] { /* Seletor geral para alertas do Streamlit */
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    div[data-testid="stAlert"].stAlert-info {
+        background-color: #e3f2fd; /* Azul claro */
+        color: #1976d2; /* Azul escuro */
+        border-left: 5px solid #2196F3;
+    }
+    div[data-testid="stAlert"].stAlert-success {
+        background-color: #e8f5e9; /* Verde claro */
+        color: #2e7d32; /* Verde escuro */
+        border-left: 5px solid #4CAF50;
+    }
+    div[data-testid="stAlert"].stAlert-warning {
+        background-color: #fffde7; /* Amarelo claro */
+        color: #fbc02d; /* Amarelo escuro */
+        border-left: 5px solid #FFC107;
+    }
+    
+    /* Estilos para o container de histórico (se você usar st.container) */
+    .stContainer {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+    }
+
+    /* Melhorar visualização do dataframe */
+    .dataframe {
+        font-size: 0.85em;
+    }
+    
+    /* Estilos para as bolhas de resultado */
+    .historico-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px; /* Espaço entre as bolhas */
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        background-color: #fcfcfc;
+    }
+    .result-bubble {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px; /* Tamanho da bolha */
+        height: 30px;
+        border-radius: 50%; /* Torna a forma de bolha */
+        color: white;
+        font-weight: bold;
+        font-size: 0.9em;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .result-bubble.C {
+        background-color: #FF4B4B; /* Vermelho */
+    }
+    .result-bubble.V {
+        background-color: #4B4BFF; /* Azul */
+    }
+    .result-bubble.E {
+        background-color: #FFD700; /* Amarelo */
+        color: #333; /* Texto escuro para contraste */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+st.title("⚽ Análise de Padrões para Jogos de Resultado ⚽")
+
+# Sidebar para inserção de resultados
+with st.sidebar:
+    st.header("Adicionar Resultado")
+    col1_side, col2_side, col3_side = st.columns(3)
+    
+    with col1_side:
+        if st.button("Casa (C)", key="add_C"): # Removido type="primary" para aplicar CSS customizado
+            st.session_state.historico_resultados.insert(0, 'C') # Adiciona no início para o mais recente ficar em 0
+            st.rerun()
+
+    with col2_side:
+        if st.button("Visitante (V)", key="add_V"): # Removido type="primary"
+            st.session_state.historico_resultados.insert(0, 'V')
+            st.rerun()
+
+    with col3_side:
+        if st.button("Empate (E)", key="add_E"): # Removido type="primary"
+            st.session_state.historico_resultados.insert(0, 'E')
+            st.rerun()
+            
+    st.markdown("---")
+    st.header("Validar Última Sugestão")
+    # Verifica se há uma última sugestão para validar
+    if 'ultima_sugestao' in st.session_state and st.session_state.ultima_sugestao:
+        ultima_sugestao = st.session_state.ultima_sugestao
+        st.write(f"Última sugestão: **{ultima_sugestao['sugestao']}**")
+        st.write(f"Confiança: **{ultima_sugestao['confianca']}%**")
+        
+        col_valid_c, col_valid_v, col_valid_e = st.columns(3)
+        
+        with col_valid_c:
+            if st.button("Casa (Real)", key="valid_C"):
+                acertou = (ultima_sugestao['sugestao'] == 'C')
+                st.session_state.estatisticas['total_sugestoes'] += 1
+                if acertou:
+                    st.session_state.estatisticas['acertos'] += 1
+                else:
+                    st.session_state.estatisticas['erros'] += 1
+                st.session_state.estatisticas['historico_sugestoes'].insert(0, {
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'sugerido': ultima_sugestao['sugestao'],
+                    'real': 'C',
+                    'confianca': ultima_sugestao['confianca'],
+                    'acertou': acertou,
+                    'motivos': ultima_sugestao['motivos']
+                })
+                st.session_state.ultima_sugestao = None # Limpa a última sugestão após validação
+                st.rerun()
+        with col_valid_v:
+            if st.button("Visitante (Real)", key="valid_V"):
+                acertou = (ultima_sugestao['sugestao'] == 'V')
+                st.session_state.estatisticas['total_sugestoes'] += 1
+                if acertou:
+                    st.session_state.estatisticas['acertos'] += 1
+                else:
+                    st.session_state.estatisticas['erros'] += 1
+                st.session_state.estatisticas['historico_sugestoes'].insert(0, {
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'sugerido': ultima_sugestao['sugestao'],
+                    'real': 'V',
+                    'confianca': ultima_sugestao['confianca'],
+                    'acertou': acertou,
+                    'motivos': ultima_sugestao['motivos']
+                })
+                st.session_state.ultima_sugestao = None
+                st.rerun()
+        with col_valid_e:
+            if st.button("Empate (Real)", key="valid_E"):
+                acertou = (ultima_sugestao['sugestao'] == 'E')
+                st.session_state.estatisticas['total_sugestoes'] += 1
+                if acertou:
+                    st.session_state.estatisticas['acertos'] += 1
+                else:
+                    st.session_state.estatisticas['erros'] += 1
+                st.session_state.estatisticas['historico_sugestoes'].insert(0, {
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'sugerido': ultima_sugestao['sugestao'],
+                    'real': 'E',
+                    'confianca': ultima_sugestao['confianca'],
+                    'acertou': acertou,
+                    'motivos': ultima_sugestao['motivos']
+                })
+                st.session_state.ultima_sugestao = None
+                st.rerun()
+    else:
+        st.info("Adicione resultados para receber sugestões e validá-las.")
+
+    st.markdown("---")
+    if st.button("Limpar Histórico", key="clear_history"): # Removido type="secondary"
+        st.session_state.historico_resultados = []
+        st.session_state.estatisticas = {
+            'total_sugestoes': 0,
+            'acertos': 0,
+            'erros': 0,
+            'historico_sugestoes': []
+        }
+        st.session_state.ultima_sugestao = None
+        st.rerun()
+
+# Coluna principal e de estatísticas
+col_main, col_stats = st.columns([2, 1])
+
+with col_main:
+    st.header("Histórico de Resultados")
+    if st.session_state.historico_resultados:
+        # Exibe os resultados mais recentes no topo
+        # Usa o histórico original (sem o reversed da classe AnalisePadroes) para exibição
+        display_historico = "".join([f"<span class='result-bubble {res}'>{res}</span>" for res in st.session_state.historico_resultados])
+        st.markdown(f"<div class='historico-container'>{display_historico}</div>", unsafe_allow_html=True)
+        st.markdown("---")
+    else:
+        st.info("Nenhum resultado adicionado ainda.")
+
+    # Análise de Padrões e Sugestão
+    # A classe AnalisePadroes inverte o histórico internamente,
+    # então passamos o st.session_state.historico_resultados diretamente.
+    if len(st.session_state.historico_resultados) >= 9: # Mínimo de 9 resultados para começar a análise
+        analisador = AnalisePadroes(st.session_state.historico_resultados)
+        sugestao_data = analisador.sugestao_inteligente()
+        st.session_state.ultima_sugestao = sugestao_data # Salva a última sugestão
+
+        st.subheader("Sugestão de Próximo Resultado")
+        st.success(f"Sugerido: **{sugestao_data['sugestao']}** com confiança de **{sugestao_data['confianca']}%**")
+        st.write("Motivos:")
+        if sugestao_data['motivos']:
+            for motivo in sugestao_data['motivos']:
+                st.write(f"- {motivo}")
+        else:
+            st.info("Nenhum padrão específico forte detectado, usando lógica de frequência/mudança.")
+
+        st.subheader("Padrões Ativos Detectados")
+        padroes_detectados_raw = analisador.analisar() # Chamar para exibir todos os detectados
+        if padroes_detectados_raw:
+            for nome_padrao, info_padrao in padroes_detectados_raw.items():
+                st.markdown(f"**{nome_padrao}** (Peso: {analisador.pesos_padroes.get(nome_padrao, 0)}):")
+                for ocorrencia in info_padrao["ocorrencias"]:
+                    # Inverte o segmento para exibição para coincidir com a ordem do histórico exibido (mais recente à esquerda)
+                    segmento_display = list(reversed(ocorrencia['segmento']))
+                    st.write(f"    Segmento: `{str(segmento_display)}` (Posição final (relativa ao último resultado): {ocorrencia['posicao_final']})")
+        else:
+            st.info("Nenhum padrão específico foi detectado no histórico atual.")
+            
+    else:
+        st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise... (Atualmente: {len(st.session_state.historico_resultados)})")
+
+with col_stats:
+    st.header("Estatísticas")
+    total = st.session_state.estatisticas['total_sugestoes']
+    acertos = st.session_state.estatisticas['acertos']
+    erros = st.session_state.estatisticas['erros']
+    
+    col_acc1, col_acc2 = st.columns(2)
+    with col_acc1:
+        st.metric(label="Total de Sugestões", value=total)
+    with col_acc2:
+        st.metric(label="Acertos", value=acertos)
+    st.metric(label="Erros", value=erros)
+
+    if total > 0:
+        taxa_acerto = (acertos / total) * 100
+        st.metric(label="Taxa de Acerto", value=f"{taxa_acerto:.2f}%")
+    else:
+        st.metric(label="Taxa de Acerto", value="N/A")
+
+    st.subheader("Frequência de Resultados")
+    frequencias = collections.Counter(st.session_state.historico_resultados)
+    frequencias_df = pd.DataFrame({
+        'Resultado': ['Casa', 'Visitante', 'Empate'],
+        'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
+    })
+    
+    chart_colors = {
+        'Casa': '#FF4B4B',
+        'Visitante': '#4B4BFF',
+        'Empate': '#FFD700'
+    }
+    
+    # Criar uma lista de cores na ordem do dataframe
+    colors_for_chart = [chart_colors[res] for res in frequencias_df['Resultado']]
+    
+    # st.bar_chart espera o índice como o eixo X, então Transpõe (T) e usa o Resultado como índice
+    # Corrigido para passar a lista de cores corretamente ao st.bar_chart
+    st.bar_chart(frequencias_df.set_index('Resultado'), color=colors_for_chart)
+    
+    with st.expander("Histórico de Sugestões e Resultados Reais"):
+        if st.session_state.estatisticas['historico_sugestoes']:
+            df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
+            df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
+            df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
+            st.dataframe(df_sugestoes_display, use_container_width=True)
+        else:
+            st.info("Nenhuma sugestão foi validada ainda.")
