@@ -960,14 +960,20 @@ with col1:
         st.rerun()
 
 with col2:
-    if st.button("🟡 EMPATE (E)", key="stButton-EMPATE", use_container_width=True, help="Empate"):
-        adicionar_resultado('E')
-        st.rerun()
+    st.markdown(f"""
+        <div class="metric-card">
+            <h3>🔵 Visitante</h3>
+            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 with col3:
-    if st.button("🔵 VISITANTE (V)", key="stButton-VISITANTE", use_container_width=True, help="Vitória do Visitante"):
-        adicionar_resultado('V')
-        st.rerun()
+    st.markdown(f"""
+        <div class="metric-card">
+            <h3>🟡 Empate</h3>
+            <p style="color: #FFD700;">{frequencias['E']}%</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 with col4:
     if st.button("↩️ DESFAZER ÚLTIMO", key="stButton-Desfazer", use_container_width=True, help="Remove o último resultado inserido"):
