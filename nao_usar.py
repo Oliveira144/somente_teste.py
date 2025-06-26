@@ -1,5 +1,5 @@
 import streamlit as st
-classe FootballStudioAnalyzer:
+class FootballStudioAnalyzer:
     def __init__(self):
         self.resultados_filtrados = []
 
