@@ -996,10 +996,7 @@ else:
         {grid_html_content}
     </div>
     """, height=300, scrolling=False)
-
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
-
-
+   
     st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
 
 
