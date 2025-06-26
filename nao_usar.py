@@ -1009,9 +1009,11 @@ st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div
 if len(st.session_state.historico) >= 9:
     analyzer = AnalisePadroes(st.session_state.historico[::-1])
     sugestao = analyzer.sugestao_inteligente()
-st.session_state.ultima_sugestao = sugestao
+if 'ultima_sugestao' not in st.session_state:
+    st.session_state.ultima_sugestao = sugestao
 
-    if sugestao['sugerir'] and sugestao['confianca'] >= confidence_threshold:
+
+   st.warning(f"Nenhuma sugestão com confiança suficiente. Confiança atual: {sugestao['confianca']}%")
         confianca_color = get_confianca_color(sugestao['confianca'])
         
         st.markdown(f"""
