@@ -1001,7 +1001,7 @@ else:
 st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
 
 if len(st.session_state.historico) >= 9:
-    analyzer = AnalisePadroes(list(reversed(st.session_state.historico)))
+    analyzer = AnalisePadroes(st.session_state.historico[::-1])
     sugestao = analyzer.sugestao_inteligente()
     
     st.session_state.ultima_sugestao = sugestao
