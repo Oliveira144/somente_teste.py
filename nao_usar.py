@@ -1,3 +1,4 @@
+
 importar streamlit como st
 importar aleatório
 de coleções importar contador
@@ -140,6 +141,7 @@ classe AnalisePadroes:
             return "Empate", "Frequência", 60
 
         return random.choice(["Casa", "Visitante"]), "Aleatória", 50
+
 
 # Interface Streamlit
 se 'history' não estiver em st.session_state:
