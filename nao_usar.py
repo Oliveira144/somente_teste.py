@@ -1001,10 +1001,9 @@ else:
     <div class="roadmap-grid-container">
         {grid_html_content}
     </div>
-    """, height=300, scrolling=False)
-   
-    st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
+""", height=300, scrolling=False)
 
+st.markdown(f"**Total:** {len(st.session_state.historico)} jogos", unsafe_allow_html=True)
 
 # --- ANÁLISE PRINCIPAL ---
 st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div>', unsafe_allow_html=True)
@@ -1012,12 +1011,12 @@ st.markdown('<div class="section-header"><h2>🧠 Análise e Sugestão</h2></div
 if len(st.session_state.historico) >= 9:
     analyzer = AnalisePadroes(st.session_state.historico[::-1])
     sugestao = analyzer.sugestao_inteligente()
+
 if 'ultima_sugestao' not in st.session_state:
     st.session_state.ultima_sugestao = sugestao
 
 if not sugestao['sugerir'] or sugestao['confianca'] < confidence_threshold:
     st.warning(f"Nenhuma sugestão com confiança suficiente. Confiança atual: {sugestao['confianca']}%")
-
         
         st.markdown(f"""
         <div class="suggestion-box">
