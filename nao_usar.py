@@ -1092,43 +1092,44 @@ if not sugestao['sugerir'] or sugestao['confianca'] < confidence_threshold:
             </div>
             """, unsafe_allow_html=True)
         
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🔵 Visitante</h3>
-                <p style="color: #4B4BFF;">{frequencias['V']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>🟡 Empate</h3>
-                <p style="color: #FFD700;">{frequencias['E']}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("### 📈 Distribuição de Frequências (Gráfico)")
-        chart_data = pd.DataFrame({
-            'Resultado': ['Casa', 'Visitante', 'Empate'],
-            'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
-        })
-        chart_colors = {
-            'Casa': '#FF4B4B',
-            'Visitante': '#4B4BFF',
-            'Empate': '#FFD700'
-        }
-        
-        st.bar_chart(chart_data.set_index('Resultado').T, color=[chart_colors[col] for col in chart_data['Resultado']])
-        
-        with st.expander("Histórico de Sugestões e Resultados Reais"):
-            if st.session_state.estatisticas['historico_sugestoes']:
-                df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
-                df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
-                df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
-                st.dataframe(df_sugestoes_display, use_container_width=True)
-            else:
-                st.info("Nenhuma sugestão foi validada ainda.")
+      with col2:
+    st.markdown(f"""
+        <div class="metric-card">
+            <h3>🔵 Visitante</h3>
+            <p style="color: #4B4BFF;">{frequencias['V']}%</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""
+        <div class="metric-card">
+            <h3>🟡 Empate</h3>
+            <p style="color: #FFD700;">{frequencias['E']}%</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("### 📈 Distribuição de Frequências (Gráfico)")
+chart_data = pd.DataFrame({
+    'Resultado': ['Casa', 'Visitante', 'Empate'],
+    'Frequência': [frequencias['C'], frequencias['V'], frequencias['E']]
+})
+chart_colors = {
+    'Casa': '#FF4B4B',
+    'Visitante': '#4B4BFF',
+    'Empate': '#FFD700'
+}
+
+st.bar_chart(chart_data.set_index('Resultado').T, color=[chart_colors[col] for col in chart_data['Resultado']])
+
+with st.expander("Histórico de Sugestões e Resultados Reais"):
+    if st.session_state.estatisticas['historico_sugestoes']:
+        df_sugestoes = pd.DataFrame(st.session_state.estatisticas['historico_sugestoes'])
+        df_sugestoes['Acertou?'] = df_sugestoes['acertou'].apply(lambda x: '✅ Sim' if x else '❌ Não')
+        df_sugestoes_display = df_sugestoes[['timestamp', 'sugerido', 'real', 'confianca', 'Acertou?', 'motivos']]
+        st.dataframe(df_sugestoes_display, use_container_width=True)
+    else:
+        st.info("Nenhuma sugestão foi validada ainda.")
+
 
 else:
     st.info(f"🎮 Insira pelo menos 9 resultados para começar a análise inteligente e as sugestões!")
