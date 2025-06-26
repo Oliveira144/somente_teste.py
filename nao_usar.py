@@ -1,4 +1,3 @@
-
 importar streamlit como st
 importar aleatório
 de coleções importar contador
@@ -131,7 +130,6 @@ classe AnalisePadroes:
         if self.detectar_duplas()["ativo"]:
             retornar "Visitante", "Duplas", 65
 
-        # Frequência recente
         últimos = self.historico[-15:]
         contagem = Counter(últimos)
         if contagem["Casa"] >= 9 e contagem["Casa"] > contagem["Visitante"] + 2:
@@ -143,9 +141,7 @@ classe AnalisePadroes:
 
         return random.choice(["Casa", "Visitante"]), "Aleatória", 50
 
-# O restante do app continua igual ao anterior (interface Streamlit com histórico, sugestões, acertos/erros)
-
-# Inicialização do estado
+# Interface Streamlit
 se 'history' não estiver em st.session_state:
     st.session_state.history = []
 se 'log_entradas' não estiver em st.session_state:
@@ -192,26 +188,22 @@ se len(st.session_state.history) > 0:
         "confiança": confiança
     }
 
-    # Atualiza streak
     se st.session_state.streak['type'] == resultado:
         st.session_state.streak['contagem'] += 1
     outro:
         st.session_state.streak = {'tipo': resultado, 'contagem': 1}
 
-#Exibição da sugestão
 se st.session_state.sugestao:
     st.subheader("ðŸŽ¯ Sugestão de Entrada")
     st.markdown(f"**Entrada:** `{st.session_state.sugestao['sugestao']}`")
     st.markdown(f"**Padrão Detectado:** `{st.session_state.sugestao['padrao']}`")
     st.markdown(f"**Confiança:** `{st.session_state.sugestao['confianca']}%`")
 
-# Histórico visual
 st.subheader("ðŸ“Š Histórico de Resultados")
 para r em reversed(st.session_state.history):
     cor = "#dc2626" se r == "Casa" senão "#3b82f6" se r == "Visitante" senão "#6b7280"
     st.markdown(f"<div style='display:inline-block;largura:20px;altura:20px;raio da borda:50%;margem:2px;fundo:{cor}'></div>", unsafe_allow_html=True)
 
-# Estatísticas
 st.subheader("ðŸ“ˆ Estatísticas")
 total = len(st.session_state.history)
 se total:
@@ -220,7 +212,6 @@ se total:
     visitante = st.session_state.history.count("Visitante")
     st.write(f"Casa: {casa} ({(casa/total)*100:.1f}%) | Empate: {empate} ({(empate/total)*100:.1f}%) | Visitante: {visitante} ({(visitante/total)*100:.1f}%)")
 
-# Conferência
 st.subheader("âœ… Conferência de Entradas")
 acertos = sum(1 for l in st.session_state.log_entradas if l["acertou"])
 total_logs = len(st.session_state.log_entradas)
