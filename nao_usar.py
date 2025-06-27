@@ -1,6 +1,6 @@
-import streamlit as st 
-import random from statistics
-import mean
+import streamlit as st
+import random
+from statistics import mean
 Classe analisadora
 class FootballStudioAnalyzer: def init(self): self.history = [] self.suggestion = None self.confidence = 0 self.streak = {'type': None, 'count': 0}
 def add_result(self, result):
