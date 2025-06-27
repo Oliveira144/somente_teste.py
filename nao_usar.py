@@ -27,9 +27,7 @@ def update_streak(self):
             self.streak = {'type': last_result, 'count': 1}
 
 def analyze_patterns(self, results):
-    # (Função anterior completa - mantida para análise dos 13 padrões)
-    # ... código omitido para brevidade, já está incluído na célula anterior ...
-    pass
+    pass  # Substitua com a função completa de análise que você já possui
 
 --- Início da Interface Streamlit ---
 
@@ -48,12 +46,12 @@ Sugestão principal
 if analyzer.suggestion: entry = analyzer.suggestion['entry'] conf = analyzer.suggestion['confidence'] pattern = analyzer.suggestion['mainPattern']
 
 st.subheader("🎯 Próxima Entrada")
-color = 'red' if entry == 'Casa' else 'blue' if entry == 'Visitante' else 'gray'
+color = '#dc2626' if entry == 'Casa' else '#2563eb' if entry == 'Visitante' else '#4b5563'
 emoji = '🏠' if entry == 'Casa' else '✈️' if entry == 'Visitante' else '🤝'
 st.markdown(f"### <div style='background-color:{color};padding:20px;border-radius:10px;color:white;text-align:center'>{emoji} Apostar em {entry.upper()}</div>", unsafe_allow_html=True)
 st.markdown(f"**Confiança:** `{conf}%` | **Padrão:** `{pattern}`")
 
-with st.expander("📊 Padrões Detected"):
+with st.expander("📊 Padrões Detectados"):
     for key, value in analyzer.suggestion['patterns'].items():
         if value and key != 'surfStreak':
             st.markdown(f"✔️ **{key.replace('_', ' ').capitalize()}**")
