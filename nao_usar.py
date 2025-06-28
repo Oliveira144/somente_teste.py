@@ -228,15 +228,44 @@ if 'confidence' not in st.session_state:
     st.session_state.confidence = 0
 if 'streak' not in st.session_state:
     st.session_state.streak = {'type': None, 'count': 0}
+if 'hits' not in st.session_state: # Novo: Contagem de acertos
+    st.session_state.hits = 0
+if 'misses' not in st.session_state: # Novo: Contagem de erros
+    st.session_state.misses = 0
+if 'last_suggestion' not in st.session_state: # Novo: Salva a última sugestão para comparação
+    st.session_state.last_suggestion = None
+if 'awaiting_feedback' not in st.session_state: # Novo: Flag para saber se espera feedback
+    st.session_state.awaiting_feedback = False
+
 
 # --- Funções de Ação ---
 
 def add_result_to_history(result):
+    # Antes de adicionar o novo resultado, se havia uma sugestão pendente,
+    # significa que o usuário não deu feedback, então consideramos um erro.
+    if st.session_state.awaiting_feedback and st.session_state.last_suggestion:
+        # Se a última sugestão não era um empate e o resultado agora é um empate,
+        # ou se a última sugestão era diferente do resultado, é um erro.
+        if st.session_state.last_suggestion['entry'] != result:
+            st.session_state.misses += 1
+            st.toast("Feedback não fornecido: Contado como ERRO.", icon="❌")
+        else: # Se a sugestão bateu com o resultado inserido, é um acerto
+            st.session_state.hits += 1
+            st.toast("Feedback não fornecido, mas a sugestão bateu: Contado como ACERTO.", icon="✅")
+
     st.session_state.history.append(result)
     analysis = analyze_patterns_python(st.session_state.history)
+    
     if analysis:
         st.session_state.suggestion = analysis
         st.session_state.confidence = analysis['confidence']
+        st.session_state.last_suggestion = analysis # Guarda a sugestão atual para feedback futuro
+        st.session_state.awaiting_feedback = True # Indica que estamos esperando feedback
+    else:
+        st.session_state.suggestion = None
+        st.session_state.confidence = 0
+        st.session_state.last_suggestion = None
+        st.session_state.awaiting_feedback = False
 
     # Atualizar streak atual
     if st.session_state.history:
@@ -246,13 +275,30 @@ def add_result_to_history(result):
         else:
             st.session_state.streak = {'type': last_result, 'count': 1}
 
-def clear_history():
+def register_feedback(feedback_type):
+    # Esta função será chamada pelos botões de feedback "Acerto" ou "Erro"
+    if st.session_state.awaiting_feedback and st.session_state.last_suggestion:
+        if feedback_type == 'hit':
+            st.session_state.hits += 1
+            st.toast("ACERTO registrado!", icon="🎯")
+        else: # feedback_type == 'miss'
+            st.session_state.misses += 1
+            st.toast("ERRO registrado!", icon="❌")
+        st.session_state.awaiting_feedback = False # Já recebeu o feedback
+    # Não limpamos st.session_state.last_suggestion aqui, ela é sobrescrita
+    # na próxima chamada de add_result_to_history.
+
+def clear_history_and_stats():
     st.session_state.history = []
     st.session_state.suggestion = None
     st.session_state.confidence = 0
     st.session_state.streak = {'type': None, 'count': 0}
-    # Sem st.experimental_rerun() aqui, o Streamlit redesenha automaticamente
-    # quando o st.session_state é alterado, o que é suficiente para este caso.
+    st.session_state.hits = 0
+    st.session_state.misses = 0
+    st.session_state.last_suggestion = None
+    st.session_state.awaiting_feedback = False
+    # Streamlit redesenha automaticamente quando o st.session_state é alterado.
+
 
 # --- Layout da Aplicação Streamlit ---
 
@@ -355,6 +401,32 @@ st.markdown("""
     color: #9ca3af;
     font-size: 0.875em;
     margin-top: 2em;
+}
+.performance-box {
+    background-color: #1f2937;
+    border-radius: 0.75em;
+    padding: 1em;
+    margin-top: 1.5em;
+    text-align: center;
+    border: 1px solid #a78bfa;
+}
+.feedback-buttons .stButton>button {
+    background-image: linear-gradient(to right, #4CAF50, #2E8B57); /* Verde para Acerto */
+    border: none;
+    color: white;
+    padding: 0.75em 1em;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 1em;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    width: auto;
+    min-width: 100px;
+}
+.feedback-buttons .stButton>button[data-testid*="btn_erro"] {
+    background-image: linear-gradient(to right, #f44336, #b71c1c); /* Vermelho para Erro */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -464,10 +536,9 @@ history_header_col1, history_header_col2 = st.columns([3, 1])
 with history_header_col1:
     st.markdown(f'<h3 style="font-size: 1.25em; font-weight: bold;">Últimos Resultados ({len(st.session_state.history)})</h3>', unsafe_allow_html=True)
 with history_header_col2:
-    st.button("Limpar Histórico", on_click=clear_history, key="btn_clear_history", help="Limpar todos os resultados")
+    st.button("Limpar Histórico e Estatísticas", on_click=clear_history_and_stats, key="btn_clear_all", help="Limpar todos os resultados e estatísticas de desempenho")
 
 # Exibição do histórico em linha de 9
-# Construir as linhas de bolhas como strings HTML
 history_html = []
 current_line_items = []
 for i, result in enumerate(reversed(st.session_state.history)):
@@ -494,8 +565,39 @@ for i, result in enumerate(reversed(st.session_state.history)):
 for line_html in history_html:
     st.markdown(line_html, unsafe_allow_html=True)
 
-# Estatísticas
+# --- Conferidor de Desempenho ---
+st.markdown('<div class="performance-box">', unsafe_allow_html=True)
+st.markdown(f'<h3 style="font-weight: bold; margin-bottom: 0.5em;">Desempenho Geral</h3>', unsafe_allow_html=True)
+
+perf_col1, perf_col2, perf_col3 = st.columns(3)
+total_bets = st.session_state.hits + st.session_state.misses
+hit_rate = (st.session_state.hits / total_bets * 100) if total_bets > 0 else 0
+
+with perf_col1:
+    st.metric(label="Acertos ✅", value=st.session_state.hits)
+with perf_col2:
+    st.metric(label="Erros ❌", value=st.session_state.misses)
+with perf_col3:
+    st.metric(label="Taxa de Acerto", value=f"{hit_rate:.1f}%")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Botões de feedback (Acerto/Erro) - Aparecem somente após uma sugestão
+if st.session_state.awaiting_feedback:
+    st.markdown('<div style="text-align: center; margin-top: 1.5em;">', unsafe_allow_html=True)
+    st.markdown('<h3 style="font-weight: bold; margin-bottom: 1em;">O resultado da última sugestão foi um:</h3>', unsafe_allow_html=True)
+    feedback_col1, feedback_col2 = st.columns(2)
+    with feedback_col1:
+        st.button("✅ ACERTO", on_click=register_feedback, args=('hit',), key="btn_acerto", help="Clique se a última sugestão foi correta")
+    with feedback_col2:
+        st.button("❌ ERRO", on_click=register_feedback, args=('miss',), key="btn_erro", help="Clique se a última sugestão foi incorreta")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# Estatísticas de distribuição de resultados
 if st.session_state.history:
+    st.markdown('<div style="background-color: rgba(75, 85, 99, 0.3); border-radius: 0.75em; padding: 1.5em; margin-top: 1.5em;">', unsafe_allow_html=True)
+    st.markdown(f'<h3 style="font-size: 1.25em; font-weight: bold;">Distribuição de Resultados</h3>', unsafe_allow_html=True)
     stats_col1, stats_col2, stats_col3 = st.columns(3)
     total_results = len(st.session_state.history)
     casa_count = st.session_state.history.count('Casa')
@@ -517,15 +619,15 @@ if st.session_state.history:
         st.markdown(f'<div style="font-size: 1.5em; font-weight: bold;">{visitante_count}</div>', unsafe_allow_html=True)
         st.markdown(f'<div style="font-size: 0.875em;">Visitante ({((visitante_count / total_results) * 100):.1f}%)</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True) # Fecha a div do histórico principal
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Streak Atual
+# Streak Atual (mantido no final para visualização)
 if st.session_state.streak['type']:
     streak_message = f"Streak Atual: {st.session_state.streak['count']}x {st.session_state.streak['type']}"
     if st.session_state.streak['count'] >= 3 and st.session_state.streak['type'] != 'Empate':
         streak_message += ' <span style="color: #f87171;">(⚠️ Possível Quebra)</span>'
     st.markdown(f'''
-        <div style="background: linear-gradient(to right, #fbbf24, #f97316); border-radius: 0.75em; padding: 1em; text-align: center; font-size: 1.125em; font-weight: bold;">
+        <div style="background: linear-gradient(to right, #fbbf24, #f97316); border-radius: 0.75em; padding: 1em; text-align: center; font-size: 1.125em; font-weight: bold; margin-top: 1.5em;">
             {streak_message}
         </div>
     ''', unsafe_allow_html=True)
