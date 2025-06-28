@@ -318,23 +318,24 @@ st.markdown("""
     padding: 1em;
     margin-top: 1em;
 }
-.history-container {
+.history-line-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em; /* Espaço entre as bolhas */
-    margin-bottom: 1em;
+    flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
+    gap: 0.2em; /* Espaço entre as bolhas */
+    margin-bottom: 0.5em; /* Espaço entre as linhas de bolhas */
     justify-content: flex-start; /* Alinhar à esquerda */
+    width: 100%; /* Ocupa a largura total para quebrar corretamente */
 }
 .history-item {
-    width: 2.5em;
-    height: 2.5em;
+    width: 1.5em; /* Bolhas menores */
+    height: 1.5em; /* Bolhas menores */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 0.875em;
-    flex-shrink: 0;
+    font-size: 0.7em; /* Texto menor para bolhas menores */
+    flex-shrink: 0; /* Não permite que as bolhas encolham */
 }
 /* Cores das Bolhas */
 .red-bg-bubble { background-color: #dc2626; } /* Vermelho para Casa */
@@ -466,7 +467,9 @@ with history_header_col2:
     st.button("Limpar Histórico", on_click=clear_history, key="btn_clear_history", help="Limpar todos os resultados")
 
 # Exibição do histórico em linha de 9
-st.markdown('<div class="history-container">', unsafe_allow_html=True)
+# Construir as linhas de bolhas como strings HTML
+history_html = []
+current_line_items = []
 for i, result in enumerate(reversed(st.session_state.history)):
     color_class = ""
     text_char = ""
@@ -480,12 +483,16 @@ for i, result in enumerate(reversed(st.session_state.history)):
         color_class = "yellow-bg-bubble"
         text_char = "E"
     
-    st.markdown(f'<div class="history-item {color_class}">{text_char}</div>', unsafe_allow_html=True)
-    # Adiciona um "quebra de linha" invisível a cada 9 itens para forçar o layout em linhas
-    if (i + 1) % 9 == 0:
-        st.markdown('<div style="flex-basis: 100%; height: 0;"></div>', unsafe_allow_html=True) 
+    current_line_items.append(f'<div class="history-item {color_class}">{text_char}</div>')
+    
+    # Se alcançou 9 itens ou é o último item do histórico
+    if (i + 1) % 9 == 0 or (i + 1) == len(st.session_state.history):
+        history_html.append('<div class="history-line-container">' + "".join(current_line_items) + '</div>')
+        current_line_items = [] # Reinicia para a próxima linha
 
-st.markdown('</div>', unsafe_allow_html=True) # Fecha a div do history-container
+# Exibir as linhas HTML no Streamlit
+for line_html in history_html:
+    st.markdown(line_html, unsafe_allow_html=True)
 
 # Estatísticas
 if st.session_state.history:
