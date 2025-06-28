@@ -242,16 +242,14 @@ if 'awaiting_feedback' not in st.session_state: # Novo: Flag para saber se esper
 
 def add_result_to_history(result):
     # Antes de adicionar o novo resultado, se havia uma sugestão pendente,
-    # significa que o usuário não deu feedback, então consideramos um erro.
+    # significa que o usuário não deu feedback, então consideramos um erro/acerto automático.
     if st.session_state.awaiting_feedback and st.session_state.last_suggestion:
-        # Se a última sugestão não era um empate e o resultado agora é um empate,
-        # ou se a última sugestão era diferente do resultado, é um erro.
-        if st.session_state.last_suggestion['entry'] != result:
-            st.session_state.misses += 1
-            st.toast("Feedback não fornecido: Contado como ERRO.", icon="❌")
-        else: # Se a sugestão bateu com o resultado inserido, é um acerto
+        if st.session_state.last_suggestion['entry'] == result:
             st.session_state.hits += 1
-            st.toast("Feedback não fornecido, mas a sugestão bateu: Contado como ACERTO.", icon="✅")
+            st.toast("Acerto automático! (Sugestão anterior correspondia)", icon="✅")
+        else:
+            st.session_state.misses += 1
+            st.toast("Erro automático! (Sugestão anterior não correspondia)", icon="❌")
 
     st.session_state.history.append(result)
     analysis = analyze_patterns_python(st.session_state.history)
@@ -323,7 +321,10 @@ st.markdown("""
     color: #cbd5e1;
     margin-bottom: 2em;
 }
-.stButton>button {
+/* Estilo para os botões de entrada específicos */
+button[data-testid*="btn_casa"] {
+    background-image: linear-gradient(to right, #dc2626, #b91c1c); /* Vermelho para Casa */
+    color: white;
     width: 100%;
     padding: 1.5em;
     font-size: 1.25em;
@@ -331,25 +332,36 @@ st.markdown("""
     border-radius: 0.75em;
     transition: all 0.2s ease-in-out;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    background-image: linear-gradient(to right, var(--button-start-color), var(--button-end-color));
-    color: white;
 }
+button[data-testid*="btn_empate"] {
+    background-image: linear-gradient(to right, #d97706, #b45309); /* Amarelo para Empate */
+    color: white;
+    width: 100%;
+    padding: 1.5em;
+    font-size: 1.25em;
+    font-weight: bold;
+    border-radius: 0.75em;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+button[data-testid*="btn_visitante"] {
+    background-image: linear-gradient(to right, #2563eb, #1d4ed8); /* Azul para Visitante */
+    color: white;
+    width: 100%;
+    padding: 1.5em;
+    font-size: 1.25em;
+    font-weight: bold;
+    border-radius: 0.75em;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Estilo para o hover, aplicado a todos os botões que queremos interativo */
 .stButton>button:hover {
     transform: scale(1.05);
     filter: brightness(1.1);
 }
-.button-casa {
-    --button-start-color: #dc2626;
-    --button-end-color: #b91c1c;
-}
-.button-empate {
-    --button-start-color: #d97706; /* Amarelo para Empate */
-    --button-end-color: #b45309;
-}
-.button-visitante {
-    --button-start-color: #2563eb;
-    --button-end-color: #1d4ed8;
-}
+
 .suggestion-box {
     background: linear-gradient(to right, #6b21a8, #4f46e5);
     border-radius: 0.75em;
@@ -410,7 +422,8 @@ st.markdown("""
     text-align: center;
     border: 1px solid #a78bfa;
 }
-.feedback-buttons .stButton>button {
+/* Estilo para os botões de feedback (Acerto/Erro) */
+button[data-testid*="btn_acerto"] {
     background-image: linear-gradient(to right, #4CAF50, #2E8B57); /* Verde para Acerto */
     border: none;
     color: white;
@@ -425,9 +438,22 @@ st.markdown("""
     width: auto;
     min-width: 100px;
 }
-.feedback-buttons .stButton>button[data-testid*="btn_erro"] {
+button[data-testid*="btn_erro"] {
     background-image: linear-gradient(to right, #f44336, #b71c1c); /* Vermelho para Erro */
+    border: none;
+    color: white;
+    padding: 0.75em 1em;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 1em;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    width: auto;
+    min-width: 100px;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -439,8 +465,6 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.button("🏠 CASA", on_click=add_result_to_history, args=('Casa',), key="btn_casa", help="Adicionar resultado Casa")
 with col2:
-    # Use a classe CSS para o botão de empate com a cor amarela
-    st.markdown('<style>.stButton>button[data-testid="stButton-btn_empate"] { background-image: linear-gradient(to right, #d97706, #b45309); }</style>', unsafe_allow_html=True)
     st.button("🤝 EMPATE", on_click=add_result_to_history, args=('Empate',), key="btn_empate", help="Adicionar resultado Empate")
 with col3:
     st.button("✈️ VISITANTE", on_click=add_result_to_history, args=('Visitante',), key="btn_visitante", help="Adicionar resultado Visitante")
@@ -588,13 +612,13 @@ if st.session_state.awaiting_feedback:
     st.markdown('<h3 style="font-weight: bold; margin-bottom: 1em;">O resultado da última sugestão foi um:</h3>', unsafe_allow_html=True)
     feedback_col1, feedback_col2 = st.columns(2)
     with feedback_col1:
-        st.button("✅ ACERTO", on_click=register_feedback, args=('hit',), key="btn_acerto", help="Clique se a última sugestão foi correta")
+        st.button("✅ ACERTO", on_click=register_feedback, args=('hit',), key="btn_acerto_feedback", help="Clique se a última sugestão foi correta") # Alterei a key
     with feedback_col2:
-        st.button("❌ ERRO", on_click=register_feedback, args=('miss',), key="btn_erro", help="Clique se a última sugestão foi incorreta")
+        st.button("❌ ERRO", on_click=register_feedback, args=('miss',), key="btn_erro_feedback", help="Clique se a última sugestão foi incorreta") # Alterei a key
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# Estatísticas de distribuição de resultados
+# Estatísticas de distribuição de resultados (movidas para depois do desempenho, se desejar)
 if st.session_state.history:
     st.markdown('<div style="background-color: rgba(75, 85, 99, 0.3); border-radius: 0.75em; padding: 1.5em; margin-top: 1.5em;">', unsafe_allow_html=True)
     st.markdown(f'<h3 style="font-size: 1.25em; font-weight: bold;">Distribuição de Resultados</h3>', unsafe_allow_html=True)
