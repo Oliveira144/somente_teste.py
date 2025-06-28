@@ -251,11 +251,12 @@ def clear_history():
     st.session_state.suggestion = None
     st.session_state.confidence = 0
     st.session_state.streak = {'type': None, 'count': 0}
-    st.experimental_rerun() # Necessário para resetar a UI completamente
+    # Sem st.experimental_rerun() aqui, o Streamlit redesenha automaticamente
+    # quando o st.session_state é alterado, o que é suficiente para este caso.
 
 # --- Layout da Aplicação Streamlit ---
 
-# Título e Subtítulo
+# Estilos CSS Injetados
 st.markdown("""
 <style>
 .stApp {
@@ -296,8 +297,8 @@ st.markdown("""
     --button-end-color: #b91c1c;
 }
 .button-empate {
-    --button-start-color: #4b5563;
-    --button-end-color: #374151;
+    --button-start-color: #d97706; /* Amarelo para Empate */
+    --button-end-color: #b45309;
 }
 .button-visitante {
     --button-start-color: #2563eb;
@@ -317,6 +318,13 @@ st.markdown("""
     padding: 1em;
     margin-top: 1em;
 }
+.history-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em; /* Espaço entre as bolhas */
+    margin-bottom: 1em;
+    justify-content: flex-start; /* Alinhar à esquerda */
+}
 .history-item {
     width: 2.5em;
     height: 2.5em;
@@ -326,13 +334,12 @@ st.markdown("""
     justify-content: center;
     font-weight: bold;
     font-size: 0.875em;
-    margin-right: 0.5em;
-    margin-bottom: 0.5em;
     flex-shrink: 0;
 }
-.red-bg { background-color: #dc2626; }
-.blue-bg { background-color: #2563eb; }
-.gray-bg { background-color: #4b5563; }
+/* Cores das Bolhas */
+.red-bg-bubble { background-color: #dc2626; } /* Vermelho para Casa */
+.blue-bg-bubble { background-color: #2563eb; } /* Azul para Visitante */
+.yellow-bg-bubble { background-color: #d97706; } /* Amarelo para Empate */
 .stat-box {
     background-color: rgba(75, 85, 99, 0.3);
     padding: 0.75em;
@@ -359,6 +366,8 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.button("🏠 CASA", on_click=add_result_to_history, args=('Casa',), key="btn_casa", help="Adicionar resultado Casa")
 with col2:
+    # Use a classe CSS para o botão de empate com a cor amarela
+    st.markdown('<style>.stButton>button[data-testid="stButton-btn_empate"] { background-image: linear-gradient(to right, #d97706, #b45309); }</style>', unsafe_allow_html=True)
     st.button("🤝 EMPATE", on_click=add_result_to_history, args=('Empate',), key="btn_empate", help="Adicionar resultado Empate")
 with col3:
     st.button("✈️ VISITANTE", on_click=add_result_to_history, args=('Visitante',), key="btn_visitante", help="Adicionar resultado Visitante")
@@ -374,20 +383,20 @@ if st.session_state.suggestion:
         st.markdown(f'<div style="text-align: right; font-size: 1.5em; font-weight: bold; color: {get_confidence_color(st.session_state.confidence)};">{st.session_state.confidence}%</div>', unsafe_allow_html=True)
         st.markdown(f'<div style="text-align: right; font-size: 0.875em; color: #cbd5e1;">{get_confidence_text(st.session_state.confidence)}</div>', unsafe_allow_html=True)
     
-    entry_color = ""
+    entry_color_class = ""
     entry_text = ""
     if st.session_state.suggestion['entry'] == 'Casa':
-        entry_color = "red-600"
+        entry_color_class = "red-600"
         entry_text = "🏠 APOSTAR NA CASA"
     elif st.session_state.suggestion['entry'] == 'Visitante':
-        entry_color = "blue-600"
+        entry_color_class = "blue-600"
         entry_text = "✈️ APOSTAR NO VISITANTE"
     else:
-        entry_color = "gray-600"
+        entry_color_class = "gray-600" # Mantenha o botão cinza, mas a bolha será amarela
         entry_text = "🤝 APOSTAR NO EMPATE"
         
     st.markdown(f'''
-        <div style="text-align: center; padding: 1em; border-radius: 0.5em; background-color: var(--{entry_color}); font-size: 2.25em; font-weight: bold; color: white;">
+        <div style="text-align: center; padding: 1em; border-radius: 0.5em; background-color: var(--{entry_color_class}); font-size: 2.25em; font-weight: bold; color: white;">
             {entry_text}
         </div>
     ''', unsafe_allow_html=True)
@@ -436,7 +445,7 @@ if st.session_state.suggestion:
         add_pattern_line(pattern_cols[col_idx % 2], '🎯', 'Alternância de Empates', '#f472b6')
         col_idx += 1
     if patterns['padrao_3x3']:
-        add_pattern_line(pattern_cols[col_idx % 2], ' hexagon ', f'Padrão 3x3 Detectado ({patterns["padrao_3x3"]} inicial)', '#a78bfa')
+        add_pattern_line(pattern_cols[col_idx % 2], '⬡', f'Padrão 3x3 Detectado ({patterns["padrao_3x3"]} inicial)', '#a78bfa') # Hexagon character
         col_idx += 1
     if patterns['padrao_31123']:
         add_pattern_line(pattern_cols[col_idx % 2], '🔁', f'Padrão 3x1x1x2x3 Detectado ({patterns["padrao_31123"]} inicial)', '#f0abfc')
@@ -456,21 +465,27 @@ with history_header_col1:
 with history_header_col2:
     st.button("Limpar Histórico", on_click=clear_history, key="btn_clear_history", help="Limpar todos os resultados")
 
-st.markdown('<div style="display: flex; flex-wrap: wrap; margin-bottom: 1em;">', unsafe_allow_html=True)
-for result in reversed(st.session_state.history):
+# Exibição do histórico em linha de 9
+st.markdown('<div class="history-container">', unsafe_allow_html=True)
+for i, result in enumerate(reversed(st.session_state.history)):
     color_class = ""
     text_char = ""
     if result == 'Casa':
-        color_class = "red-bg"
+        color_class = "red-bg-bubble"
         text_char = "C"
     elif result == 'Visitante':
-        color_class = "blue-bg"
+        color_class = "blue-bg-bubble"
         text_char = "V"
-    else:
-        color_class = "gray-bg"
+    else: # Empate
+        color_class = "yellow-bg-bubble"
         text_char = "E"
+    
     st.markdown(f'<div class="history-item {color_class}">{text_char}</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    # Adiciona um "quebra de linha" invisível a cada 9 itens para forçar o layout em linhas
+    if (i + 1) % 9 == 0:
+        st.markdown('<div style="flex-basis: 100%; height: 0;"></div>', unsafe_allow_html=True) 
+
+st.markdown('</div>', unsafe_allow_html=True) # Fecha a div do history-container
 
 # Estatísticas
 if st.session_state.history:
@@ -495,7 +510,7 @@ if st.session_state.history:
         st.markdown(f'<div style="font-size: 1.5em; font-weight: bold;">{visitante_count}</div>', unsafe_allow_html=True)
         st.markdown(f'<div style="font-size: 0.875em;">Visitante ({((visitante_count / total_results) * 100):.1f}%)</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True) # Fecha a div do histórico
+st.markdown('</div>', unsafe_allow_html=True) # Fecha a div do histórico principal
 
 # Streak Atual
 if st.session_state.streak['type']:
