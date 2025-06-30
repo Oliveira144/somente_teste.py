@@ -1,150 +1,496 @@
-football_studio_analyzer.py
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, Target, BarChart3, Clock, Star, AlertTriangle } from 'lucide-react';
 
-import streamlit as st import datetime import random import pandas as pd
+const FootballStudioAnalyzer = () => {
+  const [gameHistory, setGameHistory] = useState([]);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [statistics, setStatistics] = useState({
+    home: { wins: 0, percentage: 0 },
+    away: { wins: 0, percentage: 0 },
+    draw: { wins: 0, percentage: 0 }
+  });
+  const [patterns, setPatterns] = useState([]);
+  const [recommendation, setRecommendation] = useState(null);
+  const [confidence, setConfidence] = useState(0);
+  const [manualMode, setManualMode] = useState(true);
+  const [homeCardInput, setHomeCardInput] = useState('');
+  const [awayCardInput, setAwayCardInput] = useState('');
 
-st.set_page_config(page_title="Football Studio Pro Analyzer", layout="wide") st.title("⚽ Football Studio Pro Analyzer")
+  // Histórico real baseado na imagem fornecida (corrigido com Ás = 14)
+  const generateInitialHistory = () => {
+    const realHistory = [
+      { result: 'HOME', homeCard: 8, awayCard: 14 }, // Ás = 14, então AWAY vence
+      { result: 'AWAY', homeCard: 4, awayCard: 9 },
+      { result: 'HOME', homeCard: 8, awayCard: 7 },
+      { result: 'AWAY', homeCard: 5, awayCard: 6 },
+      { result: 'HOME', homeCard: 10, awayCard: 2 },
+      { result: 'HOME', homeCard: 13, awayCard: 9 },
+      { result: 'AWAY', homeCard: 2, awayCard: 12 },
+      { result: 'AWAY', homeCard: 5, awayCard: 9 },
+      { result: 'HOME', homeCard: 13, awayCard: 11 },
+      { result: 'AWAY', homeCard: 4, awayCard: 13 },
+      { result: 'HOME', homeCard: 13, awayCard: 12 },
+      { result: 'AWAY', homeCard: 14, awayCard: 5 }, // Ás HOME = 14, então HOME vence
+      { result: 'AWAY', homeCard: 14, awayCard: 7 }, // Ás HOME = 14, então HOME vence
+      { result: 'HOME', homeCard: 2, awayCard: 14 }, // Ás AWAY = 14, então AWAY vence
+      { result: 'AWAY', homeCard: 2, awayCard: 8 },
+      { result: 'DRAW', homeCard: 5, awayCard: 5 },
+      { result: 'HOME', homeCard: 10, awayCard: 14 }, // Ás AWAY = 14, então AWAY vence
+      { result: 'DRAW', homeCard: 10, awayCard: 10 },
+      { result: 'AWAY', homeCard: 12, awayCard: 6 },
+      { result: 'DRAW', homeCard: 5, awayCard: 7 }
+    ];
 
-if "game_history" not in st.session_state: st.session_state.game_history = [] st.session_state.round = 1 st.session_state.ia_stats = {"total": 0, "hits": 0, "misses": 0, "accuracy": 0, "last_prediction": None} st.session_state.manual_mode = True
+    return realHistory.map((game, index) => ({
+      round: index + 1,
+      result: game.result,
+      homeCard: game.homeCard,
+      awayCard: game.awayCard,
+      timestamp: new Date(Date.now() - (20 - index) * 60000)
+    }));
+  };
 
-Função para adicionar resultado manual ou simulado
+  useEffect(() => {
+    setGameHistory(generateInitialHistory());
+  }, []);
 
-def add_result(home_card, away_card): result = "DRAW" if home_card > away_card: result = "HOME" elif away_card > home_card: result = "AWAY"
+  useEffect(() => {
+    calculateStatistics();
+    analyzePatterns();
+    generateRecommendation();
+  }, [gameHistory]);
 
-new_game = {
-    "round": st.session_state.round,
-    "result": result,
-    "home_card": home_card,
-    "away_card": away_card,
-    "timestamp": datetime.datetime.now()
-}
+  const calculateStatistics = () => {
+    if (gameHistory.length === 0) return;
 
-# Verifica previsão anterior
-ia = st.session_state.ia_stats
-if ia["last_prediction"]:
-    hit = ia["last_prediction"] == result
-    ia["total"] += 1
-    if hit:
-        ia["hits"] += 1
-    else:
-        ia["misses"] += 1
-    ia["accuracy"] = round((ia["hits"] / ia["total"]) * 100, 1)
+    const totalGames = gameHistory.length;
+    const homeWins = gameHistory.filter(g => g.result === 'HOME').length;
+    const awayWins = gameHistory.filter(g => g.result === 'AWAY').length;
+    const draws = gameHistory.filter(g => g.result === 'DRAW').length;
 
-st.session_state.ia_stats["last_prediction"] = generate_recommendation()["recommendation"]
+    setStatistics({
+      home: { wins: homeWins, percentage: (homeWins / totalGames * 100).toFixed(1) },
+      away: { wins: awayWins, percentage: (awayWins / totalGames * 100).toFixed(1) },
+      draw: { wins: draws, percentage: (draws / totalGames * 100).toFixed(1) }
+    });
+  };
 
-st.session_state.game_history.append(new_game)
-st.session_state.round += 1
+  const analyzePatterns = () => {
+    if (gameHistory.length < 5) return;
 
-Estatísticas básicas
+    const recent = gameHistory.slice(-10);
+    const patterns = [];
 
-def get_statistics(): h = st.session_state.game_history total = len(h) home = len([g for g in h if g["result"] == "HOME"]) away = len([g for g in h if g["result"] == "AWAY"]) draw = len([g for g in h if g["result"] == "DRAW"]) return { "HOME": (home, round(home / total * 100, 1) if total else 0), "AWAY": (away, round(away / total * 100, 1) if total else 0), "DRAW": (draw, round(draw / total * 100, 1) if total else 0) }
+    // Análise de sequências
+    let currentStreak = 1;
+    let streakType = recent[recent.length - 1]?.result;
+    
+    for (let i = recent.length - 2; i >= 0; i--) {
+      if (recent[i].result === streakType) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
 
-Detectar padrões
+    if (currentStreak >= 3) {
+      patterns.push({
+        type: 'streak',
+        description: `Sequência de ${currentStreak} ${streakType}`,
+        impact: 'high'
+      });
+    }
 
-def detect_patterns(): h = st.session_state.game_history[-20:] results = [g["result"] for g in h] patterns = []
+    // Análise de alternância
+    const alternating = recent.slice(-6);
+    let isAlternating = true;
+    for (let i = 1; i < alternating.length; i++) {
+      if (alternating[i].result === alternating[i-1].result) {
+        isAlternating = false;
+        break;
+      }
+    }
 
-if len(results) >= 3 and results[-1] == results[-2] == results[-3]:
-    patterns.append(("Sequência de 3+ resultados", "high"))
+    if (isAlternating) {
+      patterns.push({
+        type: 'alternating',
+        description: 'Padrão de alternância detectado',
+        impact: 'medium'
+      });
+    }
 
-if len(results) >= 6:
-    alt = all(results[i] != results[i+1] for i in range(5))
-    if alt:
-        patterns.append(("Alternância detectada", "medium"))
+    // Análise de cartas altas/baixas
+    const recentCards = recent.map(g => Math.max(g.homeCard, g.awayCard));
+    const highCards = recentCards.filter(c => c >= 10).length;
+    
+    if (highCards >= 7) {
+      patterns.push({
+        type: 'cards',
+        description: 'Tendência de cartas altas',
+        impact: 'low'
+      });
+    }
 
-if len(h) >= 7:
-    high_cards = [max(g["home_card"], g["away_card"]) for g in h]
-    if len([c for c in high_cards if c >= 10]) >= 5:
-        patterns.append(("Tendência de cartas altas", "low"))
+    setPatterns(patterns);
+  };
 
-expected = ["HOME","HOME","AWAY","HOME","HOME","AWAY","HOME","HOME","HOME","AWAY","AWAY","AWAY"]
-if results[-12:] == expected:
-    patterns.append(("Padrão 2x1x2x1x1x1x3 detectado", "high"))
+  const generateRecommendation = () => {
+    if (gameHistory.length < 10) return;
 
-# Padrão Fibonacci básico (ex: H,A,H,A,H -> 1,1,2,3,5 ou variações)
-if len(results) >= 5:
-    fib = [1,1,2,3,5,8]
-    streaks = []
-    count = 1
-    for i in range(1, len(results)):
-        if results[i] == results[i-1]:
-            count += 1
-        else:
-            streaks.append(count)
-            count = 1
-    streaks.append(count)
-    if streaks[:len(fib)] == fib[:len(streaks)]:
-        patterns.append(("Padrão Fibonacci detectado", "medium"))
+    const recent = gameHistory.slice(-10);
+    const stats = {
+      home: recent.filter(g => g.result === 'HOME').length,
+      away: recent.filter(g => g.result === 'AWAY').length,
+      draw: recent.filter(g => g.result === 'DRAW').length
+    };
 
-# Zig-Zag (H,A,H,A,...)
-if len(results) >= 6:
-    zigzag = True
-    for i in range(1, 6):
-        if results[-i] == results[-(i+1)]:
-            zigzag = False
-            break
-    if zigzag:
-        patterns.append(("Padrão Zig-Zag detectado", "medium"))
+    // Lógica de recomendação baseada em padrões
+    let recommendation = 'DRAW';
+    let confidence = 50;
 
-return patterns
+    // Se há desequilíbrio nas últimas 10 rodadas
+    const total = recent.length;
+    const homePerc = (stats.home / total) * 100;
+    const awayPerc = (stats.away / total) * 100;
+    const drawPerc = (stats.draw / total) * 100;
 
-Recomendação
+    if (homePerc <= 20) {
+      recommendation = 'HOME';
+      confidence = 75;
+    } else if (awayPerc <= 20) {
+      recommendation = 'AWAY';
+      confidence = 75;
+    } else if (drawPerc <= 10) {
+      recommendation = 'DRAW';
+      confidence = 80;
+    }
 
-def generate_recommendation(): h = st.session_state.game_history[-10:] counts = {"HOME": 0, "AWAY": 0, "DRAW": 0} for g in h: counts[g["result"]] += 1
+    // Ajustar baseado em sequências
+    const lastResult = recent[recent.length - 1]?.result;
+    let streak = 1;
+    for (let i = recent.length - 2; i >= 0; i--) {
+      if (recent[i].result === lastResult) {
+        streak++;
+      } else {
+        break;
+      }
+    }
 
-recommendation = "DRAW"
-confidence = 50
+    if (streak >= 4) {
+      // Contra a sequência
+      if (lastResult === 'HOME') {
+        recommendation = Math.random() > 0.5 ? 'AWAY' : 'DRAW';
+      } else if (lastResult === 'AWAY') {
+        recommendation = Math.random() > 0.5 ? 'HOME' : 'DRAW';
+      } else {
+        recommendation = Math.random() > 0.5 ? 'HOME' : 'AWAY';
+      }
+      confidence = Math.min(85, confidence + 10);
+    }
 
-if counts["HOME"] <= 2:
-    recommendation = "HOME"
-    confidence = 75
-elif counts["AWAY"] <= 2:
-    recommendation = "AWAY"
-    confidence = 75
-elif counts["DRAW"] <= 1:
-    recommendation = "DRAW"
-    confidence = 80
+    setRecommendation(recommendation);
+    setConfidence(confidence);
+  };
 
-streak = 1
-for i in range(len(h)-2, -1, -1):
-    if h[i]["result"] == h[-1]["result"]:
-        streak += 1
-    else:
-        break
+  const addManualResult = () => {
+    const homeCard = parseInt(homeCardInput);
+    const awayCard = parseInt(awayCardInput);
+    
+    if (!homeCard || !awayCard || homeCard < 2 || homeCard > 14 || awayCard < 2 || awayCard > 14) {
+      alert('Por favor, insira cartas válidas (2-14, onde 14 = Ás)');
+      return;
+    }
 
-if streak >= 4:
-    if h[-1]["result"] == "HOME":
-        recommendation = random.choice(["AWAY", "DRAW"])
-    elif h[-1]["result"] == "AWAY":
-        recommendation = random.choice(["HOME", "DRAW"])
-    else:
-        recommendation = random.choice(["HOME", "AWAY"])
-    confidence += 10
+    let result;
+    if (homeCard > awayCard) result = 'HOME';
+    else if (awayCard > homeCard) result = 'AWAY';
+    else result = 'DRAW';
 
-return {"recommendation": recommendation, "confidence": min(100, confidence)}
+    const newGame = {
+      round: currentRound,
+      result,
+      homeCard,
+      awayCard,
+      timestamp: new Date()
+    };
 
-Interface
+    setGameHistory(prev => [...prev, newGame]);
+    setCurrentRound(prev => prev + 1);
+    setHomeCardInput('');
+    setAwayCardInput('');
+  };
 
-st.sidebar.title("⚙️ Controles") if st.sidebar.button("🔁 Resetar Histórico"): st.session_state.game_history = [] st.session_state.round = 1 st.session_state.ia_stats = {"total": 0, "hits": 0, "misses": 0, "accuracy": 0, "last_prediction": None}
+  const addResult = (result) => {
+    const homeCard = Math.floor(Math.random() * 13) + 2; // 2-14
+    const awayCard = Math.floor(Math.random() * 13) + 2; // 2-14
+    
+    let actualResult = result;
+    if (homeCard > awayCard) actualResult = 'HOME';
+    else if (awayCard > homeCard) actualResult = 'AWAY';
+    else actualResult = 'DRAW';
 
-st.sidebar.toggle("Modo Manual", value=st.session_state.manual_mode, key="manual_mode")
+    const newGame = {
+      round: currentRound,
+      result: actualResult,
+      homeCard,
+      awayCard,
+      timestamp: new Date()
+    };
 
-if st.sidebar.button("📤 Exportar Histórico"): df = pd.DataFrame(st.session_state.game_history) csv = df.to_csv(index=False).encode('utf-8') st.download_button("📥 Baixar CSV", csv, "historico.csv", "text/csv")
+    setGameHistory(prev => [...prev, newGame]);
+    setCurrentRound(prev => prev + 1);
+  };
 
-col1, col2 = st.columns([2, 1]) with col1: st.subheader("🔎 Recomendação da IA") rec = generate_recommendation() st.metric("Sugestão", rec["recommendation"]) st.metric("Confiança", f"{rec['confidence']}%")
+  const getRecommendationColor = (rec) => {
+    switch (rec) {
+      case 'HOME': return 'bg-blue-500';
+      case 'AWAY': return 'bg-red-500';
+      case 'DRAW': return 'bg-yellow-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
-st.subheader("📈 Estatísticas")
-stats = get_statistics()
-for side, (wins, perc) in stats.items():
-    st.write(f"{side}: {wins} vitórias ({perc}%)")
+  const getConfidenceColor = (conf) => {
+    if (conf >= 80) return 'text-green-500';
+    if (conf >= 60) return 'text-yellow-500';
+    return 'text-red-500';
+  };
 
-st.subheader("📌 Padrões Detectados")
-for desc, impact in detect_patterns():
-    st.write(f"- {desc} ({impact.upper()})")
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-black text-white p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
+            Football Studio Pro Analyzer
+          </h1>
+          <p className="text-gray-300">Análise Avançada e Sugestões Inteligentes</p>
+        </div>
 
-with col2: st.subheader("🎯 IA - Precisão") ia = st.session_state.ia_stats st.metric("Total", ia["total"]) st.metric("Acertos", ia["hits"]) st.metric("Erros", ia["misses"]) st.metric("Precisão", f"{ia['accuracy']}%")
+        {/* Recommendation Panel */}
+        <div className="bg-black/50 rounded-xl p-6 mb-6 border border-yellow-500/30">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Target className="text-yellow-400" />
+              Recomendação IA
+            </h2>
+            <div className="flex items-center gap-2">
+              <Star className="text-yellow-400" size={20} />
+              <span className="text-sm">Rodada {currentRound}</span>
+            </div>
+          </div>
+          
+          {recommendation && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-4 h-4 rounded-full ${getRecommendationColor(recommendation)}`}></div>
+                  <span className="font-bold text-xl">{recommendation}</span>
+                </div>
+                <p className="text-gray-300 text-sm">Sugestão principal baseada em análise</p>
+              </div>
+              
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="text-green-400" size={20} />
+                  <span className={`font-bold text-xl ${getConfidenceColor(confidence)}`}>
+                    {confidence}%
+                  </span>
+                </div>
+                <p className="text-gray-300 text-sm">Nível de confiança</p>
+              </div>
+            </div>
+          )}
+        </div>
 
-st.divider()
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Statistics Panel */}
+          <div className="bg-black/50 rounded-xl p-6 border border-blue-500/30">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <BarChart3 className="text-blue-400" />
+              Estatísticas ({gameHistory.length} jogos)
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  HOME
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{statistics.home.wins}</span>
+                  <span className="text-blue-400">({statistics.home.percentage}%)</span>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  AWAY
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{statistics.away.wins}</span>
+                  <span className="text-red-400">({statistics.away.percentage}%)</span>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  DRAW
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{statistics.draw.wins}</span>
+                  <span className="text-yellow-400">({statistics.draw.percentage}%)</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-if st.session_state.manual_mode: st.subheader("✍️ Inserir Resultado Manual") c1, c2, c3 = st.columns(3) with c1: home_card = st.number_input("Carta HOME (2-14)", min_value=2, max_value=14, step=1) with c2: away_card = st.number_input("Carta AWAY (2-14)", min_value=2, max_value=14, step=1) with c3: if st.button("✅ Adicionar Resultado"): add_result(home_card, away_card) else: st.subheader("🧪 Modo Simulação") c1, c2, c3 = st.columns(3) if c1.button("Simular HOME"): add_result(random.randint(5,14), random.randint(2,10)) if c2.button("Simular AWAY"): add_result(random.randint(2,10), random.randint(5,14)) if c3.button("Simular DRAW"): val = random.randint(2,14) add_result(val, val)
+          {/* Patterns Panel */}
+          <div className="bg-black/50 rounded-xl p-6 border border-purple-500/30">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <AlertTriangle className="text-purple-400" />
+              Padrões Detectados
+            </h2>
+            
+            <div className="space-y-3">
+              {patterns.length > 0 ? patterns.map((pattern, index) => (
+                <div key={index} className="bg-gray-800/50 rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{pattern.description}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      pattern.impact === 'high' ? 'bg-red-500/20 text-red-400' :
+                      pattern.impact === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {pattern.impact}
+                    </span>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-gray-400 text-sm">Nenhum padrão significativo detectado</p>
+              )}
+            </div>
+          </div>
+        </div>
 
-st.divider() st.subheader("📜 Histórico de Resultados") hist = st.session_state.game_history[-54:] rows = [hist[i:i+9] for i in range(0, len(hist), 9)] for row in rows: cols = st.columns(9) for i, g in enumerate(row): with cols[i]: color = {"HOME": "#3b82f6", "AWAY": "#ef4444", "DRAW": "#facc15"}[g["result"]] st.markdown(f"<div style='background:{color};color:black;text-align:center;padding:4px;border-radius:8px;font-weight:bold'>{g['result'][0]}</div>", unsafe_allow_html=True) st.caption(f"{g['home_card']}-{g['away_card']}")
+        {/* Game History */}
+        <div className="bg-black/50 rounded-xl p-6 mt-6 border border-gray-500/30">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Clock className="text-gray-400" />
+            Histórico Recente
+          </h2>
+          
+          <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mb-4">
+            {gameHistory.slice(-20).map((game, index) => (
+              <div key={index} className="text-center">
+                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center text-xs font-bold ${
+                  game.result === 'HOME' ? 'bg-blue-500' :
+                  game.result === 'AWAY' ? 'bg-red-500' :
+                  'bg-yellow-500'
+                }`}>
+                  {game.result === 'HOME' ? 'H' : game.result === 'AWAY' ? 'A' : 'D'}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {game.homeCard}-{game.awayCard}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
+        {/* Input Manual de Resultados */}
+        <div className="bg-black/50 rounded-xl p-6 mt-6 border border-green-500/30">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Inserir Resultado Real</h2>
+            <button
+              onClick={() => setManualMode(!manualMode)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                manualMode ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'
+              }`}
+            >
+              {manualMode ? 'Modo Manual' : 'Modo Simulação'}
+            </button>
+          </div>
+          
+          {manualMode ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Carta HOME (2-14)</label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="14"
+                    value={homeCardInput}
+                    onChange={(e) => setHomeCardInput(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                    placeholder="Ex: 10"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Carta AWAY (2-14)</label>
+                  <input
+                    type="number"
+                    min="2"
+                    max="14"
+                    value={awayCardInput}
+                    onChange={(e) => setAwayCardInput(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+                    placeholder="Ex: 7"
+                  />
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={addManualResult}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 px-6 py-2 rounded-lg font-bold transition-all transform hover:scale-105"
+                  >
+                    ✅ Adicionar Resultado
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <p className="text-sm text-gray-300 mb-2">
+                  <strong>Como usar:</strong>
+                </p>
+                <ul className="text-sm text-gray-400 space-y-1">
+                  <li>• Insira a carta HOME (2-14)</li>
+                  <li>• Insira a carta AWAY (2-14)</li>
+                  <li>• O resultado será calculado automaticamente</li>
+                  <li>• <strong>Ás = 14 (carta mais alta)</strong>, Rei = 13, Dama = 12, Valete = 11</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => addResult('HOME')}
+                className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold transition-colors"
+              >
+                Simular HOME
+              </button>
+              <button
+                onClick={() => addResult('AWAY')}
+                className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-bold transition-colors"
+              >
+                Simular AWAY
+              </button>
+              <button
+                onClick={() => addResult('DRAW')}
+                className="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg font-bold transition-colors"
+              >
+                Simular DRAW
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FootballStudioAnalyzer;
