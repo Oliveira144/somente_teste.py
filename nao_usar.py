@@ -5,11 +5,11 @@ from datetime import datetime
 class FootballStudioAnalyzer:
     """
     Analisador de jogos de Football Studio.
-    Replica a funcionalidade do componente React para análise de estatísticas,
-    detecção de padrões e geração de recomendações.
+    Esta classe encapsula a lógica para calcular estatísticas,
+    detectar padrões e gerar recomendações com base no histórico de jogos.
     """
     def __init__(self):
-        # Estado inicial
+        # --- Estado da Análise ---
         self.game_history = []
         self.current_round = 1
         self.statistics = {
@@ -20,58 +20,72 @@ class FootballStudioAnalyzer:
         self.patterns = []
         self.recommendation = None
         self.confidence = 0
-        self.manual_mode = True
+
+    def _get_result(self, home_card, away_card):
+        """Função utilitária para determinar o resultado com base nas cartas."""
+        if home_card > away_card:
+            return 'HOME'
+        if away_card > home_card:
+            return 'AWAY'
+        return 'DRAW'
 
     def generate_initial_history(self):
-        """Gera um histórico inicial de jogos para simulação."""
-        real_history = [
-            {'result': 'HOME', 'home_card': 8, 'away_card': 14}, # Ás = 14, então AWAY vence
-            {'result': 'AWAY', 'home_card': 4, 'away_card': 9},
-            {'result': 'HOME', 'home_card': 8, 'away_card': 7},
-            {'result': 'AWAY', 'home_card': 5, 'away_card': 6},
-            {'result': 'HOME', 'home_card': 10, 'away_card': 2},
-            {'result': 'HOME', 'home_card': 13, 'away_card': 9},
-            {'result': 'AWAY', 'home_card': 2, 'away_card': 12},
-            {'result': 'AWAY', 'home_card': 5, 'away_card': 9},
-            {'result': 'HOME', 'home_card': 13, 'away_card': 11},
-            {'result': 'AWAY', 'home_card': 4, 'away_card': 13},
-            {'result': 'HOME', 'home_card': 13, 'away_card': 12},
-            {'result': 'AWAY', 'home_card': 14, 'away_card': 5}, # Ás HOME = 14, então HOME vence
-            {'result': 'AWAY', 'home_card': 14, 'away_card': 7}, # Ás HOME = 14, então HOME vence
-            {'result': 'HOME', 'home_card': 2, 'away_card': 14}, # Ás AWAY = 14, então AWAY vence
-            {'result': 'AWAY', 'home_card': 2, 'away_card': 8},
-            {'result': 'DRAW', 'home_card': 5, 'away_card': 5},
-            {'result': 'HOME', 'home_card': 10, 'away_card': 14}, # Ás AWAY = 14, então AWAY vence
-            {'result': 'DRAW', 'home_card': 10, 'away_card': 10},
-            {'result': 'AWAY', 'home_card': 12, 'away_card': 6},
-            {'result': 'DRAW', 'home_card': 5, 'away_card': 7}
+        """
+        Gera um histórico inicial de jogos consistente, calculando
+        o resultado com base nas cartas.
+        Ás = 14, Rei = 13, Dama = 12, Valete = 11.
+        """
+        raw_history = [
+            {'home_card': 8, 'away_card': 14},   # (8, A) -> AWAY
+            {'home_card': 4, 'away_card': 9},    # (4, 9) -> AWAY
+            {'home_card': 8, 'away_card': 7},    # (8, 7) -> HOME
+            {'home_card': 5, 'away_card': 6},    # (5, 6) -> AWAY
+            {'home_card': 10, 'away_card': 2},   # (10, 2) -> HOME
+            {'home_card': 13, 'away_card': 9},   # (K, 9) -> HOME
+            {'home_card': 2, 'away_card': 12},   # (2, Q) -> AWAY
+            {'home_card': 5, 'away_card': 9},    # (5, 9) -> AWAY
+            {'home_card': 13, 'away_card': 11},  # (K, J) -> HOME
+            {'home_card': 4, 'away_card': 13},   # (4, K) -> AWAY
+            {'home_card': 13, 'away_card': 12},  # (K, Q) -> HOME
+            {'home_card': 14, 'away_card': 5},   # (A, 5) -> HOME
+            {'home_card': 14, 'away_card': 7},   # (A, 7) -> HOME
+            {'home_card': 2, 'away_card': 14},   # (2, A) -> AWAY
+            {'home_card': 2, 'away_card': 8},    # (2, 8) -> AWAY
+            {'home_card': 5, 'away_card': 5},    # (5, 5) -> DRAW
+            {'home_card': 10, 'away_card': 14},  # (10, A) -> AWAY
+            {'home_card': 10, 'away_card': 10},  # (10, 10) -> DRAW
+            {'home_card': 12, 'away_card': 6},   # (Q, 6) -> HOME
+            {'home_card': 5, 'away_card': 7},    # (5, 7) -> AWAY
         ]
 
-        history_with_timestamp = []
-        for i, game in enumerate(real_history):
-            history_with_timestamp.append({
+        history_with_details = []
+        for i, game in enumerate(raw_history):
+            history_with_details.append({
                 'round': i + 1,
-                'result': game['result'],
                 'home_card': game['home_card'],
                 'away_card': game['away_card'],
+                'result': self._get_result(game['home_card'], game['away_card']),
                 'timestamp': datetime.now()
             })
-        return history_with_timestamp
+        return history_with_details
 
     def initialize(self):
-        """Inicializa o analisador com o histórico de jogos."""
+        """Inicializa o analisador com o histórico de jogos e faz a primeira análise."""
         self.game_history = self.generate_initial_history()
         self.current_round = len(self.game_history) + 1
         self.update_analysis()
 
     def update_analysis(self):
-        """Atualiza todas as análises (estatísticas, padrões e recomendação)."""
-        self.calculate_statistics()
-        self.analyze_patterns()
-        self.generate_recommendation()
+        """
+        Recalcula todas as análises (estatísticas, padrões e recomendação)
+        com base no histórico de jogos atual.
+        """
+        self._calculate_statistics()
+        self._analyze_patterns()
+        self._generate_recommendation()
 
-    def calculate_statistics(self):
-        """Calcula as estatísticas de vitórias com base no histórico."""
+    def _calculate_statistics(self):
+        """Calcula as estatísticas de vitórias para HOME, AWAY e DRAW."""
         if not self.game_history:
             return
 
@@ -86,7 +100,7 @@ class FootballStudioAnalyzer:
             'draw': {'wins': draws, 'percentage': round((draws / total_games) * 100, 1)}
         }
 
-    def analyze_patterns(self):
+    def _analyze_patterns(self):
         """Analisa o histórico recente em busca de padrões."""
         self.patterns = []
         if len(self.game_history) < 5:
@@ -94,109 +108,84 @@ class FootballStudioAnalyzer:
 
         recent = self.game_history[-10:]
 
-        # Análise de sequências (streaks)
+        # Padrão de Sequência (Streak)
         if len(recent) > 0:
             current_streak = 1
             streak_type = recent[-1]['result']
-            
             for i in range(len(recent) - 2, -1, -1):
                 if recent[i]['result'] == streak_type:
                     current_streak += 1
                 else:
                     break
-
             if current_streak >= 3:
                 self.patterns.append({
                     'type': 'streak',
                     'description': f'Sequência de {current_streak} {streak_type}',
-                    'impact': 'high'
+                    'impact': 'high' if current_streak >= 4 else 'medium'
                 })
 
-        # Análise de alternância
+        # Padrão de Alternância
         alternating = recent[-6:]
-        is_alternating = True
-        if len(alternating) > 1:
-            for i in range(1, len(alternating)):
-                if alternating[i]['result'] == alternating[i-1]['result']:
-                    is_alternating = False
-                    break
-        
-        if is_alternating and len(alternating) >= 2:
+        is_alternating = all(alternating[i]['result'] != alternating[i-1]['result'] for i in range(1, len(alternating)))
+        if len(alternating) >= 2 and is_alternating:
             self.patterns.append({
                 'type': 'alternating',
                 'description': 'Padrão de alternância detectado',
                 'impact': 'medium'
             })
 
-        # Análise de cartas altas/baixas
-        recent_cards = [max(g['home_card'], g['away_card']) for g in recent]
-        high_cards = sum(1 for c in recent_cards if c >= 10)
-        
-        if high_cards >= 7:
+        # Padrão de Cartas Altas/Baixas
+        high_cards_count = sum(1 for g in recent if max(g['home_card'], g['away_card']) >= 10)
+        if high_cards_count >= 7:
             self.patterns.append({
                 'type': 'cards',
                 'description': 'Tendência de cartas altas',
                 'impact': 'low'
             })
 
-    def generate_recommendation(self):
-        """Gera uma recomendação com base nas estatísticas e padrões."""
+    def _generate_recommendation(self):
+        """Gera uma recomendação de aposta com base nos padrões e estatísticas."""
+        self.recommendation = None
+        self.confidence = 0
         if len(self.game_history) < 10:
-            self.recommendation = None
-            self.confidence = 0
             return
 
         recent = self.game_history[-10:]
-        stats = {
+        recent_stats = {
             'home': sum(1 for g in recent if g['result'] == 'HOME'),
             'away': sum(1 for g in recent if g['result'] == 'AWAY'),
             'draw': sum(1 for g in recent if g['result'] == 'DRAW')
         }
 
-        # Lógica de recomendação baseada em padrões
-        recommendation = 'DRAW'
-        confidence = 50
-
-        # Se há desequilíbrio nas últimas 10 rodadas
-        total = len(recent)
-        home_perc = (stats['home'] / total) * 100
-        away_perc = (stats['away'] / total) * 100
-        draw_perc = (stats['draw'] / total) * 100
-
-        if home_perc <= 20:
-            recommendation = 'HOME'
-            confidence = 75
-        elif away_perc <= 20:
-            recommendation = 'AWAY'
-            confidence = 75
-        elif draw_perc <= 10:
-            recommendation = 'DRAW'
-            confidence = 80
-
-        # Ajustar baseado em sequências
-        last_result = recent[-1]['result']
-        streak = 1
-        for i in range(len(recent) - 2, -1, -1):
-            if recent[i]['result'] == last_result:
-                streak += 1
-            else:
-                break
+        # 1. Lógica baseada na frequência recente (sugerir o menos frequente)
+        sorted_by_freq = sorted(recent_stats.items(), key=lambda item: item[1])
+        least_frequent_bet = sorted_by_freq[0][0].upper()
         
-        if streak >= 4:
-            # Contra a sequência
-            if last_result == 'HOME':
-                recommendation = 'AWAY' if random.random() > 0.5 else 'DRAW'
-            elif last_result == 'AWAY':
-                recommendation = 'HOME' if random.random() > 0.5 else 'DRAW'
-            else:
-                recommendation = 'HOME' if random.random() > 0.5 else 'AWAY'
-            confidence = min(85, confidence + 10)
+        # Define uma confiança inicial com base na diferença de frequência
+        least_freq_count = sorted_by_freq[0][1]
+        most_freq_count = sorted_by_freq[-1][1]
+        confidence_base = 50 + (most_freq_count - least_freq_count) * 5
 
-        self.recommendation = recommendation
-        self.confidence = confidence
+        # 2. Ajuste com base nos padrões
+        high_impact_pattern = next((p for p in self.patterns if p['impact'] == 'high'), None)
+        if high_impact_pattern and 'Sequência' in high_impact_pattern['description']:
+            # Se houver uma sequência forte, recomenda-se quebrar a sequência
+            last_result = recent[-1]['result']
+            if last_result.upper() == 'HOME':
+                self.recommendation = 'AWAY'
+            elif last_result.upper() == 'AWAY':
+                self.recommendation = 'HOME'
+            else: # Se a sequência for de empates
+                self.recommendation = 'HOME' if random.random() > 0.5 else 'AWAY'
+            self.confidence = 90
+            return # A lógica da sequência é prioritária
+
+        # 3. Se não houver sequência forte, usa a recomendação de frequência
+        self.recommendation = least_frequent_bet
+        self.confidence = min(100, max(50, confidence_base)) # Limita a confiança entre 50 e 100
 
     def add_manual_result(self, home_card, away_card):
-        """Adiciona um resultado manual com base nas cartas."""
+        """Adiciona um resultado manual fornecendo as cartas."""
         try:
             home_card = int(home_card)
             away_card = int(away_card)
@@ -205,15 +194,10 @@ class FootballStudioAnalyzer:
             return
 
         if not (2 <= home_card <= 14 and 2 <= away_card <= 14):
-            print("Erro: Por favor, insira cartas válidas (2-14, onde 14 = Ás).")
+            print("Erro: Insira cartas válidas (2-14, onde 14 = Ás).")
             return
 
-        if home_card > away_card:
-            result = 'HOME'
-        elif away_card > home_card:
-            result = 'AWAY'
-        else:
-            result = 'DRAW'
+        result = self._get_result(home_card, away_card)
 
         new_game = {
             'round': self.current_round,
@@ -226,23 +210,18 @@ class FootballStudioAnalyzer:
         self.game_history.append(new_game)
         self.current_round += 1
         self.update_analysis()
-        print(f"Resultado adicionado: Rodada {new_game['round']}, Resultado: {new_game['result']} ({home_card}-{away_card})")
+        print(f"✅ Resultado adicionado: Rodada {new_game['round']}, Resultado: {new_game['result']} ({home_card}-{away_card})")
 
-    def add_simulated_result(self, desired_result=None):
+    def add_simulated_result(self):
         """Adiciona um resultado simulado com cartas aleatórias."""
         home_card = random.randint(2, 14)
         away_card = random.randint(2, 14)
-
-        if home_card > away_card:
-            actual_result = 'HOME'
-        elif away_card > home_card:
-            actual_result = 'AWAY'
-        else:
-            actual_result = 'DRAW'
+        
+        result = self._get_result(home_card, away_card)
 
         new_game = {
             'round': self.current_round,
-            'result': actual_result,
+            'result': result,
             'home_card': home_card,
             'away_card': away_card,
             'timestamp': datetime.now()
@@ -251,50 +230,67 @@ class FootballStudioAnalyzer:
         self.game_history.append(new_game)
         self.current_round += 1
         self.update_analysis()
-        print(f"Resultado simulado adicionado: Rodada {new_game['round']}, Resultado: {new_game['result']} ({home_card}-{away_card})")
+        print(f"🎲 Resultado simulado adicionado: Rodada {new_game['round']}, Resultado: {new_game['result']} ({home_card}-{away_card})")
+        
+    def display_status(self):
+        """Imprime o status atual do analisador no console."""
+        print("\n" + "="*40)
+        print("### Football Studio Analyzer Status ###")
+        print("="*40)
+        print(f"Total de Jogos Analisados: {len(self.game_history)}")
+        print(f"Próxima Rodada: {self.current_round}")
+        
+        print("\n--- Estatísticas ---")
+        for key, stats in self.statistics.items():
+            print(f"  - {key.upper()}: {stats['wins']} vitórias ({stats['percentage']}%)")
+        
+        print("\n--- Padrões Detectados ---")
+        if self.patterns:
+            for pattern in self.patterns:
+                print(f"  - {pattern['description']} (Impacto: {pattern['impact'].upper()})")
+        else:
+            print("  Nenhum padrão significativo detectado.")
 
+        print("\n--- Recomendação de Aposta ---")
+        if self.recommendation:
+            print(f"  Recomendação: {self.recommendation}")
+            print(f"  Confiança: {self.confidence}%")
+        else:
+            print("  Analisando dados... Jogue mais para gerar uma recomendação.")
+        print("="*40 + "\n")
 
-# Exemplo de uso:
+# --- Exemplo de Uso ---
 if __name__ == "__main__":
     analyzer = FootballStudioAnalyzer()
     analyzer.initialize()
 
-    print("### Analisador de Football Studio em Python ###\n")
-
-    def print_status():
-        """Função auxiliar para imprimir o estado atual do analisador."""
-        print("--- Status Atual ---")
-        print(f"Rodada atual: {analyzer.current_round}")
-        print("\nEstatísticas:")
-        for key, stats in analyzer.statistics.items():
-            print(f"  - {key.upper()}: {stats['wins']} vitórias ({stats['percentage']}%)")
-        
-        print("\nPadrões Detectados:")
-        if analyzer.patterns:
-            for pattern in analyzer.patterns:
-                print(f"  - {pattern['description']} (Impacto: {pattern['impact']})")
-        else:
-            print("  Nenhum padrão significativo detectado.")
-
-        print(f"\nRecomendação IA: {analyzer.recommendation or 'N/A'} (Confiança: {analyzer.confidence}%)")
-        print("--------------------\n")
-
-    print_status()
+    print("Bem-vindo ao Analisador de Football Studio!\n")
+    
+    # Exibe o status inicial
+    analyzer.display_status()
 
     # Demonstração do modo manual
-    print("--- Modo Manual ---")
-    analyzer.add_manual_result(10, 7) # Simula HOME
-    print_status()
+    print("--- DEMONSTRAÇÃO DO MODO MANUAL ---")
+    while True:
+        home_input = input("Insira a carta HOME (2-14) ou 's' para simular ou 'q' para sair: ")
+        if home_input.lower() == 'q':
+            break
+        if home_input.lower() == 's':
+            print("\n--- MODO SIMULAÇÃO ATIVADO ---")
+            break
 
-    analyzer.add_manual_result(3, 13) # Simula AWAY (Rei)
-    print_status()
-    
+        away_input = input("Insira a carta AWAY (2-14): ")
+        
+        analyzer.add_manual_result(home_input, away_input)
+        analyzer.display_status()
+
     # Demonstração do modo de simulação
-    print("--- Modo Simulação ---")
-    for _ in range(5):
+    print("\n--- DEMONSTRAÇÃO DO MODO DE SIMULAÇÃO ---")
+    print("Adicionando 5 resultados aleatórios...")
+    for i in range(5):
         analyzer.add_simulated_result()
-        print_status()
-        time.sleep(1) # Aguarda 1 segundo para simular o tempo entre rodadas
-    
-    print("\nAnálise completa. Fim da demonstração.")
+        analyzer.display_status()
+        time.sleep(1) # Aguarda 1 segundo para simular o tempo real
+
+    print("Demonstração concluída. Obrigado por usar o analisador!")
 
