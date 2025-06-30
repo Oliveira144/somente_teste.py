@@ -1,665 +1,515 @@
-# app.py
-import streamlit as st
-import random
-from collections import Counter
+import json
+import os
+from collections import deque
 
-# --- Funções Auxiliares para Análise de Padrões ---
+class FootballStudioAnalyzer:
+    def __init__(self, history_file='football_studio_history.json', weights_file='neural_weights.json'):
+        self.history_file = history_file
+        self.weights_file = weights_file
+        self.history = self._load_history()
+        self.stats = self._calculate_stats()
+        self.hot_streak = {'type': None, 'count': 0}
+        self.neural_weights = self._load_weights()
+        self.ai_prediction = None
+        self.game_phase = 'AQUECIMENTO'
 
-def analyze_patterns_python(results):
-    if len(results) < 3:
-        return None
+        # Cores (apenas para referência, não usadas na lógica Python de console)
+        self.colors = {
+            'home': '#DC2626', 'away': '#2563EB', 'tie': '#F59E0B',
+            'bg': '#0F172A', 'card': '#1E293B', 'success': '#10B981',
+            'danger': '#EF4444', 'warning': '#F59E0B', 'g1': '#8B5CF6'
+        }
 
-    # Fatias do histórico para análise
-    recent = results[-15:]
-    last3 = results[-3:]
-    last4 = results[-4:]
-    last5 = results[-5:]
-    last6 = results[-6:]
-    last7 = results[-7:]
-    last10 = results[-10:]
-    last_result = results[-1] if results else None
+    def _load_history(self):
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                print("Erro ao carregar histórico. Criando um novo.")
+                return []
+        return []
 
-    # --- Padrões Existentes ---
+    def _save_history(self):
+        with open(self.history_file, 'w') as f:
+            json.dump(self.history, f)
 
-    # Detectar Surf de Cor (3+ vezes a mesma cor seguida)
-    surf_detected = False
-    current_surf_streak = 0
-    if recent and last_result != 'Empate':
-        current_surf_streak = 1
-        for i in range(len(recent) - 2, -1, -1):
-            if recent[i] == last_result:
-                current_surf_streak += 1
+    def _load_weights(self):
+        if os.path.exists(self.weights_file):
+            try:
+                with open(self.weights_file, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                print("Erro ao carregar pesos. Usando padrão.")
+                pass # Fallback to default weights below
+        
+        # Default weights
+        return {
+            'sequence': 0.35,
+            'alternation': 0.25,
+            'fibonacci': 0.20,
+            'gravitation': 0.30,
+            'quantum': 0.40,
+            'momentum': 0.45,
+            'chaos': 0.15,
+            'marketMaker': 0.30,
+            'timeWave': 0.35,
+            'neuralNetwork': 0.50,
+            'hotStreakBreak': 0.60
+        }
+
+    def _save_weights(self):
+        with open(self.weights_file, 'w') as f:
+            json.dump(self.neural_weights, f)
+
+    def _calculate_stats(self):
+        stats = {'home': 0, 'away': 0, 'tie': 0}
+        for res in self.history:
+            stats[res] += 1
+        return stats
+
+    def add_result(self, result):
+        if result not in ['home', 'away', 'tie']:
+            print("Resultado inválido. Use 'home', 'away' ou 'tie'.")
+            return
+
+        self.history.insert(0, result) # Adiciona no início (mais recente)
+        self._update_hot_streak(result)
+        self.stats[result] += 1
+        self._save_history()
+        self.perform_deep_analysis()
+
+    def undo_last(self):
+        if self.history:
+            last_result = self.history.pop(0)
+            self.stats[last_result] -= 1
+            self._update_hot_streak(self.history[0] if self.history else None)
+            self._save_history()
+            self.perform_deep_analysis()
+        else:
+            print("Histórico vazio, nada para desfazer.")
+
+    def clear_history(self):
+        self.history = []
+        self.stats = {'home': 0, 'away': 0, 'tie': 0}
+        self.hot_streak = {'type': None, 'count': 0}
+        self.ai_prediction = None
+        self.game_phase = 'ANÁLISE'
+        if os.path.exists(self.history_file):
+            os.remove(self.history_file)
+        print("Histórico limpo.")
+
+    def _update_hot_streak(self, current_result):
+        if len(self.history) >= 2 and self.history[0] == self.history[1]:
+            if self.hot_streak['type'] == self.history[0]:
+                self.hot_streak['count'] += 1
+            else:
+                self.hot_streak = {'type': self.history[0], 'count': 2}
+        else:
+            self.hot_streak = {'type': None, 'count': 0}
+
+    def _get_result_text(self, result):
+        mapping = {'home': 'CASA', 'away': 'FORA', 'tie': 'EMPATE'}
+        return mapping.get(result, 'N/A')
+
+    # --- Algoritmos de Análise ---
+
+    def analyze_sequences(self):
+        if not self.history:
+            return {'current': 0, 'type': None}
+        current = 1
+        for i in range(1, len(self.history)):
+            if self.history[i] == self.history[0]:
+                current += 1
             else:
                 break
-        if current_surf_streak >= 3:
-            surf_detected = True
+        return {'current': current, 'type': self.history[0]}
 
-    # Detectar Zig-Zag (alternância Casa/Visitante)
-    zigzag_count = 0
-    if len(last5) >= 2:
-        for i in range(1, len(last5)):
-            if last5[i] != last5[i-1] and last5[i] != 'Empate' and last5[i-1] != 'Empate':
-                zigzag_count += 1
-    zigzag_detected = zigzag_count >= 3
-
-    # Detectar Empate Recorrente (intervalo de 15-35 rodadas)
-    empate_positions = [i for i, r in enumerate(results) if r == 'Empate']
-    empate_recorrente = False
-    if len(empate_positions) >= 2:
-        last_empate_gap = len(results) - 1 - empate_positions[-1]
-        if 15 <= last_empate_gap <= 35:
-            empate_recorrente = True
-
-    # Dominância de um Lado no Curto Prazo (últimos 7 jogos)
-    dominancia_curto_prazo = None
-    casa_count_7 = last7.count('Casa')
-    visitante_count_7 = last7.count('Visitante')
-    if casa_count_7 >= 5 and casa_count_7 > visitante_count_7 + 2:
-        dominancia_curto_prazo = 'Casa'
-    elif visitante_count_7 >= 5 and visitante_count_7 > casa_count_7 + 2:
-        dominancia_curto_prazo = 'Visitante'
-
-    # Padrão de Reversão (Após Duas do Mesmo Lado)
-    reversao_duas = None
-    if len(results) >= 2 and last_result != 'Empate':
-        penultimo = results[-2]
-        if penultimo == last_result:
-            reversao_duas = 'Visitante' if last_result == 'Casa' else 'Casa'
-
-    # Sequência 2-1-2 (Ex: C-C-V-C-C ou V-V-C-V-V)
-    padrao_212 = None
-    if len(last5) == 5 and \
-       last5[0] == last5[1] and \
-       last5[3] == last5[4] and \
-       last5[0] == last5[3] and \
-       last5[2] != last5[0] and last5[2] != 'Empate':
-        padrao_212 = last5[0]
-
-    # Sequência 2-2-1 (Ex: C-C-V-V-C ou V-V-C-C-V)
-    padrao_221 = None
-    if len(last5) == 5 and \
-       last5[0] == last5[1] and \
-       last5[2] == last5[3] and \
-       last5[4] != last5[0] and last5[4] != last5[2] and last5[0] != last5[2] and last5[4] != 'Empate':
-        padrao_221 = last5[4]
-
-    # Alternância de Empates (Ex: ...C-E-V-E-C-E...)
-    alternancia_empate = False
-    if len(last6) == 6:
-        count_alternating_empate = 0
-        for i in range(3):
-            if last6[i * 2] != 'Empate' and last6[i * 2 + 1] == 'Empate':
-                count_alternating_empate += 1
-        if count_alternating_empate >= 2:
-            alternancia_empate = True
-
-    # --- Novos Padrões Solicitados ---
-
-    # 1. Padrão 3x3 (ex: C-C-C-V-V-V)
-    padrao_3x3 = None
-    if len(last6) == 6 and \
-       last6[0] == last6[1] and last6[1] == last6[2] and \
-       last6[3] == last6[4] and last6[4] == last6[5] and \
-       last6[0] != last6[3] and \
-       last6[0] != 'Empate' and last6[3] != 'Empate':
-        padrao_3x3 = last6[0]
-
-    # 2. Padrão 3x1x1x2x3 (ex: C-C-C-V-C-V-V-C-C-C)
-    padrao_31123 = None
-    if len(last10) == 10:
-        p = last10
-        if p[0] == p[1] == p[2] and \
-           p[3] != p[2] and p[3] != 'Empate' and \
-           p[4] == p[2] and p[4] != 'Empate' and \
-           p[5] != p[4] and p[5] == p[6] and p[5] != 'Empate' and \
-           p[7] == p[8] == p[9] and p[7] == p[4] and p[7] != 'Empate':
-            padrao_31123 = p[0]
-
-    # 3. 4x4 Surf (Variação mais forte do surf)
-    surf_4x4 = surf_detected and current_surf_streak >= 4 and last_result != 'Empate'
-
-
-    # Quebra de Padrão (Baseado nos originais)
-    quebrar_surf = surf_detected and current_surf_streak >= 4
-    quebrar_zigzag = zigzag_detected and zigzag_count >= 4
-
-    # --- Geração da Sugestão com Prioridade ---
-    suggested_entry = None
-    conf = 0
-
-    # Ordem de prioridade (do mais forte/confiável para o menos):
-    if padrao_31123: # Padrão 3x1x1x2x3 - altíssima prioridade
-        suggested_entry = padrao_31123
-        conf = 97
-    elif surf_4x4: # 4x4 Surf - muito forte
-        suggested_entry = 'Visitante' if last_result == 'Casa' else 'Casa' # Sugere a quebra
-        conf = 95
-    elif quebrar_surf: # Quebra de Surf (genérica, mais de 4x)
-        suggested_entry = 'Visitante' if last_result == 'Casa' else 'Casa'
-        conf = 90 + min(current_surf_streak * 2, 8)
-    elif zigzag_detected and quebrar_zigzag and last_result != 'Empate':
-        suggested_entry = 'Visitante' if last_result == 'Casa' else 'Casa'
-        conf = 88
-    elif padrao_3x3: # Padrão 3x3
-        suggested_entry = 'Visitante' if padrao_3x3 == 'Casa' else 'Casa' # Sugere o oposto
-        conf = 87
-    elif reversao_duas: # Padrão de Reversão
-        suggested_entry = reversao_duas
-        conf = 85
-    elif empate_recorrente:
-        suggested_entry = 'Empate'
-        conf = 80
-    elif padrao_212: # Sequência 2-1-2
-        suggested_entry = padrao_212
-        conf = 78
-    elif padrao_221: # Sequência 2-2-1
-        suggested_entry = padrao_221
-        conf = 76
-    elif dominancia_curto_prazo: # Dominância de Curto Prazo
-        suggested_entry = 'Visitante' if dominancia_curto_prazo == 'Casa' else 'Casa'
-        conf = 72
-    elif alternancia_empate and last_result != 'Empate': # Alternância de Empates
-        suggested_entry = 'Empate'
-        conf = 70
-    elif surf_detected: # Continuar o surf (3x)
-        suggested_entry = last_result
-        conf = 68 + current_surf_streak * 2
-    elif zigzag_detected and last_result != 'Empate': # Continuar o zig-zag
-        suggested_entry = 'Visitante' if last_result == 'Casa' else 'Casa'
-        conf = 65
-    else:
-        # Análise baseada nos últimos 10 jogos como fallback
-        casa_count_10 = last10.count('Casa')
-        visitante_count_10 = last10.count('Visitante')
-
-        if casa_count_10 > visitante_count_10 + 2:
-            suggested_entry = 'Visitante'
-            conf = 55
-        elif visitante_count_10 > casa_count_10 + 2:
-            suggested_entry = 'Casa'
-            conf = 55
+    def analyze_alternation(self):
+        if len(self.history) < 2:
+            return {'strength': 'baixa'}
+        alternations = 0
+        limit = min(len(self.history), 10)
+        for i in range(1, limit):
+            if self.history[i] != self.history[i-1]:
+                alternations += 1
+        ratio = alternations / (limit - 1) if limit > 1 else 0
+        if ratio > 0.7:
+            return {'strength': 'alta'}
+        elif ratio > 0.4:
+            return {'strength': 'média'}
         else:
-            suggested_entry = random.choice(['Casa', 'Visitante'])
-            conf = 50
+            return {'strength': 'baixa'}
 
-    return {
-        "entry": suggested_entry,
-        "confidence": min(conf, 99),
-        "patterns": {
-            "surf": surf_detected,
-            "surf_streak": current_surf_streak,
-            "zigzag": zigzag_detected,
-            "empate_recorrente": empate_recorrente,
-            "quebrar_surf": quebrar_surf,
-            "quebrar_zigzag": quebrar_zigzag,
-            "dominancia_curto_prazo": dominancia_curto_prazo,
-            "reversao_duas": reversao_duas,
-            "padrao_212": padrao_212,
-            "padrao_221": padrao_221,
-            "alternancia_empate": alternancia_empate,
-            "padrao_3x3": padrao_3x3,
-            "padrao_31123": padrao_31123,
-            "surf_4x4": surf_4x4,
-        }
-    }
-
-# --- Funções de Ajuda para o Streamlit ---
-
-def get_confidence_color(conf):
-    if conf >= 85:
-        return "green"
-    if conf >= 70:
-        return "orange"
-    return "red"
-
-def get_confidence_text(conf):
-    if conf >= 90: return 'ALTÍSSIMA GARANTIA'
-    if conf >= 80: return 'ALTA GARANTIA'
-    if conf >= 70: return 'BOA GARANTIA'
-    if conf >= 60: return 'GARANTIA MODERADA'
-    return 'BAIXA GARANTIA'
-
-# --- Inicialização do Estado da Sessão Streamlit ---
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'suggestion' not in st.session_state:
-    st.session_state.suggestion = None
-if 'confidence' not in st.session_state:
-    st.session_state.confidence = 0
-if 'streak' not in st.session_state:
-    st.session_state.streak = {'type': None, 'count': 0}
-if 'hits' not in st.session_state: # Novo: Contagem de acertos
-    st.session_state.hits = 0
-if 'misses' not in st.session_state: # Novo: Contagem de erros
-    st.session_state.misses = 0
-if 'last_suggestion' not in st.session_state: # Novo: Salva a última sugestão para comparação
-    st.session_state.last_suggestion = None
-if 'awaiting_feedback' not in st.session_state: # Novo: Flag para saber se espera feedback
-    st.session_state.awaiting_feedback = False
-
-
-# --- Funções de Ação ---
-
-def add_result_to_history(result):
-    # Antes de adicionar o novo resultado, se havia uma sugestão pendente,
-    # significa que o usuário não deu feedback, então consideramos um erro/acerto automático.
-    if st.session_state.awaiting_feedback and st.session_state.last_suggestion:
-        if st.session_state.last_suggestion['entry'] == result:
-            st.session_state.hits += 1
-            st.toast("Acerto automático! (Sugestão anterior correspondia)", icon="✅")
-        else:
-            st.session_state.misses += 1
-            st.toast("Erro automático! (Sugestão anterior não correspondia)", icon="❌")
-
-    st.session_state.history.append(result)
-    analysis = analyze_patterns_python(st.session_state.history)
-    
-    if analysis:
-        st.session_state.suggestion = analysis
-        st.session_state.confidence = analysis['confidence']
-        st.session_state.last_suggestion = analysis # Guarda a sugestão atual para feedback futuro
-        st.session_state.awaiting_feedback = True # Indica que estamos esperando feedback
-    else:
-        st.session_state.suggestion = None
-        st.session_state.confidence = 0
-        st.session_state.last_suggestion = None
-        st.session_state.awaiting_feedback = False
-
-    # Atualizar streak atual
-    if st.session_state.history:
-        last_result = st.session_state.history[-1]
-        if st.session_state.streak['type'] == last_result:
-            st.session_state.streak['count'] += 1
-        else:
-            st.session_state.streak = {'type': last_result, 'count': 1}
-
-def register_feedback(feedback_type):
-    # Esta função será chamada pelos botões de feedback "Acerto" ou "Erro"
-    if st.session_state.awaiting_feedback and st.session_state.last_suggestion:
-        if feedback_type == 'hit':
-            st.session_state.hits += 1
-            st.toast("ACERTO registrado!", icon="🎯")
-        else: # feedback_type == 'miss'
-            st.session_state.misses += 1
-            st.toast("ERRO registrado!", icon="❌")
-        st.session_state.awaiting_feedback = False # Já recebeu o feedback
-    # Não limpamos st.session_state.last_suggestion aqui, ela é sobrescrita
-    # na próxima chamada de add_result_to_history.
-
-def clear_history_and_stats():
-    st.session_state.history = []
-    st.session_state.suggestion = None
-    st.session_state.confidence = 0
-    st.session_state.streak = {'type': None, 'count': 0}
-    st.session_state.hits = 0
-    st.session_state.misses = 0
-    st.session_state.last_suggestion = None
-    st.session_state.awaiting_feedback = False
-    # Streamlit redesenha automaticamente quando o st.session_state é alterado.
-
-
-# --- Layout da Aplicação Streamlit ---
-
-# Estilos CSS Injetados
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(to bottom right, #1a202c, #4a0e4e, #1a202c);
-    color: white;
-}
-.header-title {
-    font-size: 3em;
-    font-weight: bold;
-    text-align: center;
-    background: -webkit-linear-gradient(left, #facc15, #f97316);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5em;
-}
-.header-subtitle {
-    text-align: center;
-    color: #cbd5e1;
-    margin-bottom: 2em;
-}
-/* Estilo para os botões de entrada específicos */
-button[data-testid*="btn_casa"] {
-    background-image: linear-gradient(to right, #dc2626, #b91c1c); /* Vermelho para Casa */
-    color: white;
-    width: 100%;
-    padding: 1.5em;
-    font-size: 1.25em;
-    font-weight: bold;
-    border-radius: 0.75em;
-    transition: all 0.2s ease-in-out;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-button[data-testid*="btn_empate"] {
-    background-image: linear-gradient(to right, #d97706, #b45309); /* Amarelo para Empate */
-    color: white;
-    width: 100%;
-    padding: 1.5em;
-    font-size: 1.25em;
-    font-weight: bold;
-    border-radius: 0.75em;
-    transition: all 0.2s ease-in-out;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-button[data-testid*="btn_visitante"] {
-    background-image: linear-gradient(to right, #2563eb, #1d4ed8); /* Azul para Visitante */
-    color: white;
-    width: 100%;
-    padding: 1.5em;
-    font-size: 1.25em;
-    font-weight: bold;
-    border-radius: 0.75em;
-    transition: all 0.2s ease-in-out;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Estilo para o hover, aplicado a todos os botões que queremos interativo */
-.stButton>button:hover {
-    transform: scale(1.05);
-    filter: brightness(1.1);
-}
-
-.suggestion-box {
-    background: linear-gradient(to right, #6b21a8, #4f46e5);
-    border-radius: 0.75em;
-    padding: 1.5em;
-    margin-bottom: 1.5em;
-    border: 1px solid #a78bfa;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-.pattern-detection-box {
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 0.5em;
-    padding: 1em;
-    margin-top: 1em;
-}
-.history-line-container {
-    display: flex;
-    flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
-    gap: 0.2em; /* Espaço entre as bolhas */
-    margin-bottom: 0.5em; /* Espaço entre as linhas de bolhas */
-    justify-content: flex-start; /* Alinhar à esquerda */
-    width: 100%; /* Ocupa a largura total para quebrar corretamente */
-}
-.history-item {
-    width: 1.5em; /* Bolhas menores */
-    height: 1.5em; /* Bolhas menores */
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 0.7em; /* Texto menor para bolhas menores */
-    flex-shrink: 0; /* Não permite que as bolhas encolham */
-}
-/* Cores das Bolhas */
-.red-bg-bubble { background-color: #dc2626; } /* Vermelho para Casa */
-.blue-bg-bubble { background-color: #2563eb; } /* Azul para Visitante */
-.yellow-bg-bubble { background-color: #d97706; } /* Amarelo para Empate */
-.stat-box {
-    background-color: rgba(75, 85, 99, 0.3);
-    padding: 0.75em;
-    border-radius: 0.5em;
-    text-align: center;
-}
-.disclaimer-box {
-    background-color: rgba(75, 85, 99, 0.5);
-    padding: 1em;
-    border-radius: 0.5em;
-    text-align: center;
-    color: #9ca3af;
-    font-size: 0.875em;
-    margin-top: 2em;
-}
-.performance-box {
-    background-color: #1f2937;
-    border-radius: 0.75em;
-    padding: 1em;
-    margin-top: 1.5em;
-    text-align: center;
-    border: 1px solid #a78bfa;
-}
-/* Estilo para os botões de feedback (Acerto/Erro) */
-button[data-testid*="btn_acerto"] {
-    background-image: linear-gradient(to right, #4CAF50, #2E8B57); /* Verde para Acerto */
-    border: none;
-    color: white;
-    padding: 0.75em 1em;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 1em;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 8px;
-    width: auto;
-    min-width: 100px;
-}
-button[data-testid*="btn_erro"] {
-    background-image: linear-gradient(to right, #f44336, #b71c1c); /* Vermelho para Erro */
-    border: none;
-    color: white;
-    padding: 0.75em 1em;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 1em;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 8px;
-    width: auto;
-    min-width: 100px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown('<h1 class="header-title">⚽ Football Studio Pro</h1>', unsafe_allow_html=True)
-st.markdown('<p class="header-subtitle">Análise Inteligente de Padrões - Evolution Gaming</p>', unsafe_allow_html=True)
-
-# Botões de Entrada
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.button("🏠 CASA", on_click=add_result_to_history, args=('Casa',), key="btn_casa", help="Adicionar resultado Casa")
-with col2:
-    st.button("🤝 EMPATE", on_click=add_result_to_history, args=('Empate',), key="btn_empate", help="Adicionar resultado Empate")
-with col3:
-    st.button("✈️ VISITANTE", on_click=add_result_to_history, args=('Visitante',), key="btn_visitante", help="Adicionar resultado Visitante")
-
-# Sugestão Principal
-if st.session_state.suggestion:
-    st.markdown('<div class="suggestion-box">', unsafe_allow_html=True)
-    
-    suggestion_col1, suggestion_col2 = st.columns([2, 1])
-    with suggestion_col1:
-        st.markdown(f'<h2 style="font-size: 1.5em; font-weight: bold; color: #fcd34d;">PRÓXIMA ENTRADA</h2>', unsafe_allow_html=True)
-    with suggestion_col2:
-        st.markdown(f'<div style="text-align: right; font-size: 1.5em; font-weight: bold; color: {get_confidence_color(st.session_state.confidence)};">{st.session_state.confidence}%</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="text-align: right; font-size: 0.875em; color: #cbd5e1;">{get_confidence_text(st.session_state.confidence)}</div>', unsafe_allow_html=True)
-    
-    entry_color_class = ""
-    entry_text = ""
-    if st.session_state.suggestion['entry'] == 'Casa':
-        entry_color_class = "red-600"
-        entry_text = "🏠 APOSTAR NA CASA"
-    elif st.session_state.suggestion['entry'] == 'Visitante':
-        entry_color_class = "blue-600"
-        entry_text = "✈️ APOSTAR NO VISITANTE"
-    else:
-        entry_color_class = "gray-600" # Mantenha o botão cinza, mas a bolha será amarela
-        entry_text = "🤝 APOSTAR NO EMPATE"
+    def analyze_fibonacci(self):
+        counts = {'home': 0, 'away': 0, 'tie': 0}
+        relevant_history = self.history[:min(len(self.history), 13)]
+        for r in relevant_history:
+            counts[r] += 1
         
-    st.markdown(f'''
-        <div style="text-align: center; padding: 1em; border-radius: 0.5em; background-color: var(--{entry_color_class}); font-size: 2.25em; font-weight: bold; color: white;">
-            {entry_text}
-        </div>
-    ''', unsafe_allow_html=True)
+        sorted_counts = sorted([c for c in counts.values() if c > 0], reverse=True)
+        fibonacci_detected = 'nao detectado'
+        if len(sorted_counts) >= 2 and sorted_counts[1] > 0:
+            ratio = sorted_counts[0] / sorted_counts[1]
+            if (1.5 < ratio < 1.7) or (0.6 < ratio < 0.65): # Aproximação de Phi ou 1/Phi
+                fibonacci_detected = 'detectado'
+        return {'strength': fibonacci_detected}
 
-    # Padrões Detectados
-    st.markdown('<div class="pattern-detection-box">', unsafe_allow_html=True)
-    st.markdown(f'<h3 style="font-weight: bold; margin-bottom: 0.5em; display: flex; align-items: center;"><span style="margin-right: 0.5em;">📊</span>Padrões Detectados:</h3>', unsafe_allow_html=True)
-    
-    patterns = st.session_state.suggestion['patterns']
-    
-    # Usar colunas para exibir os padrões em 2 colunas
-    pattern_cols = st.columns(2)
-    col_idx = 0
+    def analyze_gravitation(self):
+        relevant_history = self.history[:min(len(self.history), 20)]
+        counts = {'home': 0, 'away': 0, 'tie': 0}
+        for r in relevant_history:
+            counts[r] += 1
 
-    def add_pattern_line(col_obj, icon_char, text, color):
-        col_obj.markdown(f'<div style="display: flex; align-items: center; color: {color}; margin-bottom: 0.25em;"><span style="margin-right: 0.25em;">{icon_char}</span>{text}</div>', unsafe_allow_html=True)
+        if not relevant_history:
+            return {'pull': None, 'strength': 0}
 
-    if patterns['surf']:
-        add_pattern_line(pattern_cols[col_idx % 2], '⚡', f'Surf de Cor ({patterns["surf_streak"]}x)', '#fcd34d')
-        col_idx += 1
-    if patterns['zigzag']:
-        add_pattern_line(pattern_cols[col_idx % 2], '📈', 'Zig-Zag Detectado', '#86efad')
-        col_idx += 1
-    if patterns['quebrar_surf']:
-        add_pattern_line(pattern_cols[col_idx % 2], '⚠️', 'Quebra de Surf (Forte!)', '#f87171')
-        col_idx += 1
-    if patterns['quebrar_zigzag']:
-        add_pattern_line(pattern_cols[col_idx % 2], '⚠️', 'Quebra de Zig-Zag (Forte!)', '#f87171')
-        col_idx += 1
-    if patterns['empate_recorrente']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🎯', 'Empate Recorrente', '#d8b4fe')
-        col_idx += 1
-    if patterns['dominancia_curto_prazo']:
-        add_pattern_line(pattern_cols[col_idx % 2], '📊', f'Dominância de {patterns["dominancia_curto_prazo"]} (Curto Prazo)', '#fdba74')
-        col_idx += 1
-    if patterns['reversao_duas']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🔄', 'Padrão de Reversão (Após 2x Igual)', '#67e8f9')
-        col_idx += 1
-    if patterns['padrao_212']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🔁', f'Padrão 2-1-2 ({patterns["padrao_212"]})', '#bef264')
-        col_idx += 1
-    if patterns['padrao_221']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🔁', f'Padrão 2-2-1 ({patterns["padrao_221"]})', '#5eead4')
-        col_idx += 1
-    if patterns['alternancia_empate']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🎯', 'Alternância de Empates', '#f472b6')
-        col_idx += 1
-    if patterns['padrao_3x3']:
-        add_pattern_line(pattern_cols[col_idx % 2], '⬡', f'Padrão 3x3 Detectado ({patterns["padrao_3x3"]} inicial)', '#a78bfa') # Hexagon character
-        col_idx += 1
-    if patterns['padrao_31123']:
-        add_pattern_line(pattern_cols[col_idx % 2], '🔁', f'Padrão 3x1x1x2x3 Detectado ({patterns["padrao_31123"]} inicial)', '#f0abfc')
-        col_idx += 1
-    if patterns['surf_4x4']:
-        add_pattern_line(pattern_cols[col_idx % 2], '⚡', 'SUPER SURF 4x4! (Quebra Iminente?)', '#ef4444')
-        col_idx += 1
+        least_frequent = min(counts, key=counts.get)
+        # Strength: difference between average and actual count, scaled
+        strength = min(100, (len(relevant_history) / 3 - counts[least_frequent]) * 10)
+        return {'pull': least_frequent, 'strength': strength}
 
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha pattern-detection-box
-    st.markdown('</div>', unsafe_allow_html=True) # Fecha suggestion-box
+    def analyze_quantum_state(self):
+        relevant_history = self.history[:min(len(self.history), 15)]
+        home_score = 0
+        away_score = 0
+        tie_score = 0
 
-# --- Histórico ---
-st.markdown('<div style="background-color: #1f2937; border-radius: 0.75em; padding: 1.5em; margin-bottom: 1.5em;">', unsafe_allow_html=True)
-history_header_col1, history_header_col2 = st.columns([3, 1])
-with history_header_col1:
-    st.markdown(f'<h3 style="font-size: 1.25em; font-weight: bold;">Últimos Resultados ({len(st.session_state.history)})</h3>', unsafe_allow_html=True)
-with history_header_col2:
-    st.button("Limpar Histórico e Estatísticas", on_click=clear_history_and_stats, key="btn_clear_all", help="Limpar todos os resultados e estatísticas de desempenho")
+        for i, result in enumerate(relevant_history):
+            weight = 1 - (i / len(relevant_history)) if len(relevant_history) > 0 else 0
+            if result == 'home':
+                home_score += weight
+            elif result == 'away':
+                away_score += weight
+            else:
+                tie_score += weight
 
-# Exibição do histórico em linha de 9
-history_html = []
-current_line_items = []
-for i, result in enumerate(reversed(st.session_state.history)):
-    color_class = ""
-    text_char = ""
-    if result == 'Casa':
-        color_class = "red-bg-bubble"
-        text_char = "C"
-    elif result == 'Visitante':
-        color_class = "blue-bg-bubble"
-        text_char = "V"
-    else: # Empate
-        color_class = "yellow-bg-bubble"
-        text_char = "E"
-    
-    current_line_items.append(f'<div class="history-item {color_class}">{text_char}</div>')
-    
-    # Se alcançou 9 itens ou é o último item do histórico
-    if (i + 1) % 9 == 0 or (i + 1) == len(st.session_state.history):
-        history_html.append('<div class="history-line-container">' + "".join(current_line_items) + '</div>')
-        current_line_items = [] # Reinicia para a próxima linha
+        total_score = home_score + away_score + tie_score
+        if total_score == 0:
+            return {'coherence': 'baixa', 'nextCollapse': None}
 
-# Exibir as linhas HTML no Streamlit
-for line_html in history_html:
-    st.markdown(line_html, unsafe_allow_html=True)
+        home_prob = home_score / total_score
+        away_prob = away_score / total_score
+        tie_prob = tie_score / total_score
 
-# --- Conferidor de Desempenho ---
-st.markdown('<div class="performance-box">', unsafe_allow_html=True)
-st.markdown(f'<h3 style="font-weight: bold; margin-bottom: 0.5em;">Desempenho Geral</h3>', unsafe_allow_html=True)
+        coherence = 'alta' if max(home_prob, away_prob, tie_prob) > 0.55 else 'baixa'
 
-perf_col1, perf_col2, perf_col3 = st.columns(3)
-total_bets = st.session_state.hits + st.session_state.misses
-hit_rate = (st.session_state.hits / total_bets * 100) if total_bets > 0 else 0
+        next_collapse = 'tie'
+        if home_prob > away_prob and home_prob > tie_prob:
+            next_collapse = 'home'
+        elif away_prob > home_prob and away_prob > tie_prob:
+            next_collapse = 'away'
 
-with perf_col1:
-    st.metric(label="Acertos ✅", value=st.session_state.hits)
-with perf_col2:
-    st.metric(label="Erros ❌", value=st.session_state.misses)
-with perf_col3:
-    st.metric(label="Taxa de Acerto", value=f"{hit_rate:.1f}%")
+        return {'state': [home_prob, away_prob, tie_prob], 'coherence': coherence, 'nextCollapse': next_collapse}
 
-st.markdown('</div>', unsafe_allow_html=True)
+    def analyze_momentum(self):
+        relevant_history = self.history[:min(len(self.history), 10)]
+        momentum_score = 0
 
-# Botões de feedback (Acerto/Erro) - Aparecem somente após uma sugestão
-if st.session_state.awaiting_feedback:
-    st.markdown('<div style="text-align: center; margin-top: 1.5em;">', unsafe_allow_html=True)
-    st.markdown('<h3 style="font-weight: bold; margin-bottom: 1em;">O resultado da última sugestão foi um:</h3>', unsafe_allow_html=True)
-    feedback_col1, feedback_col2 = st.columns(2)
-    with feedback_col1:
-        st.button("✅ ACERTO", on_click=register_feedback, args=('hit',), key="btn_acerto_feedback", help="Clique se a última sugestão foi correta") # Alterei a key
-    with feedback_col2:
-        st.button("❌ ERRO", on_click=register_feedback, args=('miss',), key="btn_erro_feedback", help="Clique se a última sugestão foi incorreta") # Alterei a key
-    st.markdown('</div>', unsafe_allow_html=True)
+        for i, result in enumerate(relevant_history):
+            weight = (len(relevant_history) - i) / len(relevant_history) if len(relevant_history) > 0 else 0
+            if result == 'home':
+                momentum_score += weight
+            elif result == 'away':
+                momentum_score -= weight
+        
+        direction = 'neutral'
+        strength = 'fraca'
 
+        if momentum_score > 1.5:
+            direction = 'home'
+            strength = 'forte'
+        elif momentum_score > 0.5:
+            direction = 'home'
+            strength = 'média'
+        elif momentum_score < -1.5:
+            direction = 'away'
+            strength = 'forte'
+        elif momentum_score < -0.5:
+            direction = 'away'
+            strength = 'média'
 
-# Estatísticas de distribuição de resultados (movidas para depois do desempenho, se desejar)
-if st.session_state.history:
-    st.markdown('<div style="background-color: rgba(75, 85, 99, 0.3); border-radius: 0.75em; padding: 1.5em; margin-top: 1.5em;">', unsafe_allow_html=True)
-    st.markdown(f'<h3 style="font-size: 1.25em; font-weight: bold;">Distribuição de Resultados</h3>', unsafe_allow_html=True)
-    stats_col1, stats_col2, stats_col3 = st.columns(3)
-    total_results = len(st.session_state.history)
-    casa_count = st.session_state.history.count('Casa')
-    empate_count = st.session_state.history.count('Empate')
-    visitante_count = st.session_state.history.count('Visitante')
+        return {'direction': direction, 'strength': strength, 'value': momentum_score}
 
-    with stats_col1:
-        st.markdown(f'<div class="stat-box">', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 1.5em; font-weight: bold;">{casa_count}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 0.875em;">Casa ({((casa_count / total_results) * 100):.1f}%)</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with stats_col2:
-        st.markdown(f'<div class="stat-box">', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 1.5em; font-weight: bold;">{empate_count}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 0.875em;">Empate ({((empate_count / total_results) * 100):.1f}%)</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with stats_col3:
-        st.markdown(f'<div class="stat-box">', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 1.5em; font-weight: bold;">{visitante_count}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="font-size: 0.875em;">Visitante ({((visitante_count / total_results) * 100):.1f}%)</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    def analyze_chaos_theory(self):
+        relevant_history = self.history[:min(len(self.history), 20)]
+        butterfly_effect = False
+        attractor_strength = 0
 
-# Streak Atual (mantido no final para visualização)
-if st.session_state.streak['type']:
-    streak_message = f"Streak Atual: {st.session_state.streak['count']}x {st.session_state.streak['type']}"
-    if st.session_state.streak['count'] >= 3 and st.session_state.streak['type'] != 'Empate':
-        streak_message += ' <span style="color: #f87171;">(⚠️ Possível Quebra)</span>'
-    st.markdown(f'''
-        <div style="background: linear-gradient(to right, #fbbf24, #f97316); border-radius: 0.75em; padding: 1em; text-align: center; font-size: 1.125em; font-weight: bold; margin-top: 1.5em;">
-            {streak_message}
-        </div>
-    ''', unsafe_allow_html=True)
+        if len(relevant_history) >= 7:
+            last_seven = relevant_history[:7]
+            # Simple "butterfly" logic: a tie in the middle, followed by strong trends
+            if last_seven[3] == 'tie':
+                pre_tie_trend_home = sum(1 for r in last_seven[4:7] if r == 'home') >= 2
+                pre_tie_trend_away = sum(1 for r in last_seven[4:7] if r == 'away') >= 2
+                post_tie_trend_home = sum(1 for r in last_seven[:3] if r == 'home') >= 2
+                post_tie_trend_away = sum(1 for r in last_seven[:3] if r == 'away') >= 2
+                if (pre_tie_trend_home and post_tie_trend_away) or \
+                   (pre_tie_trend_away and post_tie_trend_home):
+                    butterfly_effect = True
 
-# Disclaimer
-st.markdown('''
-<div class="disclaimer-box">
-  <p style="margin-bottom: 0.5em;">⚠️ Este aplicativo é apenas para fins educacionais e de entretenimento.</p>
-  <p>Apostas envolvem riscos. Jogue com responsabilidade.</p>
-</div>
-''', unsafe_allow_html=True)
+        for result in relevant_history:
+            if result == 'home':
+                attractor_strength += 1
+            elif result == 'away':
+                attractor_strength -= 1
+        
+        prediction = 'tie'
+        if attractor_strength > 0: # If more home, chaos theory might predict away to balance
+            prediction = 'away'
+        elif attractor_strength < 0: # If more away, predict home
+            prediction = 'home'
+
+        return {
+            'butterfly': butterfly_effect,
+            'attractor': 'forte' if abs(attractor_strength) > 5 else 'fraco',
+            'prediction': prediction
+        }
+
+    def run_neural_network(self):
+        relevant_history = self.history[:min(len(self.history), 30)]
+        if len(relevant_history) < 5:
+            return {'prediction': 'tie', 'confidence': 0, 'outputs': [0, 0, 0], 'activations': 0}
+
+        home_score = 0
+        away_score = 0
+        tie_score = 0
+
+        for i, result in enumerate(relevant_history):
+            recency_weight = (len(relevant_history) - i) / len(relevant_history)
+            
+            # Simple trend check for first 5
+            trend_weight = 1
+            if i < 5:
+                recent_five = relevant_history[:5]
+                if all(r == result for r in recent_five):
+                    trend_weight = 2 # Boost for very strong recent trends
+            
+            # Alternation check
+            alternation_weight = 1
+            if i > 0 and relevant_history[i] != relevant_history[i-1]:
+                alternation_weight = 1.5
+
+            if result == 'home':
+                home_score += (recency_weight * trend_weight * alternation_weight)
+            elif result == 'away':
+                away_score += (recency_weight * trend_weight * alternation_weight)
+            else: # tie
+                tie_score += (recency_weight * trend_weight * alternation_weight * 0.7) # Empate ligeiramente menor peso
+
+        # Analysis of "gaps" or imbalances across the full history
+        total_count = len(self.history)
+        if total_count > 0:
+            home_freq = self.stats['home'] / total_count
+            away_freq = self.stats['away'] / total_count
+            tie_freq = self.stats['tie'] / total_count
+
+            target_freq = 1 / 3
+            home_score += (target_freq - home_freq) * 5
+            away_score += (target_freq - away_freq) * 5
+            tie_score += (target_freq - tie_freq) * 5 * 0.5
+        
+        sum_scores = home_score + away_score + tie_score
+        if sum_scores == 0: # Avoid division by zero
+            return {'prediction': 'tie', 'confidence': 0, 'outputs': [0, 0, 0], 'activations': 0}
+
+        outputs = [home_score / sum_scores, away_score / sum_scores, tie_score / sum_scores]
+
+        max_output = max(outputs)
+        max_index = outputs.index(max_output)
+        
+        prediction_map = {0: 'home', 1: 'away', 2: 'tie'}
+        prediction = prediction_map[max_index]
+        confidence = max_output * 100
+
+        return {'prediction': prediction, 'confidence': confidence, 'outputs': outputs, 'activations': len(relevant_history)}
+
+    def analyze_market_maker(self):
+        recent_results = self.history[:min(len(self.history), 6)]
+        home_freq = recent_results.count('home')
+        away_freq = recent_results.count('away')
+        tie_freq = recent_results.count('tie')
+
+        total = len(recent_results)
+        if total == 0:
+            return {'direction': 'tie', 'deficit': 0, 'confidence': 0}
+
+        expected_each = total / 3
+
+        home_deficit = expected_each - home_freq
+        away_deficit = expected_each - away_freq
+        tie_deficit = expected_each - tie_freq
+
+        market_direction = 'tie'
+        max_deficit = 0
+
+        if home_deficit > max_deficit:
+            max_deficit = home_deficit
+            market_direction = 'home'
+        if away_deficit > max_deficit:
+            max_deficit = away_deficit
+            market_direction = 'away'
+        if tie_deficit > max_deficit: # Tie gets priority if deficit is equal
+            max_deficit = tie_deficit
+            market_direction = 'tie'
+
+        return {
+            'direction': market_direction,
+            'deficit': max_deficit,
+            'confidence': min(100, max_deficit * 30)
+        }
+
+    def analyze_time_wave(self):
+        relevant_history = self.history[:min(len(self.history), 25)]
+        if len(relevant_history) < 5:
+            return {'amplitude': 0, 'phase': 0, 'nextWave': 'tie', 'strength': 'baixa'}
+
+        wave_sum = 0
+        amplitude_sum = 0
+        period_dominance = {'home': 0, 'away': 0, 'tie': 0}
+
+        import math # Import math for sin function
+
+        for i, result in enumerate(relevant_history):
+            result_value = 0
+            if result == 'home':
+                result_value = 1
+            elif result == 'away':
+                result_value = -1
+
+            # Adaptive sinusoidal wave weight
+            wave_weight = math.sin((i * math.pi) / (len(relevant_history) / 2 + 1e-9)) + 1 
+            
+            wave_sum += result_value * wave_weight
+            amplitude_sum += abs(result_value * wave_weight)
+
+            # Analyze periodicity in short periods (last 5)
+            if i < 5:
+                period_dominance[result] += 1
+
+        amplitude = amplitude_sum / len(relevant_history)
+        phase = wave_sum
+
+        next_wave = 'tie'
+        if phase > 2:
+            next_wave = 'away'
+        elif phase < -2:
+            next_wave = 'home'
+        elif phase > 0.5:
+            next_wave = 'away'
+        elif phase < -0.5:
+            next_wave = 'home'
+
+        # Override based on strong periodicity in last 5
+        if period_dominance['home'] >= 4:
+            next_wave = 'away'
+        if period_dominance['away'] >= 4:
+            next_wave = 'home'
+
+        return {
+            'amplitude': amplitude,
+            'phase': phase,
+            'nextWave': next_wave,
+            'strength': 'alta' if amplitude > 0.8 else 'média'
+        }
+
+    def perform_deep_analysis(self):
+        if len(self.history) < 5:
+            self.ai_prediction = None
+            self.game_phase = 'AQUECIMENTO'
+            return
+
+        analysis = {
+            'sequences': self.analyze_sequences(),
+            'alternation': self.analyze_alternation(),
+            'fibonacci': self.analyze_fibonacci(),
+            'gravitation': self.analyze_gravitation(),
+            'quantum': self.analyze_quantum_state(),
+            'momentum': self.analyze_momentum(),
+            'chaos': self.analyze_chaos_theory(),
+            'neuralNetwork': self.run_neural_network(),
+            'marketMaker': self.analyze_market_maker(),
+            'timeWave': self.analyze_time_wave()
+        }
+
+        self.ai_prediction = self.generate_g1_prediction(analysis)
+        self.determine_game_phase(analysis)
+
+    def generate_g1_prediction(self, analysis):
+        predictions = []
+        debug_reasons = []
+
+        # Collect predictions with dynamic weights
+        if analysis['neuralNetwork']['confidence'] > 50:
+            predictions.append({
+                'source': 'Neural Network',
+                'prediction': analysis['neuralNetwork']['prediction'],
+                'weight': self.neural_weights['neuralNetwork'] * (analysis['neuralNetwork']['confidence'] / 100),
+                'confidence': analysis['neuralNetwork']['confidence']
+            })
+            debug_reasons.append(f"NN ({analysis['neuralNetwork']['confidence']:.0f}%) -> {analysis['neuralNetwork']['prediction']}")
+
+        if analysis['momentum']['strength'] == 'forte':
+            predictions.append({
+                'source': 'Momentum',
+                'prediction': analysis['momentum']['direction'],
+                'weight': self.neural_weights['momentum'],
+                'confidence': 75
+            })
+            debug_reasons.append(f"Momentum (Forte) -> {analysis['momentum']['direction']}")
+        elif analysis['momentum']['strength'] == 'média':
+            predictions.append({
+                'source': 'Momentum',
+                'prediction': analysis['momentum']['direction'],
+                'weight': self.neural_weights['momentum'] * 0.7,
+                'confidence': 60
+            })
+            debug_reasons.append(f"Momentum (Média) -> {analysis['momentum']['direction']}")
+
+        if analysis['quantum']['coherence'] == 'alta' and analysis['quantum']['nextCollapse']:
+            predictions.append({
+                'source': 'Quantum State',
+                'prediction': analysis['quantum']['nextCollapse'],
+                'weight': self.neural_weights['quantum'],
+                'confidence': 70
+            })
+            debug_reasons.append(f"Quantum (Alta) -> {analysis['quantum']['nextCollapse']}")
+
+        if analysis['marketMaker']['confidence'] > 60:
+            predictions.append({
+                'source': 'Market Maker',
+                'prediction': analysis['marketMaker']['direction'],
+                'weight': self.neural_weights['marketMaker'] * (analysis['marketMaker']['confidence'] / 100),
+                'confidence': analysis['marketMaker']['confidence']
+            })
+            debug_reasons.append(f"Market Maker ({analysis['marketMaker']['confidence']:.0f}%) -> {analysis['marketMaker']['direction']}")
+
+        if analysis['timeWave']['strength'] == 'alta':
+            predictions.append({
+                'source': 'Time Wave',
+                'prediction': analysis['timeWave']['nextWave'],
+                'weight': self.neural_weights['timeWave'],
+                'confidence': 65
+            })
+            debug_reasons.append(f"Time Wave (Alta) -> {analysis['timeWave']['nextWave']}")
+        elif analysis['timeWave']['strength'] == 'média':
+            predictions.append({
+                'source': 'Time Wave',
+                'prediction': analysis['timeWave']['nextWave'],
+                'weight': self.neural_weights['timeWave'] * 0.7,
+                'confidence': 50
+            })
+            debug_reasons.append(f"Time Wave (Média) -> {analysis['timeWave']['nextWave']}")
+        
+        # Strong sequence pattern
+        if analysis['sequences']['current'] >= 3:
+            predictions.append({
+                'source': 'Sequência',
+                'prediction': analysis['sequences']['type'],
+                'weight': self.neural_weights['sequence'] * (analysis['sequences']['current'] / 5),
+                'confidence': 50 + (analysis['sequences']['current'] * 5)
+            })
+            debug_reasons.append(f"Sequência ({analysis['sequences']['current']}x) -> {analysis['sequences']['type']}")
+
+        # Gravitation
+        if analys
