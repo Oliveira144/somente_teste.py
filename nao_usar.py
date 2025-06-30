@@ -1,6 +1,7 @@
 import json
 import os
 from collections import deque
+import math # Importar o módulo math para funções como sin
 
 class FootballStudioAnalyzer:
     def __init__(self, history_file='football_studio_history.json', weights_file='neural_weights.json'):
@@ -368,8 +369,6 @@ class FootballStudioAnalyzer:
         amplitude_sum = 0
         period_dominance = {'home': 0, 'away': 0, 'tie': 0}
 
-        import math # Import math for sin function
-
         for i, result in enumerate(relevant_history):
             result_value = 0
             if result == 'home':
@@ -378,7 +377,7 @@ class FootballStudioAnalyzer:
                 result_value = -1
 
             # Adaptive sinusoidal wave weight
-            wave_weight = math.sin((i * math.pi) / (len(relevant_history) / 2 + 1e-9)) + 1 
+            wave_weight = math.sin((i * math.pi) / (len(relevant_history) / 2 + 1e-9)) + 1
             
             wave_sum += result_value * wave_weight
             amplitude_sum += abs(result_value * wave_weight)
@@ -440,6 +439,7 @@ class FootballStudioAnalyzer:
         debug_reasons = []
 
         # Collect predictions with dynamic weights
+        # CORREÇÃO APLICADA AQUI: Adicionado ':' no final da linha 'if analysis['neuralNetwork']['confidence'] > 50'
         if analysis['neuralNetwork']['confidence'] > 50:
             predictions.append({
                 'source': 'Neural Network',
@@ -512,4 +512,175 @@ class FootballStudioAnalyzer:
             debug_reasons.append(f"Sequência ({analysis['sequences']['current']}x) -> {analysis['sequences']['type']}")
 
         # Gravitation
-        if analys
+        if analysis['gravitation']['strength'] > 50:
+            predictions.append({
+                'source': 'Gravitação',
+                'prediction': analysis['gravitation']['pull'],
+                'weight': self.neural_weights['gravitation'] * (analysis['gravitation']['strength'] / 100),
+                'confidence': analysis['gravitation']['strength']
+            })
+            debug_reasons.append(f"Gravitação ({analysis['gravitation']['strength']:.0f}%) -> {analysis['gravitation']['pull']}")
+
+        # Hot streak override
+        override_message = None
+        if self.hot_streak['count'] >= 3:
+            opposite = {'home': 'away', 'away': 'home', 'tie': 'tie'}.get(self.hot_streak['type'], 'tie')
+            
+            streak_weight = self.neural_weights['hotStreakBreak'] + (self.hot_streak['count'] - 3) * 0.1
+            streak_confidence = min(99, 80 + (self.hot_streak['count'] * 5))
+
+            predictions.append({
+                'source': 'Hot Streak Break',
+                'prediction': opposite,
+                'weight': streak_weight,
+                'confidence': streak_confidence
+            })
+            override_message = f"QUEBRA DE SEQUÊNCIA ({self.hot_streak['count']}x {self._get_result_text(self.hot_streak['type'])}) - Aposte no {self._get_result_text(opposite)}"
+            debug_reasons.append(f"HOT STREAK BREAK ({self.hot_streak['count']}x) -> {opposite}")
+
+        # Final consolidation
+        votes = {'home': 0, 'away': 0, 'tie': 0}
+        total_weight = 0
+
+        for pred in predictions:
+            votes[pred['prediction']] += pred['weight']
+            total_weight += pred['weight']
+
+        if total_weight == 0:
+            return {'prediction': 'tie', 'confidence': 0, 'grade': 'C', 'sources': 0, 'reasoning': [], 'override': None}
+
+        winner = max(votes, key=votes.get)
+        final_confidence = (votes[winner] / total_weight) * 100
+
+        # Adjust confidence based on number of sources and vote dispersion
+        if len(predictions) < 3:
+            final_confidence *= 0.7
+        # Check for close votes (e.g., if difference between top two is less than 10% of total weight)
+        sorted_votes = sorted(votes.values(), reverse=True)
+        if len(sorted_votes) >= 2 and total_weight > 0 and (sorted_votes[0] - sorted_votes[1]) < (total_weight * 0.1):
+            final_confidence *= 0.8
+        
+        final_confidence = min(99.9, max(0, final_confidence))
+
+        grade = 'C'
+        if final_confidence >= 85 and len(predictions) >= 4:
+            grade = 'G1'
+        elif final_confidence >= 75 and len(predictions) >= 3:
+            grade = 'A+'
+        elif final_confidence >= 65:
+            grade = 'A'
+        elif final_confidence >= 50:
+            grade = 'B'
+
+        return {
+            'prediction': winner,
+            'confidence': final_confidence,
+            'grade': grade,
+            'sources': len(predictions),
+            'reasoning': debug_reasons,
+            'override': override_message
+        }
+
+    def determine_game_phase(self, analysis):
+        if len(self.history) < 5:
+            self.game_phase = 'AQUECIMENTO'
+        elif self.hot_streak['count'] >= 4:
+            self.game_phase = 'RUPTURA IMINENTE'
+        elif analysis['momentum']['strength'] == 'forte':
+            self.game_phase = 'MOMENTUM DE ALTA'
+        elif analysis['quantum']['coherence'] == 'alta':
+            self.game_phase = 'COMPLEXO QUÂNTICO'
+        elif analysis['marketMaker']['confidence'] > 70:
+            self.game_phase = 'EQUILÍBRIO MERCADO'
+        else:
+            self.game_phase = 'ANÁLISE PROFUNDA'
+
+    def set_weight(self, algorithm_name, value):
+        if algorithm_name in self.neural_weights and 0 <= value <= 1:
+            self.neural_weights[algorithm_name] = value
+            self._save_weights()
+            print(f"Peso de '{algorithm_name}' ajustado para {value:.2f}. Reanalisando...")
+            self.perform_deep_analysis()
+        else:
+            print(f"Algoritmo '{algorithm_name}' não encontrado ou valor ({value}) inválido (0-1).")
+
+    def reset_weights(self):
+        if os.path.exists(self.weights_file):
+            os.remove(self.weights_file)
+        self.neural_weights = self._load_weights() # Reloads default
+        print("Pesos redefinidos para o padrão. Reanalisando...")
+        self.perform_deep_analysis()
+
+    def display_status(self):
+        print("\n" + "="*50)
+        print(f"⚽ FOOTBALL STUDIO AI STATUS")
+        print("="*50)
+        print(f"Fase do Jogo: {self.game_phase}")
+        if self.hot_streak['count'] > 0:
+            print(f"🔥 Streak: {self.hot_streak['count']}x {self._get_result_text(self.hot_streak['type'])}")
+        print(f"\nHistórico Total: {len(self.history)} resultados")
+        print(f"Estatísticas: Casa={self.stats['home']}, Fora={self.stats['away']}, Empate={self.stats['tie']}")
+        
+        print("\n--- Predição IA ---")
+        if self.ai_prediction and self.ai_prediction['confidence'] > 0:
+            pred = self.ai_prediction
+            print(f"Sugestão G1: {self._get_result_text(pred['prediction'])}")
+            print(f"Grau: {pred['grade']} | Confiança: {pred['confidence']:.1f}%")
+            print(f"Baseado em {pred['sources']} algoritmos.")
+            if pred['override']:
+                print(f"⚡ OVERRIDE: {pred['override']}")
+            print("Fundamentação:")
+            for reason in pred['reasoning']:
+                print(f"  - {reason}")
+        else:
+            print("Aguardando mais dados para uma análise confiável (mín. 5 resultados).")
+
+        print("\n--- Histórico Recente (Top 10) ---")
+        if self.history:
+            recent_display = [self._get_result_text(r) for r in self.history[:10]]
+            print(" -> ".join(recent_display))
+        else:
+            print("Nenhum resultado ainda.")
+        print("="*50)
+
+# --- Exemplo de Uso (no console) ---
+if __name__ == "__main__":
+    analyzer = FootballStudioAnalyzer()
+    
+    while True:
+        analyzer.display_status()
+        print("\nComandos:")
+        print("  1. Adicionar resultado (home, away, tie)")
+        print("  2. Desfazer último resultado")
+        print("  3. Limpar todo o histórico")
+        print("  4. Ajustar peso de algoritmo (nome_algoritmo valor_0_a_1)")
+        print("  5. Redefinir pesos padrão")
+        print("  6. Sair")
+        
+        command = input("Escolha uma opção: ").strip().lower()
+
+        if command == '1':
+            result = input("Digite o resultado (home, away, tie): ").strip().lower()
+            analyzer.add_result(result)
+        elif command == '2':
+            analyzer.undo_last()
+        elif command == '3':
+            analyzer.clear_history()
+        elif command == '4':
+            parts = input("Digite o nome do algoritmo e o novo peso (ex: neuralnetwork 0.7): ").strip().split()
+            if len(parts) == 2:
+                algo_name = parts[0]
+                try:
+                    weight_value = float(parts[1])
+                    analyzer.set_weight(algo_name, weight_value)
+                except ValueError:
+                    print("Valor do peso inválido. Deve ser um número entre 0 e 1.")
+            else:
+                print("Formato inválido. Use 'nome_algoritmo valor_0_a_1'.")
+        elif command == '5':
+            analyzer.reset_weights()
+        elif command == '6':
+            print("Saindo do analisador.")
+            break
+        else:
+            print("Comando inválido. Tente novamente.")
