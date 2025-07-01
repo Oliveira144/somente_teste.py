@@ -2,7 +2,14 @@ import streamlit as st
 import random
 import numpy as np
 from collections import defaultdict
-import plotly.express as px
+
+# Verifica e instala o Plotly se necessário
+try:
+    import plotly.express as px
+    plotly_available = True
+except ImportError:
+    plotly_available = False
+    st.warning("Plotly não está instalado. Usando gráficos nativos do Streamlit.")
 
 # Configuração da página
 st.set_page_config(
@@ -225,6 +232,19 @@ class FootballStudioAnalyzer:
         self.current_round = 1
         self.card_count = {value: 4 * self.decks for value in self.card_values}
 
+# Função para criar gráficos alternativos
+def create_fallback_chart(data, title, chart_type='bar'):
+    if chart_type == 'pie':
+        chart_data = {
+            'labels': list(data.keys()),
+            'values': list(data.values())
+        }
+        st.write(f"**{title}**")
+        st.dataframe(chart_data)
+        st.bar_chart(chart_data['values'])
+    else:
+        st.bar_chart(data)
+
 # Inicialização do aplicativo
 def main():
     # Inicializa ou recupera a instância do analisador
@@ -258,8 +278,11 @@ def main():
             away_card = st.number_input("Carta AWAY", 2, 14, 7)
         
         if st.button("Adicionar Resultado"):
-            result = analyzer.add_result(home_card, away_card)
-            st.success(f"Resultado registrado: HOME {home_card} x {away_card} AWAY → {result.upper()}")
+            try:
+                result = analyzer.add_result(home_card, away_card)
+                st.success(f"Resultado registrado: HOME {home_card} x {away_card} AWAY → {result.upper()}")
+            except ValueError as e:
+                st.error(str(e))
         
         st.divider()
         if st.button("Simular Próximo Jogo"):
@@ -290,173 +313,6 @@ def main():
         
         if stats:
             # Gráfico de pizza
-            fig = px.pie(
-                names=['HOME', 'AWAY', 'DRAW'],
-                values=[stats['home_win_percentage'], stats['away_win_percentage'], stats['draw_percentage']],
-                color_discrete_sequence=['#EF4444', '#3B82F6', '#EAB308'],
-                title="Distribuição de Resultados"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Valor Esperado (EV)
-            ev = analyzer.calculate_ev()
-            if ev:
-                st.subheader("Valor Esperado (EV)")
-                col1, col2, col3 = st.columns(3)
-                col1.metric("EV HOME", f"{ev['home']:.4f}", 
-                            delta_color="inverse" if ev['home'] < 0 else "normal")
-                col2.metric("EV AWAY", f"{ev['away']:.4f}", 
-                            delta_color="inverse" if ev['away'] < 0 else "normal")
-                col3.metric("EV DRAW", f"{ev['draw']:.4f}", 
-                            delta_color="inverse" if ev['draw'] < 0 else "normal")
-                
-                st.info("""
-                **Interpretação do Valor Esperado (EV):**
-                - **EV > 0**: Aposta favorável a longo prazo
-                - **EV = 0**: Aposta neutra
-                - **EV < 0**: Aposta desfavorável
-                """)
-        else:
-            st.warning("Adicione jogos para ver as estatísticas")
-    
-    with tab2:
-        st.subheader("Oportunidades de Aposta")
-        
-        opportunities = analyzer.find_betting_opportunities()
-        recommendation = analyzer.get_betting_recommendation()
-        
-        if opportunities:
-            st.success("🎯 Oportunidades de Valor Encontradas!")
-            
-            for opp in opportunities:
-                with st.expander(f"Aposta em {opp['bet'].upper()} (EV: {opp['ev']:.4f})"):
-                    st.write(opp['reason'])
-                    st.progress(min(1.0, opp['ev'] + 0.2), text=f"Potencial: {opp['ev']:.4f}")
-            
-            st.divider()
-            st.subheader("Recomendação Principal")
-            
-            if recommendation['recommendation'] != 'no_bet':
-                confidence = recommendation['confidence']
-                color = "green" if confidence > 75 else "orange" if confidence > 60 else "red"
-                
-                st.markdown(f"""
-                <div style="border-left: 5px solid {color}; padding: 10px; background-color: #1E1E1E; border-radius: 5px;">
-                    <h3 style="color: white;">Aposta recomendada: <span style="color: {color};">{recommendation['recommendation'].upper()}</span></h3>
-                    <p><strong>Confiança:</strong> <span style="color: {color};">{confidence:.1f}%</span></p>
-                    <p><strong>Motivo:</strong> {recommendation['reason']}</p>
-                    <p><strong>Valor Esperado:</strong> {recommendation['ev']:.4f}</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.warning(recommendation['message'])
-        else:
-            st.warning("Nenhuma oportunidade de valor encontrada no momento.")
-            st.info("""
-            **Por que não há oportunidades?**
-            - As probabilidades atuais não oferecem valor esperado positivo
-            - Distribuição de cartas não é favorável
-            - Dados insuficientes para análise confiável
-            """)
-    
-    with tab3:
-        st.subheader("Distribuição de Cartas")
-        
-        if card_analysis['total_cards'] > 0:
-            # Gráfico de distribuição
-            card_data = []
-            for value, count in analyzer.card_count.items():
-                card_name = {
-                    11: 'J', 12: 'Q', 13: 'K', 14: 'A'
-                }.get(value, str(value))
-                
-                card_data.append({
-                    'Carta': card_name,
-                    'Quantidade': count,
-                    'Tipo': 'Alta' if value >= 10 else 'Baixa'
-                })
-            
-            fig = px.bar(
-                card_data,
-                x='Carta',
-                y='Quantidade',
-                color='Tipo',
-                color_discrete_map={'Alta': '#EF4444', 'Baixa': '#3B82F6'},
-                title="Distribuição de Cartas Restantes"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Métricas
-            col1, col2 = st.columns(2)
-            col1.metric("Total de Cartas Restantes", card_analysis['total_cards'])
-            col2.metric("Cartas Altas (10+)", f"{card_analysis['high_card_ratio']*100:.1f}%")
-        else:
-            st.warning("Nenhuma carta restante. Reinicie a análise.")
-    
-    with tab4:
-        st.subheader("Histórico de Jogos")
-        
-        if analyzer.game_history:
-            # Mostra os últimos 20 jogos em formato de tabela
-            recent_games = analyzer.game_history[-20:]
-            
-            # Formata os dados para exibição
-            display_data = []
-            for game in recent_games:
-                card_name = lambda v: {11: 'J', 12: 'Q', 13: 'K', 14: 'A'}.get(v, str(v))
-                display_data.append({
-                    'Rodada': game['round'],
-                    'HOME': card_name(game['home_card']),
-                    'AWAY': card_name(game['away_card']),
-                    'Resultado': game['result'].upper(),
-                    'Diferença': game['card_difference']
-                })
-            
-            st.dataframe(
-                display_data,
-                column_config={
-                    "Resultado": st.column_config.TextColumn(
-                        "Resultado",
-                        help="Resultado do jogo",
-                        width="medium"
-                    ),
-                    "Diferença": st.column_config.ProgressColumn(
-                        "Diferença",
-                        help="Diferença entre cartas",
-                        format="%d",
-                        min_value=0,
-                        max_value=12,
-                    )
-                },
-                hide_index=True,
-                use_container_width=True
-            )
-            
-            # Gráfico de histórico
-            history_data = []
-            for i, game in enumerate(analyzer.game_history):
-                history_data.append({
-                    'Rodada': i + 1,
-                    'Resultado': game['result'].upper(),
-                    'Diferença': game['card_difference']
-                })
-            
-            fig = px.line(
-                history_data,
-                x='Rodada',
-                y='Diferença',
-                color='Resultado',
-                color_discrete_map={
-                    'HOME': '#EF4444',
-                    'AWAY': '#3B82F6',
-                    'DRAW': '#EAB308'
-                },
-                title="Histórico de Diferença entre Cartas"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Nenhum jogo registrado ainda. Adicione jogos para ver o histórico.")
-
-# Executa o app
-if __name__ == "__main__":
-    main()
+            if plotly_available:
+                fig = px.pie(
+                    name
