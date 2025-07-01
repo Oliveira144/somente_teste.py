@@ -502,4 +502,29 @@ def main():
                 try:
                     fig = px.line(
                         history_data,
-              
+                        x='Rodada',
+                        y='Diferença',
+                        color='Resultado',
+                        color_discrete_map={
+                            'home': '#EF4444',
+                            'away': '#3B82F6',
+                            'draw': '#EAB308'
+                        },
+                        title="Histórico de Diferença entre Cartas"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Erro ao criar gráfico: {str(e)}")
+                    # Criar gráfico nativo
+                    diff_data = [game['card_difference'] for game in analyzer.game_history]
+                    st.line_chart(diff_data)
+            else:
+                # Criar gráfico nativo
+                diff_data = [game['card_difference'] for game in analyzer.game_history]
+                st.line_chart(diff_data)
+        else:
+            st.info("Nenhum jogo registrado ainda. Adicione jogos para ver o histórico.")
+
+# Executa o app
+if __name__ == "__main__":
+    main()
