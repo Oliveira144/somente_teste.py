@@ -280,8 +280,8 @@ def card_name(value):
     else:
         return str(value)
 
-# Função para criar um bloco visual de jogo
-def game_block(game, show_round=True):
+# Função para criar um círculo visual de jogo
+def game_circle(game):
     home = card_name(game['home_card'])
     away = card_name(game['away_card'])
     result = game['result']
@@ -297,25 +297,39 @@ def game_block(game, show_round=True):
         bg_color = '#EAB308'  # amarelo
         border_color = '#CA8A04'
     
-    block_html = f"""
+    # Tamanho do círculo
+    size = "50px"
+    font_size = "1em"
+    
+    circle_html = f"""
     <div style="
-        background-color: {bg_color};
-        border: 2px solid {border_color};
-        border-radius: 8px;
-        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         margin: 3px;
-        text-align: center;
-        color: white;
-        font-weight: bold;
-        min-width: 70px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     ">
-        <div style="font-size: 0.8em; opacity: 0.9;">{"R" + str(game['round']) if show_round else ""}</div>
-        <div style="font-size: 1.2em;">{home} x {away}</div>
-        <div style="font-size: 0.9em; margin-top: 3px;">{result.upper()}</div>
+        <div style="
+            background-color: {bg_color};
+            border: 2px solid {border_color};
+            border-radius: 50%;
+            width: {size};
+            height: {size};
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            text-align: center;
+        ">
+            {home}x{away}
+        </div>
+        <div style="font-size: 0.7em; margin-top: 3px; color: #777; font-weight: bold;">
+            R{game['round']}
+        </div>
     </div>
     """
-    return block_html
+    return circle_html
 
 # Inicialização do aplicativo
 def main():
@@ -490,127 +504,19 @@ def main():
         
         # Histórico compacto abaixo da recomendação
         st.divider()
-        st.subheader("Histórico de Jogos Recentes (para análise)")
+        st.subheader("Histórico de Jogos (da esquerda para direita: mais recente -> mais antigo)")
         
         if analyzer.game_history:
-            # Mostrar os últimos 18 jogos em uma grade de 9 por linha
-            recent_games = analyzer.game_history[-18:]
+            # Obter os últimos jogos (mais recentes primeiro)
+            recent_games = list(reversed(analyzer.game_history))
             
-            # Organizar em linhas de 9 jogos
-            rows = []
-            for i in range(0, len(recent_games), 9):
-                row_games = recent_games[i:i+9]
-                rows.append(row_games)
+            # Dividir em grupos de 9 jogos
+            group_size = 9
+            game_groups = [recent_games[i:i+group_size] for i in range(0, len(recent_games), group_size)]
             
-            # Exibir cada linha
-            for row in rows:
-                cols = st.columns(9)
-                for idx, game in enumerate(row):
+            # Exibir cada grupo em uma linha
+            for group in game_groups:
+                cols = st.columns(group_size)
+                for idx, game in enumerate(group):
                     with cols[idx]:
-                        st.markdown(game_block(game, show_round=True), unsafe_allow_html=True)
-        else:
-            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
-    
-    with tab3:
-        st.subheader("Distribuição de Cartas")
-        
-        if card_analysis['total_cards'] > 0:
-            # Métricas
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total de Cartas", card_analysis['total_cards'])
-            col2.metric("Cartas Altas (10+)", card_analysis['high_cards'], f"{card_analysis['high_card_ratio']*100:.1f}%")
-            col3.metric("Cartas Baixas (2-9)", card_analysis['low_cards'], f"{card_analysis['low_card_ratio']*100:.1f}%")
-            
-            # Preparar dados para gráfico
-            card_data = []
-            for value, count in analyzer.card_count.items():
-                card_data.append({
-                    'Carta': card_name(value),
-                    'Quantidade': count,
-                    'Tipo': 'Alta' if value >= 10 else 'Baixa'
-                })
-            
-            # Usar Plotly se disponível, caso contrário usar gráfico nativo
-            if plotly_available:
-                try:
-                    fig = px.bar(
-                        card_data,
-                        x='Carta',
-                        y='Quantidade',
-                        color='Tipo',
-                        color_discrete_map={'Alta': '#EF4444', 'Baixa': '#3B82F6'},
-                        title="Distribuição de Cartas Restantes"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    st.error(f"Erro ao criar gráfico: {str(e)}")
-                    # Criar gráfico nativo
-                    chart_data = {item['Carta']: item['Quantidade'] for item in card_data}
-                    st.bar_chart(chart_data)
-            else:
-                # Criar gráfico nativo
-                chart_data = {item['Carta']: item['Quantidade'] for item in card_data}
-                st.bar_chart(chart_data)
-        else:
-            st.warning("Nenhuma carta restante. Reinicie a análise.")
-    
-    with tab4:
-        st.subheader("Histórico Completo de Jogos")
-        
-        if analyzer.game_history:
-            # Mostra todos os jogos em formato de tabela
-            display_data = []
-            for game in analyzer.game_history:
-                display_data.append({
-                    'Rodada': game['round'],
-                    'HOME': card_name(game['home_card']),
-                    'AWAY': card_name(game['away_card']),
-                    'Resultado': game['result'].upper(),
-                    'Diferença': game['card_difference']
-                })
-            
-            st.dataframe(
-                display_data,
-                column_config={
-                    "Resultado": st.column_config.TextColumn(
-                        "Resultado",
-                        help="Resultado do jogo",
-                        width="medium"
-                    ),
-                    "Diferença": st.column_config.ProgressColumn(
-                        "Diferença",
-                        help="Diferença entre cartas",
-                        format="%d",
-                        min_value=0,
-                        max_value=12,
-                    )
-                },
-                hide_index=True,
-                use_container_width=True
-            )
-            
-            # Gráfico de histórico de resultados
-            result_history = [game['result'] for game in analyzer.game_history]
-            result_counts = defaultdict(int)
-            for result in result_history:
-                result_counts[result] += 1
-            
-            if plotly_available:
-                try:
-                    fig = px.line(
-                        x=list(range(1, len(result_history)+1)),
-                        y=np.cumsum([1 if res == 'home' else 0 for res in result_history]),
-                        labels={'x': 'Rodada', 'y': 'Vitórias HOME'},
-                        title="Evolução de Vitórias HOME"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    st.error(f"Erro ao criar gráfico: {str(e)}")
-                    st.line_chart([1 if res == 'home' else 0 for res in result_history])
-            else:
-                st.line_chart([1 if res == 'home' else 0 for res in result_history])
-        else:
-            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
-
-if __name__ == "__main__":
-    main()
+                        st.markdown(game_ci
