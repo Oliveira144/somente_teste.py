@@ -303,49 +303,69 @@ def game_circle(game):
     
     circle_html = f"""
     <div style="
+        background-color: {bg_color};
+        border: 2px solid {border_color};
+        border-radius: 50%;
+        width: {size};
+        height: {size};
         display: flex;
-        flex-direction: column;
+        justify-content: center;
         align-items: center;
-        margin: 3px;
+        color: white;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        text-align: center;
+        margin: 5px;
+        flex-shrink: 0;
     ">
-        <div style="
-            background-color: {bg_color};
-            border: 2px solid {border_color};
-            border-radius: 50%;
-            width: {size};
-            height: {size};
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            text-align: center;
-        ">
-            {home}x{away}
-        </div>
-        <div style="font-size: 0.7em; margin-top: 3px; color: #777; font-weight: bold;">
-            R{game['round']}
-        </div>
+        {home}x{away}
+    </div>
+    <div style="font-size: 0.7em; color: #777; font-weight: bold; text-align: center; margin-bottom: 10px;">
+        R{game['round']}
     </div>
     """
     return circle_html
 
-# Função para exibir jogos em linhas
+# Função para criar uma linha de resultados
+def create_history_line(games):
+    if not games:
+        return ""
+    
+    # Container flex para uma linha
+    line_html = f"""
+    <div style="
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 5px;
+        padding: 10px 0;
+        margin-bottom: 10px;
+        width: 100%;
+    ">
+    """
+    
+    # Adiciona cada jogo à linha
+    for game in games:
+        line_html += game_circle(game)
+    
+    line_html += "</div>"
+    return line_html
+
+# Função para exibir jogos em verdadeiras linhas horizontais
 def display_games_in_lines(games, games_per_line=9):
     if not games:
-        return
+        return ""
+    
+    html_content = ""
     
     # Dividir os jogos em linhas
     lines = [games[i:i+games_per_line] for i in range(0, len(games), games_per_line)]
     
+    # Criar uma linha para cada grupo de jogos
     for line in lines:
-        # Criar uma linha com várias colunas
-        cols = st.columns(games_per_line)
-        for idx, game in enumerate(line):
-            with cols[idx]:
-                circle_html = game_circle(game)
-                st.markdown(circle_html, unsafe_allow_html=True)
+        html_content += create_history_line(line)
+    
+    return html_content
 
 # Inicialização do aplicativo
 def main():
@@ -523,11 +543,15 @@ def main():
         st.subheader("Histórico de Jogos (da esquerda para direita: mais recente -> mais antigo)")
         
         if analyzer.game_history:
-            # Exibir apenas os últimos 30 jogos
+            # Obter os últimos 30 jogos, do mais recente para o mais antigo
             recent_games = analyzer.game_history[-30:]
             
-            # Usar função de exibição em linhas
-            display_games_in_lines(recent_games, games_per_line=9)
+            # Gerar HTML para exibição em linhas horizontais
+            html_content = display_games_in_lines(recent_games, games_per_line=9)
+            st.markdown(html_content, unsafe_allow_html=True)
+            
+            # Legenda das cores
+            st.caption("Legenda: 🔴 HOME | 🔵 AWAY | 🟡 EMPATE")
         else:
             st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
     
@@ -578,8 +602,9 @@ def main():
         st.subheader("Histórico Completo de Jogos")
         
         if analyzer.game_history:
-            # Usar função de exibição em linhas para todos os jogos
-            display_games_in_lines(analyzer.game_history, games_per_line=9)
+            # Gerar HTML para exibição em linhas horizontais
+            html_content = display_games_in_lines(analyzer.game_history, games_per_line=9)
+            st.markdown(html_content, unsafe_allow_html=True)
             
             # Tabela detalhada
             st.subheader("Detalhes por Rodada")
