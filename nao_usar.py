@@ -280,6 +280,43 @@ def card_name(value):
     else:
         return str(value)
 
+# Função para criar um bloco visual de jogo
+def game_block(game, show_round=True):
+    home = card_name(game['home_card'])
+    away = card_name(game['away_card'])
+    result = game['result']
+    
+    # Cores de fundo baseadas no resultado
+    if result == 'home':
+        bg_color = '#EF4444'  # vermelho
+        border_color = '#B91C1C'
+    elif result == 'away':
+        bg_color = '#3B82F6'  # azul
+        border_color = '#1D4ED8'
+    else:
+        bg_color = '#EAB308'  # amarelo
+        border_color = '#CA8A04'
+    
+    block_html = f"""
+    <div style="
+        background-color: {bg_color};
+        border: 2px solid {border_color};
+        border-radius: 8px;
+        padding: 8px;
+        margin: 3px;
+        text-align: center;
+        color: white;
+        font-weight: bold;
+        min-width: 70px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    ">
+        <div style="font-size: 0.8em; opacity: 0.9;">{"R" + str(game['round']) if show_round else ""}</div>
+        <div style="font-size: 1.2em;">{home} x {away}</div>
+        <div style="font-size: 0.9em; margin-top: 3px;">{result.upper()}</div>
+    </div>
+    """
+    return block_html
+
 # Inicialização do aplicativo
 def main():
     # Inicializa ou recupera a instância do analisador
@@ -354,7 +391,7 @@ def main():
             st.markdown(streak_text, unsafe_allow_html=True)
     
     # Tabs principais
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Estatísticas", "💡 Recomendações", "🃏 Distribuição de Cartas", "📜 Histórico"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Estatísticas", "💡 Recomendações", "🃏 Distribuição de Cartas", "📜 Histórico Completo"])
     
     with tab1:
         st.subheader("Análise Estatística")
@@ -450,6 +487,29 @@ def main():
             - Distribuição de cartas não é favorável
             - Dados insuficientes para análise confiável
             """)
+        
+        # Histórico compacto abaixo da recomendação
+        st.divider()
+        st.subheader("Histórico de Jogos Recentes (para análise)")
+        
+        if analyzer.game_history:
+            # Mostrar os últimos 18 jogos em uma grade de 9 por linha
+            recent_games = analyzer.game_history[-18:]
+            
+            # Organizar em linhas de 9 jogos
+            rows = []
+            for i in range(0, len(recent_games), 9):
+                row_games = recent_games[i:i+9]
+                rows.append(row_games)
+            
+            # Exibir cada linha
+            for row in rows:
+                cols = st.columns(9)
+                for idx, game in enumerate(row):
+                    with cols[idx]:
+                        st.markdown(game_block(game, show_round=True), unsafe_allow_html=True)
+        else:
+            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
     
     with tab3:
         st.subheader("Distribuição de Cartas")
@@ -495,15 +555,12 @@ def main():
             st.warning("Nenhuma carta restante. Reinicie a análise.")
     
     with tab4:
-        st.subheader("Histórico de Jogos")
+        st.subheader("Histórico Completo de Jogos")
         
         if analyzer.game_history:
-            # Mostra os últimos 20 jogos em formato de tabela
-            recent_games = analyzer.game_history[-20:]
-            
-            # Formata os dados para exibição
+            # Mostra todos os jogos em formato de tabela
             display_data = []
-            for game in recent_games:
+            for game in analyzer.game_history:
                 display_data.append({
                     'Rodada': game['round'],
                     'HOME': card_name(game['home_card']),
@@ -541,7 +598,7 @@ def main():
             if plotly_available:
                 try:
                     fig = px.line(
-                        x=list(range(1, len(result_history)+1),
+                        x=list(range(1, len(result_history)+1)),
                         y=np.cumsum([1 if res == 'home' else 0 for res in result_history]),
                         labels={'x': 'Rodada', 'y': 'Vitórias HOME'},
                         title="Evolução de Vitórias HOME"
