@@ -331,6 +331,22 @@ def game_circle(game):
     """
     return circle_html
 
+# Função para exibir jogos em linhas
+def display_games_in_lines(games, games_per_line=9):
+    if not games:
+        return
+    
+    # Dividir os jogos em linhas
+    lines = [games[i:i+games_per_line] for i in range(0, len(games), games_per_line)]
+    
+    for line in lines:
+        # Criar uma linha com várias colunas
+        cols = st.columns(games_per_line)
+        for idx, game in enumerate(line):
+            with cols[idx]:
+                circle_html = game_circle(game)
+                st.markdown(circle_html, unsafe_allow_html=True)
+
 # Inicialização do aplicativo
 def main():
     # Inicializa ou recupera a instância do analisador
@@ -507,20 +523,11 @@ def main():
         st.subheader("Histórico de Jogos (da esquerda para direita: mais recente -> mais antigo)")
         
         if analyzer.game_history:
-            # Obter os últimos jogos (mais recentes primeiro)
-            recent_games = list(reversed(analyzer.game_history))
+            # Exibir apenas os últimos 30 jogos
+            recent_games = analyzer.game_history[-30:]
             
-            # Dividir em grupos de 9 jogos
-            group_size = 9
-            game_groups = [recent_games[i:i+group_size] for i in range(0, len(recent_games), group_size)]
-            
-            # Exibir cada grupo em uma linha
-            for group in game_groups:
-                cols = st.columns(group_size)
-                for idx, game in enumerate(group):
-                    with cols[idx]:
-                        circle_html = game_circle(game)
-                        st.markdown(circle_html, unsafe_allow_html=True)
+            # Usar função de exibição em linhas
+            display_games_in_lines(recent_games, games_per_line=9)
         else:
             st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
     
@@ -571,20 +578,8 @@ def main():
         st.subheader("Histórico Completo de Jogos")
         
         if analyzer.game_history:
-            # Obter todos os jogos (mais recentes primeiro)
-            all_games = list(reversed(analyzer.game_history))
-            
-            # Dividir em grupos de 9 jogos
-            group_size = 9
-            game_groups = [all_games[i:i+group_size] for i in range(0, len(all_games), group_size)]
-            
-            # Exibir cada grupo em uma linha
-            for group in game_groups:
-                cols = st.columns(group_size)
-                for idx, game in enumerate(group):
-                    with cols[idx]:
-                        circle_html = game_circle(game)
-                        st.markdown(circle_html, unsafe_allow_html=True)
+            # Usar função de exibição em linhas para todos os jogos
+            display_games_in_lines(analyzer.game_history, games_per_line=9)
             
             # Tabela detalhada
             st.subheader("Detalhes por Rodada")
