@@ -519,4 +519,106 @@ def main():
                 cols = st.columns(group_size)
                 for idx, game in enumerate(group):
                     with cols[idx]:
-                        st.markdown(game_ci
+                        circle_html = game_circle(game)
+                        st.markdown(circle_html, unsafe_allow_html=True)
+        else:
+            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
+    
+    with tab3:
+        st.subheader("Distribuição de Cartas")
+        
+        if card_analysis['total_cards'] > 0:
+            # Métricas
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total de Cartas", card_analysis['total_cards'])
+            col2.metric("Cartas Altas (10+)", card_analysis['high_cards'], f"{card_analysis['high_card_ratio']*100:.1f}%")
+            col3.metric("Cartas Baixas (2-9)", card_analysis['low_cards'], f"{card_analysis['low_card_ratio']*100:.1f}%")
+            
+            # Preparar dados para gráfico
+            card_data = []
+            for value, count in analyzer.card_count.items():
+                card_data.append({
+                    'Carta': card_name(value),
+                    'Quantidade': count,
+                    'Tipo': 'Alta' if value >= 10 else 'Baixa'
+                })
+            
+            # Usar Plotly se disponível, caso contrário usar gráfico nativo
+            if plotly_available:
+                try:
+                    fig = px.bar(
+                        card_data,
+                        x='Carta',
+                        y='Quantidade',
+                        color='Tipo',
+                        color_discrete_map={'Alta': '#EF4444', 'Baixa': '#3B82F6'},
+                        title="Distribuição de Cartas Restantes"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Erro ao criar gráfico: {str(e)}")
+                    # Criar gráfico nativo
+                    chart_data = {item['Carta']: item['Quantidade'] for item in card_data}
+                    st.bar_chart(chart_data)
+            else:
+                # Criar gráfico nativo
+                chart_data = {item['Carta']: item['Quantidade'] for item in card_data}
+                st.bar_chart(chart_data)
+        else:
+            st.warning("Nenhuma carta restante. Reinicie a análise.")
+    
+    with tab4:
+        st.subheader("Histórico Completo de Jogos")
+        
+        if analyzer.game_history:
+            # Obter todos os jogos (mais recentes primeiro)
+            all_games = list(reversed(analyzer.game_history))
+            
+            # Dividir em grupos de 9 jogos
+            group_size = 9
+            game_groups = [all_games[i:i+group_size] for i in range(0, len(all_games), group_size)]
+            
+            # Exibir cada grupo em uma linha
+            for group in game_groups:
+                cols = st.columns(group_size)
+                for idx, game in enumerate(group):
+                    with cols[idx]:
+                        circle_html = game_circle(game)
+                        st.markdown(circle_html, unsafe_allow_html=True)
+            
+            # Tabela detalhada
+            st.subheader("Detalhes por Rodada")
+            display_data = []
+            for game in analyzer.game_history:
+                display_data.append({
+                    'Rodada': game['round'],
+                    'HOME': card_name(game['home_card']),
+                    'AWAY': card_name(game['away_card']),
+                    'Resultado': game['result'].upper(),
+                    'Diferença': game['card_difference']
+                })
+            
+            st.dataframe(
+                display_data,
+                column_config={
+                    "Resultado": st.column_config.TextColumn(
+                        "Resultado",
+                        help="Resultado do jogo",
+                        width="medium"
+                    ),
+                    "Diferença": st.column_config.ProgressColumn(
+                        "Diferença",
+                        help="Diferença entre cartas",
+                        format="%d",
+                        min_value=0,
+                        max_value=12,
+                    )
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
+
+if __name__ == "__main__":
+    main()
