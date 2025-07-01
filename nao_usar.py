@@ -90,6 +90,9 @@ class FootballStudioAnalyzer:
         stats['away_win_percentage'] = (stats['away_wins'] / stats['total_games']) * 100
         stats['draw_percentage'] = (stats['draws'] / stats['total_games']) * 100
         
+        # Adiciona sequências atuais
+        stats['current_streak'] = self.get_current_streak()
+        
         return stats
 
     def calculate_ev(self):
@@ -126,7 +129,9 @@ class FootballStudioAnalyzer:
         return {
             'high_card_ratio': high_cards / total_cards if total_cards > 0 else 0,
             'low_card_ratio': low_cards / total_cards if total_cards > 0 else 0,
-            'total_cards': total_cards
+            'total_cards': total_cards,
+            'high_cards': high_cards,
+            'low_cards': low_cards
         }
 
     def find_betting_opportunities(self):
@@ -136,6 +141,7 @@ class FootballStudioAnalyzer:
         
         opportunities = []
         card_analysis = self.card_distribution_analysis()
+        stats = self.calculate_statistics()
         
         # Critério para sugestão de aposta em Home/Away
         if ev['home'] > 0.05 or ev['away'] > 0.05:
@@ -227,6 +233,22 @@ class FootballStudioAnalyzer:
             'confidence': confidence
         }
 
+    def get_current_streak(self):
+        if not self.game_history:
+            return {'type': None, 'length': 0}
+        
+        streak_type = self.game_history[-1]['result']
+        streak_length = 1
+        
+        # Percorre o histórico de trás para frente
+        for i in range(len(self.game_history)-2, -1, -1):
+            if self.game_history[i]['result'] == streak_type:
+                streak_length += 1
+            else:
+                break
+                
+        return {'type': streak_type, 'length': streak_length}
+    
     def reset_game(self):
         self.game_history = []
         self.current_round = 1
@@ -244,6 +266,19 @@ def create_fallback_chart(data, title, chart_type='bar'):
         st.bar_chart(chart_data['values'])
     else:
         st.bar_chart(data)
+
+# Função para converter valor da carta para nome
+def card_name(value):
+    if value == 11:
+        return 'J'
+    elif value == 12:
+        return 'Q'
+    elif value == 13:
+        return 'K'
+    elif value == 14:
+        return 'A'
+    else:
+        return str(value)
 
 # Inicialização do aplicativo
 def main():
@@ -280,7 +315,7 @@ def main():
         if st.button("Adicionar Resultado"):
             try:
                 result = analyzer.add_result(home_card, away_card)
-                st.success(f"Resultado registrado: HOME {home_card} x {away_card} AWAY → {result.upper()}")
+                st.success(f"Resultado registrado: HOME {card_name(home_card)} x {card_name(away_card)} AWAY → {result.upper()}")
             except ValueError as e:
                 st.error(str(e))
         
@@ -288,7 +323,7 @@ def main():
         if st.button("Simular Próximo Jogo"):
             result = analyzer.simulate_game()
             if result:
-                st.success(f"Jogo simulado: HOME {result['home_card']} x {result['away_card']} AWAY → {result['result'].upper()}")
+                st.success(f"Jogo simulado: HOME {card_name(result['home_card'])} x {card_name(result['away_card'])} AWAY → {result['result'].upper()}")
     
     # Layout principal
     st.title("⚽ Football Studio Analyzer Pro")
@@ -304,6 +339,19 @@ def main():
         col2.metric("Vitórias HOME", f"{stats['home_win_percentage']:.2f}%", delta=f"{stats['home_wins']} vitórias")
         col3.metric("Vitórias AWAY", f"{stats['away_win_percentage']:.2f}%", delta=f"{stats['away_wins']} vitórias")
         col4.metric("Empates", f"{stats['draw_percentage']:.2f}%", delta=f"{stats['draws']} empates")
+    
+    # Sequência atual
+    if stats:
+        streak = stats.get('current_streak', {})
+        if streak and streak['type']:
+            streak_type = streak['type'].upper()
+            streak_length = streak['length']
+            
+            streak_color = "#EF4444" if streak_type == 'HOME' else "#3B82F6" if streak_type == 'AWAY' else "#EAB308"
+            streak_text = f"<div style='background-color:#1E1E1E; padding:10px; border-radius:5px;'>" \
+                          f"<h3 style='color:{streak_color};'>Sequência Atual: {streak_type} ({streak_length} rodadas)</h3>" \
+                          f"</div>"
+            st.markdown(streak_text, unsafe_allow_html=True)
     
     # Tabs principais
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Estatísticas", "💡 Recomendações", "🃏 Distribuição de Cartas", "📜 Histórico"])
@@ -407,15 +455,17 @@ def main():
         st.subheader("Distribuição de Cartas")
         
         if card_analysis['total_cards'] > 0:
+            # Métricas
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total de Cartas", card_analysis['total_cards'])
+            col2.metric("Cartas Altas (10+)", card_analysis['high_cards'], f"{card_analysis['high_card_ratio']*100:.1f}%")
+            col3.metric("Cartas Baixas (2-9)", card_analysis['low_cards'], f"{card_analysis['low_card_ratio']*100:.1f}%")
+            
             # Preparar dados para gráfico
             card_data = []
             for value, count in analyzer.card_count.items():
-                card_name = {
-                    11: 'J', 12: 'Q', 13: 'K', 14: 'A'
-                }.get(value, str(value))
-                
                 card_data.append({
-                    'Carta': card_name,
+                    'Carta': card_name(value),
                     'Quantidade': count,
                     'Tipo': 'Alta' if value >= 10 else 'Baixa'
                 })
@@ -441,11 +491,6 @@ def main():
                 # Criar gráfico nativo
                 chart_data = {item['Carta']: item['Quantidade'] for item in card_data}
                 st.bar_chart(chart_data)
-            
-            # Métricas
-            col1, col2 = st.columns(2)
-            col1.metric("Total de Cartas Restantes", card_analysis['total_cards'])
-            col2.metric("Cartas Altas (10+)", f"{card_analysis['high_card_ratio']*100:.1f}%")
         else:
             st.warning("Nenhuma carta restante. Reinicie a análise.")
     
@@ -459,7 +504,6 @@ def main():
             # Formata os dados para exibição
             display_data = []
             for game in recent_games:
-                card_name = lambda v: {11: 'J', 12: 'Q', 13: 'K', 14: 'A'}.get(v, str(v))
                 display_data.append({
                     'Rodada': game['round'],
                     'HOME': card_name(game['home_card']),
@@ -488,43 +532,28 @@ def main():
                 use_container_width=True
             )
             
-            # Gráfico de histórico
-            history_data = []
-            for i, game in enumerate(analyzer.game_history):
-                history_data.append({
-                    'Rodada': i + 1,
-                    'Diferença': game['card_difference'],
-                    'Resultado': game['result']
-                })
+            # Gráfico de histórico de resultados
+            result_history = [game['result'] for game in analyzer.game_history]
+            result_counts = defaultdict(int)
+            for result in result_history:
+                result_counts[result] += 1
             
-            # Usar Plotly se disponível
             if plotly_available:
                 try:
                     fig = px.line(
-                        history_data,
-                        x='Rodada',
-                        y='Diferença',
-                        color='Resultado',
-                        color_discrete_map={
-                            'home': '#EF4444',
-                            'away': '#3B82F6',
-                            'draw': '#EAB308'
-                        },
-                        title="Histórico de Diferença entre Cartas"
+                        x=list(range(1, len(result_history)+1),
+                        y=np.cumsum([1 if res == 'home' else 0 for res in result_history]),
+                        labels={'x': 'Rodada', 'y': 'Vitórias HOME'},
+                        title="Evolução de Vitórias HOME"
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     st.error(f"Erro ao criar gráfico: {str(e)}")
-                    # Criar gráfico nativo
-                    diff_data = [game['card_difference'] for game in analyzer.game_history]
-                    st.line_chart(diff_data)
+                    st.line_chart([1 if res == 'home' else 0 for res in result_history])
             else:
-                # Criar gráfico nativo
-                diff_data = [game['card_difference'] for game in analyzer.game_history]
-                st.line_chart(diff_data)
+                st.line_chart([1 if res == 'home' else 0 for res in result_history])
         else:
-            st.info("Nenhum jogo registrado ainda. Adicione jogos para ver o histórico.")
+            st.info("Nenhum jogo registrado. Adicione jogos para ver o histórico.")
 
-# Executa o app
 if __name__ == "__main__":
     main()
