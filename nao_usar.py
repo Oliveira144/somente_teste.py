@@ -1,3 +1,6 @@
+
+# Football Studio Pro Analyzer com Contagem Hi-Lo e IA de SugestÃ£o
+
 def valor_carta(carta, as_vale_14=True):
     carta = carta.upper()
     if carta == 'A':
@@ -49,28 +52,28 @@ def sugestao_de_entrada(historico, contador):
         padrao = "Streak de AWAY"
         entrada = "AWAY"
     elif ultimos == ["HOME", "AWAY", "HOME"]:
-        padrao = "Alternância detectada"
+        padrao = "AlternÃ¢ncia detectada"
         entrada = "AWAY"
     elif ultimos[-1] == "DRAW":
-        padrao = "Último foi DRAW"
+        padrao = "Ãšltimo foi DRAW"
         entrada = "Evite entrada"
     else:
-        padrao = "Tendência"
+        padrao = "TendÃªncia"
         entrada = ultimos[-1]
 
     if contador >= 4:
-        tendencia = "Muitas cartas baixas saíram → Tendência de ALTAS"
+        tendencia = "Muitas cartas baixas saÃ­ram â†’ TendÃªncia de ALTAS"
     elif contador <= -4:
-        tendencia = "Muitas cartas altas saíram → Tendência de BAIXAS"
+        tendencia = "Muitas cartas altas saÃ­ram â†’ TendÃªncia de BAIXAS"
     else:
         tendencia = "Contagem neutra"
 
-    return f"Padrão: {padrao}\nSugestão: {entrada}\nHi-Lo: {tendencia} (Contador: {contador:+d})"
+    return f"PadrÃ£o: {padrao}\nSugestÃ£o: {entrada}\nHi-Lo: {tendencia} (Contador: {contador:+d})"
 
-# Execução principal
+# ExecuÃ§Ã£o principal
 if __name__ == "__main__":
-    print("⚽ Football Studio Analyzer ⚽")
-    as_vale_14 = input("Ás vale 14? (s/n): ").strip().lower() == "s"
+    print("âš½ Football Studio Analyzer âš½")
+    as_vale_14 = input("Ãs vale 14? (s/n): ").strip().lower() == "s"
     historico = []
     contador = 0
 
@@ -80,13 +83,13 @@ if __name__ == "__main__":
         away = input("Carta AWAY: ").strip()
         resultado = conferir_resultado(home, away, as_vale_14)
         if resultado == "ERRO":
-            print("❌ Cartas inválidas!")
+            print("âŒ Cartas invÃ¡lidas!")
             continue
         historico.append(resultado)
         contador += contagem_hilo(home)
         contador += contagem_hilo(away)
-        print(f"✅ Resultado: {resultado}")
-        print(f"📊 Contador Hi-Lo: {contador:+d}")
+        print(f"âœ… Resultado: {resultado}")
+        print(f"ðŸ“Š Contador Hi-Lo: {contador:+d}")
         print(sugestao_de_entrada(historico, contador))
 
         cont = input("Continuar? (s/n): ").strip().lower()
