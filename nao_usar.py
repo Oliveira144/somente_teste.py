@@ -1,4 +1,4 @@
-# football_studio_analyzer.py
+# Football Studio Pro Analyzer com Contagem Hi-Lo e IA de Sugestão
 
 def valor_carta(carta, as_vale_14=True):
     carta = carta.upper()
