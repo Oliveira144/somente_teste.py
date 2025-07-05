@@ -18,6 +18,27 @@ st.markdown("""
     .stTextArea>div>div>textarea {
         color: black;
     }
+    /* Estilos para as caixas de Ação Recomendada */
+    .stAlert {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 1.2em;
+        font-weight: bold;
+        text-align: center;
+    }
+    .alert-success {
+        background-color: #28a745; /* Verde */
+        color: white;
+    }
+    .alert-danger {
+        background-color: #dc3545; /* Vermelho */
+        color: white;
+    }
+    .alert-warning {
+        background-color: #ffc107; /* Amarelo */
+        color: black;
+    }
     .stSuccess {
         background-color: #28a745 !important;
         color: white !important;
@@ -29,6 +50,20 @@ st.markdown("""
     .stError {
         background-color: #dc3545 !important;
         color: white !important;
+    }
+    /* Estilo para a tabela do histórico */
+    .stDataFrame {
+        color: black; /* Cor do texto dentro da tabela */
+    }
+    .stDataFrame thead th {
+        background-color: #3e3f47; /* Cor de fundo do cabeçalho */
+        color: white; /* Cor do texto do cabeçalho */
+    }
+    .stDataFrame tbody tr:nth-child(even) {
+        background-color: #f0f2f6; /* Cor de fundo para linhas pares */
+    }
+    .stDataFrame tbody tr:nth-child(odd) {
+        background-color: #ffffff; /* Cor de fundo para linhas ímpares */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -126,33 +161,41 @@ df = pd.DataFrame(st.session_state.historico_dados, columns=["Player", "Banker",
 
 def detectar_zigzag(resultado_series):
     # Um zigzag ocorre quando há uma alternância: A, B, A (ou B, A, B)
-    # A lógica original pode ser mais sobre 'não igual ao anterior e não igual ao ante-anterior'
-    # Vamos redefinir para um zigzag mais clássico (P,B,P ou B,P,B)
     zigzags = 0
     if len(resultado_series) < 3:
         return 0
     for i in range(2, len(resultado_series)):
-        # Verifica se os três últimos não são iguais e se o primeiro e o terceiro são iguais (alternância)
-        if (resultado_series[i-2] == resultado_series[i] and
-            resultado_series[i-2] != resultado_series[i-1]):
+        if (resultado_series.iloc[i-2] == resultado_series.iloc[i] and
+            resultado_series.iloc[i-2] != resultado_series.iloc[i-1]):
             zigzags += 1
     return zigzags
 
-def detectar_streaks(resultado_series):
+def detectar_streaks(df_analise):
     streaks = []
-    if not resultado_series.empty:
-        atual = resultado_series.iloc[0]
-        cont = 1
-        for i in range(1, len(resultado_series)):
-            if resultado_series.iloc[i] == atual:
-                cont += 1
-            else:
-                if cont >= 2: # Contabiliza streaks de 2 ou mais
-                    streaks.append({'lado': atual, 'contagem': cont})
-                atual = resultado_series.iloc[i]
-                cont = 1
-        if cont >= 2: # Adiciona o último streak, se houver
-            streaks.append({'lado': atual, 'contagem': cont})
+    if df_analise.empty:
+        return streaks
+
+    current_streak_data = {
+        'lado': df_analise["Resultado"].iloc[0],
+        'contagem': 1,
+        'somas': [df_analise["Player"].iloc[0] if df_analise["Resultado"].iloc[0] == 'P' else df_analise["Banker"].iloc[0]]
+    }
+
+    for i in range(1, len(df_analise)):
+        if df_analise["Resultado"].iloc[i] == current_streak_data['lado']:
+            current_streak_data['contagem'] += 1
+            current_streak_data['somas'].append(df_analise["Player"].iloc[i] if current_streak_data['lado'] == 'P' else df_analise["Banker"].iloc[i])
+        else:
+            if current_streak_data['contagem'] >= 2:
+                streaks.append(current_streak_data)
+            current_streak_data = {
+                'lado': df_analise["Resultado"].iloc[i],
+                'contagem': 1,
+                'somas': [df_analise["Player"].iloc[i] if df_analise["Resultado"].iloc[i] == 'P' else df_analise["Banker"].iloc[i]]
+            }
+    
+    if current_streak_data['contagem'] >= 2: # Add the last streak
+        streaks.append(current_streak_data)
     return streaks
 
 def freq_resultados(df_analise):
@@ -162,76 +205,171 @@ def freq_resultados(df_analise):
     freq = df_analise["Resultado"].value_counts(normalize=True).reindex(['P', 'B', 'T'], fill_value=0) * 100
     return freq.to_dict()
 
+def analisar_somas_proximas(df_analise, n_ultimos=7):
+    somas_proximas_detectadas = []
+    if len(df_analise) < 2: # Precisa de pelo menos 2 resultados para comparar
+        return somas_proximas_detectadas
+
+    # Considera os últimos resultados
+    df_recentes = df_analise.tail(n_ultimos).reset_index(drop=True)
+
+    for i in range(len(df_recentes) - 1):
+        r_atual = df_recentes["Resultado"].iloc[i]
+        r_prox = df_recentes["Resultado"].iloc[i+1]
+
+        if r_atual == r_prox and r_atual != 'T': # Se o mesmo lado venceu (e não foi Tie)
+            soma_atual = df_recentes["Player"].iloc[i] if r_atual == 'P' else df_recentes["Banker"].iloc[i]
+            soma_prox = df_recentes["Player"].iloc[i+1] if r_prox == 'P' else df_recentes["Banker"].iloc[i+1]
+
+            # Verifica se as somas estão próximas (ex: diferença <= 1 ou ambas 7/8)
+            if abs(soma_atual - soma_prox) <= 1 or (soma_atual in [7,8] and soma_prox in [7,8]):
+                somas_proximas_detectadas.append({
+                    'lado': r_atual,
+                    'soma_1': soma_atual,
+                    'soma_2': soma_prox
+                })
+    return somas_proximas_detectadas
+
 def sugestao_de_entrada(df_completo):
-    # Usaremos os últimos N resultados para a maioria das análises de sugestão
-    n_jogos_sugestao = 20 # Parâmetro ajustável para a profundidade da análise
-    df = df_completo.tail(n_jogos_sugestao).copy()
+    n_jogos_sugestao = 20
+    df_analise_sugestao = df_completo.tail(n_jogos_sugestao).copy()
 
-    entrada_segura = []
+    sugestoes_geradas = []
+    
+    # Dicionário para contar o consenso de cada lado
+    consenso_lado = {'P': 0, 'B': 0, 'T': 0}
 
-    if df.empty:
-        return ["Nenhum dado recente para análise de sugestão."]
+    if df_analise_sugestao.empty:
+        return sugestoes_geradas, consenso_lado
 
     # 1. Frequência de Empates e Ciclo
-    freq_t = freq_resultados(df).get('T', 0)
-    if freq_t < 10: # Se empates estão abaixo de 10% nos últimos N jogos
-        # Verifica a última vez que um empate ocorreu
-        ultimos_ties_idx = df_completo[df_completo["Resultado"] == "T"].index
-        if not ultimos_ties_idx.empty:
-            desde_ultimo_tie = len(df_completo) - ultimos_ties_idx[-1]
-            if desde_ultimo_tie > 8 and freq_t < 15: # Se não teve empate por mais de 8 jogos e a frequência geral é baixa
-                entrada_segura.append("🟢 **TIE (Empate)**: Ciclo pode estar maduro (não empata há muito tempo e frequência baixa).")
-        else: # Nunca teve empate
-             if len(df_completo) > 15: # Se o histórico já tem um tamanho razoável e nunca empatou
-                 entrada_segura.append("🟢 **TIE (Empate)**: Ciclo pode estar maduro (nenhum empate no histórico).")
+    freq_t = freq_resultados(df_analise_sugestao).get('T', 0)
+    
+    ultimos_ties_idx = df_completo[df_completo["Resultado"] == "T"].index
+    desde_ultimo_tie = len(df_completo)
 
+    if not ultimos_ties_idx.empty:
+        desde_ultimo_tie = len(df_completo) - ultimos_ties_idx[-1]
 
+    if (5 <= desde_ultimo_tie <= 12) or (freq_t < 15 and desde_ultimo_tie > 8):
+        sugestoes_geradas.append("🟢 **TIE (Empate)**: Padrão estatístico (lacuna de 5-12 jogos) sugere TIE próximo.")
+        consenso_lado['T'] += 1
+    elif freq_t < 10 and desde_ultimo_tie > 15:
+        sugestoes_geradas.append("🟢 **TIE (Empate)**: Alta chance, pois não empata há muito tempo (>15 jogos) e frequência baixa.")
+        consenso_lado['T'] += 1
+    
     # 2. Vantagem de Soma (últimos N jogos)
-    player_med = df["Player"].mean()
-    banker_med = df["Banker"].mean()
-    if player_med > banker_med + 1: # Diferença de 1 ponto ou mais na média
-        entrada_segura.append(f"🔵 **PLAYER**: Soma média ({player_med:.1f}) consistentemente mais alta. Vantagem no lance de dados.")
+    player_med = df_analise_sugestao["Player"].mean()
+    banker_med = df_analise_sugestao["Banker"].mean()
+    if player_med > banker_med + 1:
+        sugestoes_geradas.append(f"🔵 **PLAYER**: Soma média ({player_med:.1f}) consistentemente mais alta. Vantagem no lance de dados.")
+        consenso_lado['P'] += 1
     elif banker_med > player_med + 1:
-        entrada_segura.append(f"🔴 **BANKER**: Soma média ({banker_med:.1f}) consistentemente mais alta. Vantagem no lance de dados.")
+        sugestoes_geradas.append(f"🔴 **BANKER**: Soma média ({banker_med:.1f}) consistentemente mais alta. Vantagem no lance de dados.")
+        consenso_lado['B'] += 1
     
     # 3. ZigZag Ativo
-    zigzag_count = detectar_zigzag(df["Resultado"])
-    if zigzag_count >= 2 and len(df) >= 5: # Pelo menos 2 zigzags nos últimos 5 jogos
-        ultimo_resultado = df["Resultado"].iloc[-1]
+    zigzag_count = detectar_zigzag(df_analise_sugestao["Resultado"])
+    if zigzag_count >= 2 and len(df_analise_sugestao) >= 5:
+        ultimo_resultado = df_analise_sugestao["Resultado"].iloc[-1]
         if ultimo_resultado == 'P':
-            entrada_segura.append("🔁 **BANKER (Contra ZigZag)**: Padrão ZigZag (PBPB...) ativo. Último foi Player, Banker pode vir agora.")
+            sugestoes_geradas.append("🔁 **BANKER (Contra ZigZag)**: Padrão ZigZag (PBPB...) ativo. Último foi Player, Banker pode vir agora.")
+            consenso_lado['B'] += 0.5 # Menor peso, pois a imagem diz "fraco"
         elif ultimo_resultado == 'B':
-            entrada_segura.append("🔁 **PLAYER (Contra ZigZag)**: Padrão ZigZag (PBPB...) ativo. Último foi Banker, Player pode vir agora.")
+            sugestoes_geradas.append("🔁 **PLAYER (Contra ZigZag)**: Padrão ZigZag (PBPB...) ativo. Último foi Banker, Player pode vir agora.")
+            consenso_lado['P'] += 0.5 # Menor peso
+    else:
+        sugestoes_geradas.append("⚠️ **ZigZag Fraco**: Não há um padrão ZigZag claro ou consistente. Evite apostar baseado apenas na alternância de cores.")
 
-    # 4. Streaks (últimos N jogos)
-    streaks = detectar_streaks(df["Resultado"])
+
+    # 4. Streaks (últimos N jogos) - APRIMORADO para considerar somas altas
+    streaks = detectar_streaks(df_analise_sugestao)
     if streaks:
         ultimo_streak = streaks[-1]
-        if ultimo_streak['contagem'] >= 3: # Streak de 3 ou mais
-            lado_nome = "Player" if ultimo_streak['lado'] == "P" else "Banker" if ultimo_streak['lado'] == "B" else "Tie"
-            entrada_segura.append(f"🔥 **{lado_nome}**: Streak forte de {ultimo_streak['contagem']} consecutivos. Tendência de seguir o lado.")
+        lado_nome = "Player" if ultimo_streak['lado'] == "P" else "Banker" if ultimo_streak['lado'] == "B" else "Tie"
+        
+        somas_altas_no_streak = [s for s in ultimo_streak['somas'] if s >= 8]
+        
+        if ultimo_streak['contagem'] >= 3:
+            if len(somas_altas_no_streak) >= (ultimo_streak['contagem'] * 0.75): # Pelo menos 75% das somas são altas
+                sugestoes_geradas.append(f"🔥 **{lado_nome} (Streak Forte com Somas Altas)**: {ultimo_streak['contagem']} consecutivos com somas consistentemente altas ({somas_altas_no_streak}). Tendência de seguir o lado.")
+                consenso_lado[ultimo_streak['lado']] += 1.5 # Maior peso para streak forte com somas altas
+            else:
+                sugestoes_geradas.append(f"🔥 **{lado_nome} (Streak de {ultimo_streak['contagem']} )**: Tendência de seguir o lado, mas as somas não foram predominantemente altas.")
+                consenso_lado[ultimo_streak['lado']] += 1
+        
         elif ultimo_streak['contagem'] == 2 and len(streaks) >= 2 and streaks[-2]['lado'] == ultimo_streak['lado']:
-            # Padrão de 2 duplos (PPBB) - pode indicar alternância de duplos
-            entrada_segura.append(f"⚠️ **{lado_nome}**: Padrão de 'duplos' ativo. {ultimo_streak['lado']}{ultimo_streak['lado']} pode indicar alternância.")
+            sugestoes_geradas.append(f"⚠️ **{lado_nome}**: Padrão de 'duplos' ativo. {ultimo_streak['lado']}{ultimo_streak['lado']} pode indicar alternância.")
+            consenso_lado[ultimo_streak['lado']] += 0.25 # Peso menor para padrão de duplos
 
-    # 5. Padrão de "Não Repetição"
-    if len(df) >= 3:
-        if df["Resultado"].iloc[-1] != df["Resultado"].iloc[-2] and df["Resultado"].iloc[-2] != df["Resultado"].iloc[-3]:
-            # Padrão de não repetição (P, B, T ou P, B, P - mas não alternância exata)
-            # Ex: P, B, T -> próximo pode ser P (seguindo o ciclo) ou B (quebrando)
-            # Isso é mais uma observação do que uma sugestão forte sem contexto
-            pass
 
-    # 6. Analisar a SOMA dos Dados (tendências)
-    # Aqui, a lógica é mais avançada e pode envolver Machine Learning ou estatística mais profunda.
-    # Por enquanto, mantemos a análise de médias simples.
-    # Futuramente: Análise de desvio padrão das somas, contagem de naturais (7 ou 11)
+    # 5. Repetição de Somas Próximas (NOVO)
+    somas_prox = analisar_somas_proximas(df_analise_sugestao, n_ultimos=7)
+    if somas_prox:
+        for sp in somas_prox:
+            # Para evitar duplicidade de sugestão se houver múltiplos padrões próximos
+            if f"✨ **Padrão de Somas Próximas em {sp['lado']}**" not in sugestoes_geradas:
+                sugestoes_geradas.append(f"✨ **Padrão de Somas Próximas em {sp['lado']}**: Duas vitórias consecutivas de {sp['lado']} com somas {sp['soma_1']} e {sp['soma_2']}. Sugere repetição do comportamento de somas.")
+                consenso_lado[sp['lado']] += 0.75 # Peso médio
 
-    return entrada_segura
+    return sugestoes_geradas, consenso_lado
+
+# NOVA FUNÇÃO: Determinar a Ação Recomendada
+def determinar_acao_recomendada(consenso_lado):
+    # Parâmetros de decisão
+    min_consenso_para_apostar = 1.5 # Mínimo de "pontos" de consenso para recomendar uma aposta
+    confianca_base_por_ponto = 25 # Porcentagem de confiança por ponto de consenso
+
+    lados_com_consenso = {lado: score for lado, score in consenso_lado.items() if score >= min_consenso_para_apostar}
+
+    if not lados_com_consenso:
+        return "AGUARDAR", 0, "Nenhuma lógica forte o suficiente ou consenso claro.", "warning"
+
+    # Encontra o lado com o maior consenso
+    lado_recomendado = max(lados_com_consenso, key=lados_com_consenso.get)
+    maior_consenso = lados_com_consenso[lado_recomendado]
+
+    # Verifica se há lados com consenso forte que se contradizem
+    # Ex: Player tem 2 pontos e Banker tem 2 pontos -> Aguardar
+    conflito = False
+    for lado, score in lados_com_consenso.items():
+        if lado != lado_recomendado and score >= min_consenso_para_apostar:
+            conflito = True
+            break
+    
+    if conflito:
+        return "AGUARDAR", 0, "Lógicas conflitantes fortes para lados diferentes.", "warning"
+
+    # Calcula a confiança
+    confianca = min(100, int(maior_consenso * confianca_base_por_ponto))
+
+    # Mensagem final
+    lado_nome_completo = ""
+    if lado_recomendado == 'P': lado_nome_completo = "PLAYER"
+    elif lado_recomendado == 'B': lado_nome_completo = "BANKER"
+    elif lado_recomendado == 'T': lado_nome_completo = "TIE"
+
+    return f"APOSTAR NO {lado_nome_completo}", confianca, f"Consenso de {maior_consenso:.1f} ponto(s) de algoritmos para {lado_nome_completo}.", "success"
 
 # --- Mostrar Análises e Sugestões ---
 st.markdown("---")
 st.header("📊 Análise Detalhada e Sugestões Inteligentes")
+
+# Gera sugestões e o consenso
+sugestoes, consenso_contagem = sugestao_de_entrada(df)
+acao, confianca, justificativa, acao_tipo = determinar_acao_recomendada(consenso_contagem)
+
+# Exibe a Ação Recomendada (com CSS personalizado)
+st.markdown(f"""
+<div class="stAlert alert-{acao_tipo}">
+    Ação Recomendada: {acao}
+    <br>
+    Confiança: {confianca}%
+    <br>
+    <span style="font-size: 0.8em; font-weight: normal;">{justificativa}</span>
+</div>
+""", unsafe_allow_html=True)
+
 
 # Visão Geral
 st.subheader("Visão Geral do Histórico")
@@ -271,13 +409,15 @@ if len(df) >= 1:
     fig_seq.update_layout(yaxis_title="Resultado (P/B/T)", showlegend=False)
     st.plotly_chart(fig_seq, use_container_width=True)
 
-# Sugestões
-st.subheader("✨ Sugestões Inteligentes de Entrada")
-sugestoes = sugestao_de_entrada(df)
-
+# Sugestões Detalhadas
+st.subheader("✨ Sugestões Inteligentes de Entrada (Detalhes)")
 if sugestoes:
     for s in sugestoes:
-        st.success(s)
+        # Verifica se é a mensagem de zigzag fraco para usar st.warning
+        if "ZigZag Fraco" in s:
+            st.warning(s)
+        else:
+            st.success(s)
 else:
     st.warning("Nenhuma entrada segura detectada neste momento. Continue adicionando dados ou aguarde novos padrões.")
 
