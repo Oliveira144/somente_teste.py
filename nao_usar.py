@@ -5,7 +5,7 @@ from collections import Counter
 
 # --- Configuração da Página ---
 st.set_page_config(page_title="Bac Bo Inteligente", layout="wide", initial_sidebar_state="expanded")
-st.title("🎲 Analisador Inteligente de Padrões - Bac Bo Evolution (v3.1 - Correção de Lógica)")
+st.title("🎲 Analisador Inteligente de Padrões - Bac Bo Evolution (v3.2 - Ajuste Final na Lógica AGUARDAR)")
 
 st.markdown("""
 <style>
@@ -463,89 +463,85 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
     score = {'P': 0.0, 'B': 0.0, 'T': 0.0}
     justificativas_finais = []
     
-    # Flags para indicar a ativação de padrões de aposta
-    aposta_player_potencial = False
-    aposta_banker_potencial = False
-    aposta_tie_potencial = False
+    # Flags para indicar a ativação de padrões de aposta forte e confiável
+    # Essas flags são para determinar se *há uma razão forte para APOSTAR*, não apenas um indicativo
+    aposta_player_forte = False
+    aposta_banker_forte = False
+    aposta_tie_forte = False
 
     # Avaliação do TIE
     if logicas_ativas['tie_ciclo_forte']:
         score['T'] += pesos['tie_ciclo_forte']
         justificativas_finais.append("Padrão de Empate (TIE) FORTEMENTE maduro/atrasado.")
-        aposta_tie_potencial = True
+        aposta_tie_forte = True
     elif logicas_ativas['tie_ciclo_medio']:
         score['T'] += pesos['tie_ciclo_medio']
         justificativas_finais.append("Padrão de Empate (TIE) em ciclo médio.")
-        aposta_tie_potencial = True
+        aposta_tie_forte = True # Consideramos médio como suficiente para potencial de aposta no TIE
     if logicas_ativas['near_misses_tie_ativos']:
         score['T'] += pesos['near_misses_tie_ativos']
         justificativas_finais.append("Vários 'quase empates' (Near Misses) recentes.")
-        aposta_tie_potencial = True
-        
+        # Near misses por si só não fazem o TIE ser 'forte' para aposta, mas reforçam o ciclo
+
+
     # Avaliação de Player
     if logicas_ativas['streak_player_verdadeiro']:
         score['P'] += pesos['streak_verdadeiro']
         justificativas_finais.append("Streak VERDADEIRO de PLAYER com somas altas.")
-        aposta_player_potencial = True
-    elif logicas_ativas['streak_player_normal']:
-        score['P'] += pesos['streak_normal']
-        justificativas_finais.append("Streak normal de PLAYER (somas não predominantemente altas).")
-
+        aposta_player_forte = True
     if logicas_ativas['player_vantagem_soma']:
         score['P'] += pesos['vantagem_soma']
         justificativas_finais.append("PLAYER com vantagem consistente de soma.")
-        aposta_player_potencial = True
+        # Consideramos vantagem de soma + somas proximas como forte
+        if logicas_ativas['somas_proximas_player'] or logicas_ativas['distribuicao_somas_player_alta']:
+            aposta_player_forte = True
     if logicas_ativas['somas_proximas_player']:
         score['P'] += pesos['somas_proximas']
         justificativas_finais.append("Padrão de somas próximas em PLAYER.")
-        aposta_player_potencial = True
     if logicas_ativas['soma_vencedora_player_recorrente']:
         score['P'] += pesos['soma_vencedora_recorrente']
         justificativas_finais.append("Soma vencedora recorrente para PLAYER.")
-        aposta_player_potencial = True
     if logicas_ativas['distribuicao_somas_player_alta']:
         score['P'] += pesos['distribuicao_somas_alta']
         justificativas_finais.append("PLAYER vencendo com somas predominantemente altas (8 a 12).")
-        aposta_player_potencial = True
     
     # Avaliação de Banker
     if logicas_ativas['streak_banker_verdadeiro']:
         score['B'] += pesos['streak_verdadeiro']
         justificativas_finais.append("Streak VERDADEIRO de BANKER com somas altas.")
-        aposta_banker_potencial = True
-    elif logicas_ativas['streak_banker_normal']:
-        score['B'] += pesos['streak_normal']
-        justificativas_finais.append("Streak normal de BANKER (somas não predominantemente altas).")
-
+        aposta_banker_forte = True
     if logicas_ativas['banker_vantagem_soma']:
         score['B'] += pesos['vantagem_soma']
         justificativas_finais.append("BANKER com vantagem consistente de soma.")
-        aposta_banker_potencial = True
+        # Consideramos vantagem de soma + somas proximas como forte
+        if logicas_ativas['somas_proximas_banker'] or logicas_ativas['distribuicao_somas_banker_alta']:
+            aposta_banker_forte = True
     if logicas_ativas['somas_proximas_banker']:
         score['B'] += pesos['somas_proximas']
         justificativas_finais.append("Padrão de somas próximas em BANKER.")
-        aposta_banker_potencial = True
     if logicas_ativas['soma_vencedora_banker_recorrente']:
         score['B'] += pesos['soma_vencedora_recorrente']
         justificativas_finais.append("Soma vencedora recorrente para BANKER.")
-        aposta_banker_potencial = True
     if logicas_ativas['distribuicao_somas_banker_alta']:
         score['B'] += pesos['distribuicao_somas_alta']
         justificativas_finais.append("BANKER vencendo com somas predominantemente altas (8 a 12).")
-        aposta_banker_potencial = True
 
     # ZigZag Real por Soma (adiciona ao lado oposto do último resultado)
     # "Oscilação cíclica entre lados (ex: Player ganhando 2, depois Banker 3, depois troca)."
     if logicas_ativas['zigzag_soma_real']:
+        # Verifica se o df está vazio ou tem apenas um resultado.
+        if df.empty or len(df) < 1:
+            return "AGUARDAR", 10, "Aguardando mais dados para análise do ZigZag Real.", "warning"
+        
         ultimo_resultado = df.tail(1)["Resultado"].iloc[0]
         if ultimo_resultado == 'P':
             score['B'] += pesos['zigzag_soma_real']
             justificativas_finais.append("Padrão ZigZag REAL por soma ativo (sugere BANKER).")
-            aposta_banker_potencial = True
+            aposta_banker_forte = True
         elif ultimo_resultado == 'B':
             score['P'] += pesos['zigzag_soma_real']
             justificativas_finais.append("Padrão ZigZag REAL por soma ativo (sugere PLAYER).")
-            aposta_player_potencial = True
+            aposta_player_forte = True
     
     # Alternância Curta Ativa (indica volatilidade, não aposta direta)
     if logicas_ativas['alternancia_curta_ativa']:
@@ -554,62 +550,71 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
 
     # --- REGRAS DE DECISÃO FINAL (PRIORIDADE CRÍTICA) ---
     
-    # 1. Prioridade MÁXIMA para AGUARDAR se houver fraqueza no padrão ou incerteza
+    # Prioridade MÁXIMA para AGUARDAR se houver fraqueza no padrão ou incerteza
     # "Zig-zag fraco — nada confiável, evite apostar apenas por cor."
     if logicas_ativas['zigzag_fraco_apenas_cor'] and \
        not (logicas_ativas['streak_player_verdadeiro'] or logicas_ativas['streak_banker_verdadeiro'] or logicas_ativas['zigzag_soma_real']):
-        return "AGUARDAR", 20, "Cenário **instável/fraco**: ZigZag fraco (baseado apenas na cor) e sem Streaks Verdadeiros ou ZigZag Real por Soma. Não se baseie apenas na cor." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+        return "AGUARDAR", 20, "**Cenário instável/fraco**: ZigZag fraco (baseado apenas na cor) e sem Streaks Verdadeiros ou ZigZag Real por Soma. Não se baseie apenas na cor. " + ("Detalhes das lógicas ativas: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
 
     # "Player levemente superior em soma, mas sem streak claro."
     # Se há vantagem de soma, mas NÃO há um streak verdadeiro OU um ZigZag Real por soma
     if ((logicas_ativas['player_vantagem_soma'] and not (logicas_ativas['streak_player_verdadeiro'] or logicas_ativas['zigzag_soma_real'])) or
         (logicas_ativas['banker_vantagem_soma'] and not (logicas_ativas['streak_banker_verdadeiro'] or logicas_ativas['zigzag_soma_real']))):
-        # E se não há Tie forte
-        if score['T'] < pesos['tie_ciclo_forte']:
-             return "AGUARDAR", 40, "Cenário **incerto**: Vantagem de soma existe, mas sem um 'streak claro' ou ZigZag Real por Soma. Não há força suficiente para aposta direta." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+        # E se não há Tie forte o suficiente para uma aposta
+        if not aposta_tie_forte:
+             return "AGUARDAR", 40, "**Cenário incerto**: Vantagem de soma existe, mas sem um 'streak claro' ou ZigZag Real por Soma. Não há força suficiente para aposta direta. " + ("Detalhes das lógicas ativas: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
 
     # Conflito de Lógicas Fortes (P vs B)
-    # Se ambos os lados (P e B) têm pontuação alta, mas nenhum é claramente dominante
-    limiar_conflito = 2.5 # Pontuação mínima para considerar conflito
-    diferenca_minima_para_dominancia = 2.0 # Diferença mínima para um lado ser considerado dominante
-
-    if score['P'] >= limiar_conflito and score['B'] >= limiar_conflito:
-        if abs(score['P'] - score['B']) < diferenca_minima_para_dominancia:
-            return "AGUARDAR", 50, "Cenário de **conflito**: Lógicas fortes apontam para Player E Banker, mas sem um lado dominante claro. Aguarde clareza." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+    # Se ambos os lados (P e B) têm score alto (indicando múltiplos padrões favoráveis), mas nenhum é claramente dominante
+    limiar_conflito = 3.0 # Pontuação mínima para considerar que um lado tem padrões "fortes"
+    diferenca_minima_para_dominancia = 2.0 # Diferença mínima entre scores para um lado ser considerado dominante
     
-    # 2. Prioridade para APOSTAR NO TIE (Se forte o suficiente E sem conflito P/B significativo)
+    if (aposta_player_forte and aposta_banker_forte) or \
+       (score['P'] >= limiar_conflito and score['B'] >= limiar_conflito and abs(score['P'] - score['B']) < diferenca_minima_para_dominancia):
+        return "AGUARDAR", 50, "**Cenário de conflito**: Lógicas fortes apontam para Player E Banker, mas sem um lado dominante claro. Aguarde clareza. " + ("Detalhes das lógicas ativas: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+    
+    # Prioridade para APOSTAR NO TIE (Se forte o suficiente E sem conflito P/B significativo)
     # "Pequeno valor em TIE" se "6+ jogadas sem empate"
-    limiar_aposta_tie = pesos['tie_ciclo_forte'] * 1.0 # Requer pelo menos a força de um ciclo forte
-    
-    if score['T'] >= limiar_aposta_tie:
-        # Verifica se P e B não estão com pontuação muito alta OU estão equilibrados, para não haver conflito com TIE
+    limiar_aposta_tie_direta = pesos['tie_ciclo_forte'] * 1.0 # Requer pelo menos a força de um ciclo forte
+
+    if score['T'] >= limiar_aposta_tie_direta:
+        # Verifica se P e B não estão com pontuação muito alta (evita conflito) OU estão muito equilibrados
         if (score['P'] < 2.0 and score['B'] < 2.0) or (abs(score['P'] - score['B']) < 1.0):
             confianca = min(100, int(score['T'] * 18)) # Escala de confiança para TIE
-            return "APOSTAR NO TIE", confianca, f"**ALTA CHANCE DE TIE** devido a forte convergência de padrões de empate ({score['T']:.1f} pontos)." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "success"
+            return "APOSTAR NO TIE", confianca, f"**ALTA CHANCE DE TIE** devido a forte convergência de padrões de empate ({score['T']:.1f} pontos). " + ("Detalhes das lógicas ativas: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "success"
         else: # Tie forte, mas P ou B também estão fortes, pode ser conflito
-            return "AGUARDAR", 60, "Cenário misto: TIE está forte, mas Player/Banker também apresentam força. Aguarde a confirmação de um padrão dominante." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+            return "AGUARDAR", 60, "**Cenário misto**: TIE está forte, mas Player/Banker também apresentam força. Aguarde a confirmação de um padrão dominante. " + ("Detalhes das lógicas ativas: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
     
-    # 3. Prioridade para APOSTAR PLAYER/BANKER com Confirmação Forte
-    # Requer um "Streak Verdadeiro" ou a combinação de "Vantagem de Soma" e "Somas Próximas"
+    # Prioridade para APOSTAR PLAYER/BANKER com Confirmação Forte
+    # Requer um "Streak Verdadeiro" ou o "ZigZag Real por Soma" ou a combinação de "Vantagem de Soma" com "Somas Próximas" / "Distribuição de Somas Altas"
     
-    limiar_aposta_direta_P_B = 4.0 # Limiar alto para aposta direta
+    limiar_aposta_direta_P_B = 4.0 # Limiar alto para aposta direta (pode ser ajustado)
 
-    if score['P'] >= limiar_aposta_direta_P_B and score['P'] > score['B'] * 1.8 and score['T'] < 1.5: # Player MUITO mais forte
+    if aposta_player_forte and score['P'] >= limiar_aposta_direta_P_B and score['P'] > score['B'] * 1.8 and score['T'] < 1.5: # Player MUITO mais forte
         confianca = min(100, int(score['P'] * 15))
         return "APOSTAR NO PLAYER", confianca, f"**FORTE CONSENSO para PLAYER** ({score['P']:.1f} pontos): " + ", ".join(justificativas_finais), "success"
     
-    elif score['B'] >= limiar_aposta_direta_P_B and score['B'] > score['P'] * 1.8 and score['T'] < 1.5: # Banker MUITO mais forte
+    elif aposta_banker_forte and score['B'] >= limiar_aposta_direta_P_B and score['B'] > score['P'] * 1.8 and score['T'] < 1.5: # Banker MUITO mais forte
         confianca = min(100, int(score['B'] * 15))
         return "APOSTAR NO BANKER", confianca, f"**FORTE CONSENSO para BANKER** ({score['B']:.1f} pontos): " + ", ".join(justificativas_finais), "success"
     
-    # 4. Se não houve aposta clara até aqui, AGUARDAR
-    if aposta_player_potencial or aposta_banker_potencial or aposta_tie_potencial:
-        # Se algum padrão de aposta foi ativado, mas não atingiu os limiares de força ou houve conflito
-        confianca_aguardar = min(100, int(max(score.values()) * 10))
-        return "AGUARDAR", confianca_aguardar, "Padrões potenciais identificados, mas sem força ou clareza suficiente para uma entrada segura imediata. Aguarde mais confirmações." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+    # Se não houve aposta clara até aqui, AGUARDAR
+    # A justificativa não deve mencionar "consenso para P/B" se a ação é AGUARDAR
+    if justificativas_finais: # Se houver qualquer lógica ativa, mesmo que não seja forte o suficiente para apostar
+        confianca_aguardar = min(100, int(max(score.values()) * 10)) # Baseia a "confiança" no padrão mais forte encontrado
+        if score['P'] > score['B'] and score['P'] > score['T']:
+            detalhes_para_aguardar = f"Há um indicativo leve para PLAYER (score {score['P']:.1f}), mas os padrões não são fortes o suficiente para uma entrada segura. Aguarde mais confirmações ou o surgimento de um 'Streak Verdadeiro' ou 'ZigZag Real'."
+        elif score['B'] > score['P'] and score['B'] > score['T']:
+            detalhes_para_aguardar = f"Há um indicativo leve para BANKER (score {score['B']:.1f}), mas os padrões não são fortes o suficiente para uma entrada segura. Aguarde mais confirmações ou o surgimento de um 'Streak Verdadeiro' ou 'ZigZag Real'."
+        elif score['T'] > score['P'] and score['T'] > score['B']:
+            detalhes_para_aguardar = f"Há um indicativo leve para TIE (score {score['T']:.1f}), mas ainda não atingiu a força necessária para uma entrada. Aguarde a maturação do ciclo."
+        else: # Pontuações muito próximas ou baixas
+             detalhes_para_aguardar = "Padrões potenciais identificados, mas sem força ou clareza suficiente para uma entrada segura imediata. Aguarde mais confirmações."
+
+        return "AGUARDAR", confianca_aguardar, detalhes_para_aguardar + (" Lógicas ativas: " + ", ".join(sugestoes_detalhadas) if sugestoes_detalhadas else ""), "warning"
     
     # Caso padrão: não há padrões fortes ou potenciais
-    return "AGUARDAR", 10, "Aguardando mais dados ou padrões claros para análise. Cenário muito neutro." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+    return "AGUARDAR", 10, "Aguardando mais dados ou padrões claros para análise. Cenário muito neutro.", "warning"
 
 
 # --- Mostrar Análises e Sugestões ---
