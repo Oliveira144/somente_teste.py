@@ -5,7 +5,7 @@ from collections import Counter
 
 # --- Configuração da Página ---
 st.set_page_config(page_title="Bac Bo Inteligente", layout="wide", initial_sidebar_state="expanded")
-st.title("🎲 Analisador Inteligente de Padrões - Bac Bo Evolution (v3.0 - Correção de Lógica)")
+st.title("🎲 Analisador Inteligente de Padrões - Bac Bo Evolution (v3.1 - Correção de Lógica)")
 
 st.markdown("""
 <style>
@@ -104,7 +104,7 @@ if st.session_state.historico_dados:
     with col_hist1:
         if st.button("Remover Última Linha"):
             if st.session_state.historico_dados:
-                st.session_session.historico_dados.pop()
+                st.session_state.historico_dados.pop()
                 st.rerun()
     with col_hist2:
         if st.button("Limpar Histórico Completo"):
@@ -156,7 +156,7 @@ if not st.session_state.historico_dados:
 
 df = pd.DataFrame(st.session_state.historico_dados, columns=["Player", "Banker", "Resultado"])
 
-# --- Algoritmos de Análise Avançados (Mantidos da v2.0) ---
+# --- Algoritmos de Análise Avançados ---
 
 def detectar_zigzag(resultado_series):
     zigzags = 0
@@ -225,7 +225,8 @@ def analisar_somas_proximas(df_analise, n_ultimos=7):
             soma_atual = df_recentes["Player"].iloc[i] if r_atual == 'P' else df_recentes["Banker"].iloc[i]
             soma_prox = df_recentes["Player"].iloc[i+1] if r_prox == 'P' else df_recentes["Banker"].iloc[i+1]
 
-            if abs(soma_atual - soma_prox) <= 1 or (soma_atual in [7,8,9] and soma_prox in [7,8,9]):
+            # "Repetição de somas próximas (ex: vários resultados seguidos com soma 7 ou 8 no mesmo lado)"
+            if abs(soma_atual - soma_prox) <= 1 or ((soma_atual >= 7 and soma_atual <= 8) and (soma_prox >= 7 and soma_prox <= 8)):
                 somas_proximas_detectadas.append({
                     'lado': r_atual,
                     'soma_1': soma_atual,
@@ -240,6 +241,7 @@ def analisar_near_misses_tie(df_analise, n_ultimos=10):
     recentes = df_analise.tail(n_ultimos)
     for index, row in recentes.iterrows():
         if row['Resultado'] != 'T':
+            # Diferença de 1 nas somas, ex: Player 7, Banker 8 (ou vice-versa)
             if abs(row['Player'] - row['Banker']) == 1:
                 near_misses += 1
     return near_misses
@@ -271,23 +273,19 @@ def analisar_soma_vencedora_recorrente(df_analise, n_ultimos=15):
 
 def analisar_distribuicao_somas(df_analise, n_ultimos=20):
     if len(df_analise) < n_ultimos:
-        return {'P_Altas_Pct': 0, 'B_Altas_Pct': 0, 'P_Baixas_Pct': 0, 'B_Baixas_Pct': 0}
+        return {'P_Altas_Pct': 0, 'B_Altas_Pct': 0}
 
     df_recentes = df_analise.tail(n_ultimos)
 
-    player_somas_altas = df_recentes[df_recentes['Resultado'] == 'P']['Player'].apply(lambda x: 1 if x >= 8 else 0).sum()
-    player_somas_baixas = df_recentes[df_recentes['Resultado'] == 'P']['Player'].apply(lambda x: 1 if x <= 6 else 0).sum()
+    player_somas_altas = df_recentes[df_recentes['Resultado'] == 'P']['Player'].apply(lambda x: 1 if x >= 8 and x <= 12 else 0).sum()
     total_player_wins = (df_recentes['Resultado'] == 'P').sum()
 
-    banker_somas_altas = df_recentes[df_recentes['Resultado'] == 'B']['Banker'].apply(lambda x: 1 if x >= 8 else 0).sum()
-    banker_somas_baixas = df_recentes[df_recentes['Resultado'] == 'B']['Banker'].apply(lambda x: 1 if x <= 6 else 0).sum()
+    banker_somas_altas = df_recentes[df_recentes['Resultado'] == 'B']['Banker'].apply(lambda x: 1 if x >= 8 and x <= 12 else 0).sum()
     total_banker_wins = (df_recentes['Resultado'] == 'B').sum()
 
     return {
         'P_Altas_Pct': (player_somas_altas / total_player_wins * 100) if total_player_wins > 0 else 0,
         'B_Altas_Pct': (banker_somas_altas / total_banker_wins * 100) if total_banker_wins > 0 else 0,
-        'P_Baixas_Pct': (player_somas_baixas / total_player_wins * 100) if total_player_wins > 0 else 0,
-        'B_Baixas_Pct': (banker_somas_baixas / total_banker_wins * 100) if total_banker_wins > 0 else 0,
     }
 
 
@@ -301,19 +299,19 @@ def gerar_relatorio_sugestoes(df_completo):
         'tie_ciclo_medio': False,
         'player_vantagem_soma': False,
         'banker_vantagem_soma': False,
-        'zigzag_soma_real': False, # ZigZag baseado em soma e ritmo
-        'zigzag_fraco_apenas_cor': False, # ZigZag fraco = nada confiável
+        'zigzag_soma_real': False, # "Sequência alternando vitória com valores quase iguais -> ZigZag real."
+        'zigzag_fraco_apenas_cor': False, # "Zig-zag fraco — nada confiável, evite apostar apenas por cor."
         'alternancia_curta_ativa': False,
-        'streak_player_verdadeiro': False, # Streak verdadeiro (somas altas seguidas)
+        'streak_player_verdadeiro': False, # "Sequências onde o mesmo lado tira somas altas seguidas -> Streak verdadeiro"
         'streak_banker_verdadeiro': False,
         'streak_player_normal': False,
         'streak_banker_normal': False,
-        'somas_proximas_player': False,
+        'somas_proximas_player': False, # "Repetição de somas próximas (ex: vários resultados seguidos com soma 7 ou 8 no mesmo lado)"
         'somas_proximas_banker': False,
         'near_misses_tie_ativos': False,
         'soma_vencedora_player_recorrente': False,
         'soma_vencedora_banker_recorrente': False,
-        'distribuicao_somas_player_alta': False,
+        'distribuicao_somas_player_alta': False, # "Está surfando uma sequência de somas altas (8 a 12)."
         'distribuicao_somas_banker_alta': False,
     }
 
@@ -330,14 +328,17 @@ def gerar_relatorio_sugestoes(df_completo):
     if not ultimos_ties_idx.empty:
         desde_ultimo_tie = len(df_completo) - ultimos_ties_idx[-1]
 
-    if (6 <= desde_ultimo_tie <= 10): # "6+ jogadas sem empate", "entre 6 a 10 jogadas"
-        sugestoes_geradas.append("🟢 **TIE (Ciclo Madura)**: Padrão estatístico (6-10 jogos sem TIE) sugere TIE próximo.")
+    # "Empates sempre vêm após lacunas de 5 a 10 jogadas. Esse é o padrão mais consistente do Bac Bo."
+    # "O último empate está há cerca de 10 jogadas para trás. Isso significa que o padrão estatístico do empate está prestes a acontecer nas próximas 1 a 3 jogadas."
+    # "Quando houver 6+ jogadas sem empate, entre com valor pequeno no Tie."
+    if (6 <= desde_ultimo_tie <= 10): 
+        sugestoes_geradas.append(f"🟢 **TIE (Ciclo Madura)**: Padrão estatístico (6-10 jogos sem TIE) sugere TIE próximo. Passaram {desde_ultimo_tie} rodadas desde o último TIE.")
         logicas_ativas['tie_ciclo_forte'] = True
     elif (11 <= desde_ultimo_tie <= 15) or (freq_t < 15 and desde_ultimo_tie > 8):
-        sugestoes_geradas.append("🟢 **TIE (Ciclo Médio)**: Padrão cíclico (11-15 jogos ou baixa freq).")
+        sugestoes_geradas.append(f"🟢 **TIE (Ciclo Médio)**: Padrão cíclico (11-15 jogos ou baixa freq). Passaram {desde_ultimo_tie} rodadas desde o último TIE.")
         logicas_ativas['tie_ciclo_medio'] = True
     elif freq_t < 10 and desde_ultimo_tie > 15:
-        sugestoes_geradas.append("🟢 **TIE (Ciclo Atrasado)**: Muito tempo sem TIE (>15 jogos) e frequência baixa. Aumenta a chance.")
+        sugestoes_geradas.append(f"🟢 **TIE (Ciclo Atrasado)**: Muito tempo sem TIE (>15 jogos) e frequência baixa. Aumenta a chance. Passaram {desde_ultimo_tie} rodadas desde o último TIE.")
         logicas_ativas['tie_ciclo_forte'] = True
     
     # Near Misses para TIE
@@ -350,8 +351,8 @@ def gerar_relatorio_sugestoes(df_completo):
     player_med = df_analise_sugestao["Player"].mean()
     banker_med = df_analise_sugestao["Banker"].mean()
     
-    # "Aposte no lado que está com soma consistentemente maior."
-    if player_med > banker_med + 1.5: # Diferença maior para ser "consistentemente maior"
+    # "Aposte no lado que... está com soma consistentemente maior."
+    if player_med > banker_med + 1.5:
         sugestoes_geradas.append(f"🔵 **PLAYER**: Soma média ({player_med:.1f}) consistentemente mais alta. Vantagem no lance de dados.")
         logicas_ativas['player_vantagem_soma'] = True
     elif banker_med > player_med + 1.5:
@@ -363,12 +364,8 @@ def gerar_relatorio_sugestoes(df_completo):
     alternancia_curta_ativa = detectar_alternancia_curta(df_analise_sugestao["Resultado"], n_ultimos=5)
     
     # "Sequência alternando vitória com valores quase iguais -> ZigZag real."
-    # Implementação simplificada: se zigzag_count > 0 e a soma média dos zigzags é similar.
-    # Para um zigzag "real", precisamos de mais do que apenas a cor.
     is_zigzag_soma_real = False
     if zigzag_count >= 2 and len(df_analise_sugestao) >= 5:
-        # Verifica se os zigzags ocorreram com somas "quase iguais" (média próxima)
-        # Isso é uma heurística simplificada, o ideal seria analisar cada par de zigzag
         df_pb = df_analise_sugestao[(df_analise_sugestao['Resultado'] == 'P') | (df_analise_sugestao['Resultado'] == 'B')]
         if len(df_pb) >= 4:
             somas_p_zigzag = df_pb[df_pb['Resultado'] == 'P']['Player'].mean()
@@ -440,20 +437,17 @@ def gerar_relatorio_sugestoes(df_completo):
         sugestoes_geradas.append(f"📈 **BANKER (Somas Altas)**: Banker vencendo com somas altas em {dist_somas['B_Altas_Pct']:.1f}% das vezes (8 a 12).")
         logicas_ativas['distribuicao_somas_banker_alta'] = True
     
-    # Removendo 'distribuicao_somas_player_baixa' e 'distribuicao_somas_banker_baixa'
-    # pois o foco da estratégia é em somas altas.
-
     return sugestoes_geradas, logicas_ativas
 
 
 def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas):
     # --- Pesos das Lógicas (Refinados e Alinhados com a Estratégia do Usuário) ---
     pesos = {
-        'tie_ciclo_forte': 4.0, # Muito forte
+        'tie_ciclo_forte': 4.0, # Muito forte para TIE
         'tie_ciclo_medio': 2.0,
         'near_misses_tie_ativos': 1.5, # Reforça o TIE
 
-        'streak_verdadeiro': 5.0, # O mais forte para P/B
+        'streak_verdadeiro': 5.0, # O mais forte para P/B - "Streak verdadeiro"
         'streak_normal': 1.0,     # Pouco peso, sem somas altas claras
 
         'vantagem_soma': 2.5,     # Consistente
@@ -469,26 +463,30 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
     score = {'P': 0.0, 'B': 0.0, 'T': 0.0}
     justificativas_finais = []
     
-    # Flag para indicar se há um padrão forte o suficiente para APOSTAR
-    ha_padrao_aposta_direta = False
+    # Flags para indicar a ativação de padrões de aposta
+    aposta_player_potencial = False
+    aposta_banker_potencial = False
+    aposta_tie_potencial = False
 
     # Avaliação do TIE
     if logicas_ativas['tie_ciclo_forte']:
         score['T'] += pesos['tie_ciclo_forte']
         justificativas_finais.append("Padrão de Empate (TIE) FORTEMENTE maduro/atrasado.")
-        ha_padrao_aposta_direta = True
+        aposta_tie_potencial = True
     elif logicas_ativas['tie_ciclo_medio']:
         score['T'] += pesos['tie_ciclo_medio']
         justificativas_finais.append("Padrão de Empate (TIE) em ciclo médio.")
+        aposta_tie_potencial = True
     if logicas_ativas['near_misses_tie_ativos']:
         score['T'] += pesos['near_misses_tie_ativos']
         justificativas_finais.append("Vários 'quase empates' (Near Misses) recentes.")
+        aposta_tie_potencial = True
         
     # Avaliação de Player
     if logicas_ativas['streak_player_verdadeiro']:
         score['P'] += pesos['streak_verdadeiro']
         justificativas_finais.append("Streak VERDADEIRO de PLAYER com somas altas.")
-        ha_padrao_aposta_direta = True
+        aposta_player_potencial = True
     elif logicas_ativas['streak_player_normal']:
         score['P'] += pesos['streak_normal']
         justificativas_finais.append("Streak normal de PLAYER (somas não predominantemente altas).")
@@ -496,21 +494,25 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
     if logicas_ativas['player_vantagem_soma']:
         score['P'] += pesos['vantagem_soma']
         justificativas_finais.append("PLAYER com vantagem consistente de soma.")
+        aposta_player_potencial = True
     if logicas_ativas['somas_proximas_player']:
         score['P'] += pesos['somas_proximas']
         justificativas_finais.append("Padrão de somas próximas em PLAYER.")
+        aposta_player_potencial = True
     if logicas_ativas['soma_vencedora_player_recorrente']:
         score['P'] += pesos['soma_vencedora_recorrente']
         justificativas_finais.append("Soma vencedora recorrente para PLAYER.")
+        aposta_player_potencial = True
     if logicas_ativas['distribuicao_somas_player_alta']:
         score['P'] += pesos['distribuicao_somas_alta']
         justificativas_finais.append("PLAYER vencendo com somas predominantemente altas (8 a 12).")
+        aposta_player_potencial = True
     
     # Avaliação de Banker
     if logicas_ativas['streak_banker_verdadeiro']:
         score['B'] += pesos['streak_verdadeiro']
         justificativas_finais.append("Streak VERDADEIRO de BANKER com somas altas.")
-        ha_padrao_aposta_direta = True
+        aposta_banker_potencial = True
     elif logicas_ativas['streak_banker_normal']:
         score['B'] += pesos['streak_normal']
         justificativas_finais.append("Streak normal de BANKER (somas não predominantemente altas).")
@@ -518,25 +520,32 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
     if logicas_ativas['banker_vantagem_soma']:
         score['B'] += pesos['vantagem_soma']
         justificativas_finais.append("BANKER com vantagem consistente de soma.")
+        aposta_banker_potencial = True
     if logicas_ativas['somas_proximas_banker']:
         score['B'] += pesos['somas_proximas']
         justificativas_finais.append("Padrão de somas próximas em BANKER.")
+        aposta_banker_potencial = True
     if logicas_ativas['soma_vencedora_banker_recorrente']:
         score['B'] += pesos['soma_vencedora_recorrente']
         justificativas_finais.append("Soma vencedora recorrente para BANKER.")
+        aposta_banker_potencial = True
     if logicas_ativas['distribuicao_somas_banker_alta']:
         score['B'] += pesos['distribuicao_somas_alta']
         justificativas_finais.append("BANKER vencendo com somas predominantemente altas (8 a 12).")
+        aposta_banker_potencial = True
 
     # ZigZag Real por Soma (adiciona ao lado oposto do último resultado)
+    # "Oscilação cíclica entre lados (ex: Player ganhando 2, depois Banker 3, depois troca)."
     if logicas_ativas['zigzag_soma_real']:
         ultimo_resultado = df.tail(1)["Resultado"].iloc[0]
         if ultimo_resultado == 'P':
             score['B'] += pesos['zigzag_soma_real']
             justificativas_finais.append("Padrão ZigZag REAL por soma ativo (sugere BANKER).")
+            aposta_banker_potencial = True
         elif ultimo_resultado == 'B':
             score['P'] += pesos['zigzag_soma_real']
             justificativas_finais.append("Padrão ZigZag REAL por soma ativo (sugere PLAYER).")
+            aposta_player_potencial = True
     
     # Alternância Curta Ativa (indica volatilidade, não aposta direta)
     if logicas_ativas['alternancia_curta_ativa']:
@@ -545,36 +554,40 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
 
     # --- REGRAS DE DECISÃO FINAL (PRIORIDADE CRÍTICA) ---
     
-    # 1. Prioridade MÁXIMA para AGUARDAR se houver fraqueza no padrão ou conflito de soma
+    # 1. Prioridade MÁXIMA para AGUARDAR se houver fraqueza no padrão ou incerteza
     # "Zig-zag fraco — nada confiável, evite apostar apenas por cor."
-    # "Player levemente superior em soma, mas sem streak claro."
-    # Se o zigzag é fraco E não tem nenhum streak verdadeiro, é aguardar.
     if logicas_ativas['zigzag_fraco_apenas_cor'] and \
-       not (logicas_ativas['streak_player_verdadeiro'] or logicas_ativas['streak_banker_verdadeiro']):
-        return "AGUARDAR", 20, "Cenário **instável/fraco**: ZigZag fraco detectado e sem Streaks Verdadeiros. Não se baseie apenas na cor. " + ", ".join(justificativas_finais), "warning"
+       not (logicas_ativas['streak_player_verdadeiro'] or logicas_ativas['streak_banker_verdadeiro'] or logicas_ativas['zigzag_soma_real']):
+        return "AGUARDAR", 20, "Cenário **instável/fraco**: ZigZag fraco (baseado apenas na cor) e sem Streaks Verdadeiros ou ZigZag Real por Soma. Não se baseie apenas na cor." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
 
-    # Se há alguma vantagem de soma, mas o streak é normal (não "claro") ou não há streak
-    if ((logicas_ativas['player_vantagem_soma'] and not logicas_ativas['streak_player_verdadeiro']) or
-        (logicas_ativas['banker_vantagem_soma'] and not logicas_ativas['streak_banker_verdadeiro'])):
+    # "Player levemente superior em soma, mas sem streak claro."
+    # Se há vantagem de soma, mas NÃO há um streak verdadeiro OU um ZigZag Real por soma
+    if ((logicas_ativas['player_vantagem_soma'] and not (logicas_ativas['streak_player_verdadeiro'] or logicas_ativas['zigzag_soma_real'])) or
+        (logicas_ativas['banker_vantagem_soma'] and not (logicas_ativas['streak_banker_verdadeiro'] or logicas_ativas['zigzag_soma_real']))):
         # E se não há Tie forte
         if score['T'] < pesos['tie_ciclo_forte']:
-             return "AGUARDAR", 40, "Cenário **incerto**: Vantagem de soma existe, mas sem um 'streak claro' ou padrão forte para aposta direta. " + ", ".join(justificativas_finais), "warning"
+             return "AGUARDAR", 40, "Cenário **incerto**: Vantagem de soma existe, mas sem um 'streak claro' ou ZigZag Real por Soma. Não há força suficiente para aposta direta." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
 
     # Conflito de Lógicas Fortes (P vs B)
-    # Se ambos os lados têm pontuação alta, mas nenhum é claramente dominante (ex: ambos > 3.0)
-    if score['P'] >= 2.5 and score['B'] >= 2.5: # Limiar ajustado para conflito
-        # Se a diferença entre os scores P e B não é significativa
-        if abs(score['P'] - score['B']) < 2.0: # Ex: Player 3.0, Banker 2.8 - muito próximos
-            return "AGUARDAR", 50, "Cenário de **conflito**: Lógicas fortes apontam para Player E Banker. Aguarde clareza. " + ", ".join(justificativas_finais), "warning"
+    # Se ambos os lados (P e B) têm pontuação alta, mas nenhum é claramente dominante
+    limiar_conflito = 2.5 # Pontuação mínima para considerar conflito
+    diferenca_minima_para_dominancia = 2.0 # Diferença mínima para um lado ser considerado dominante
 
+    if score['P'] >= limiar_conflito and score['B'] >= limiar_conflito:
+        if abs(score['P'] - score['B']) < diferenca_minima_para_dominancia:
+            return "AGUARDAR", 50, "Cenário de **conflito**: Lógicas fortes apontam para Player E Banker, mas sem um lado dominante claro. Aguarde clareza." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
+    
     # 2. Prioridade para APOSTAR NO TIE (Se forte o suficiente E sem conflito P/B significativo)
-    if score['T'] >= pesos['tie_ciclo_forte'] * 1.0: # Requer pelo menos a força de um ciclo forte
-        # E se P e B não estão com pontuação muito alta OU estão equilibrados
+    # "Pequeno valor em TIE" se "6+ jogadas sem empate"
+    limiar_aposta_tie = pesos['tie_ciclo_forte'] * 1.0 # Requer pelo menos a força de um ciclo forte
+    
+    if score['T'] >= limiar_aposta_tie:
+        # Verifica se P e B não estão com pontuação muito alta OU estão equilibrados, para não haver conflito com TIE
         if (score['P'] < 2.0 and score['B'] < 2.0) or (abs(score['P'] - score['B']) < 1.0):
             confianca = min(100, int(score['T'] * 18)) # Escala de confiança para TIE
-            return "APOSTAR NO TIE", confianca, f"**ALTA CHANCE DE TIE** devido a forte convergência de padrões de empate ({score['T']:.1f} pontos). " + ", ".join(justificativas_finais), "success"
+            return "APOSTAR NO TIE", confianca, f"**ALTA CHANCE DE TIE** devido a forte convergência de padrões de empate ({score['T']:.1f} pontos)." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "success"
         else: # Tie forte, mas P ou B também estão fortes, pode ser conflito
-            return "AGUARDAR", 60, "Cenário misto: TIE está forte, mas Player/Banker também apresentam força. Aguarde a confirmação de um padrão dominante. " + ", ".join(justificativas_finais), "warning"
+            return "AGUARDAR", 60, "Cenário misto: TIE está forte, mas Player/Banker também apresentam força. Aguarde a confirmação de um padrão dominante." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
     
     # 3. Prioridade para APOSTAR PLAYER/BANKER com Confirmação Forte
     # Requer um "Streak Verdadeiro" ou a combinação de "Vantagem de Soma" e "Somas Próximas"
@@ -589,14 +602,14 @@ def determinar_acao_recomendada_inteligente(logicas_ativas, sugestoes_detalhadas
         confianca = min(100, int(score['B'] * 15))
         return "APOSTAR NO BANKER", confianca, f"**FORTE CONSENSO para BANKER** ({score['B']:.1f} pontos): " + ", ".join(justificativas_finais), "success"
     
-    # 4. Nenhum padrão forte o suficiente para aposta direta, então AGUARDAR
-    # Se chegou aqui, não houve um sinal forte o suficiente para P, B ou T.
-    if ha_padrao_aposta_direta: # Se alguma lógica de "aposta direta" foi ativada, mas não atingiu os limiares.
+    # 4. Se não houve aposta clara até aqui, AGUARDAR
+    if aposta_player_potencial or aposta_banker_potencial or aposta_tie_potencial:
+        # Se algum padrão de aposta foi ativado, mas não atingiu os limiares de força ou houve conflito
         confianca_aguardar = min(100, int(max(score.values()) * 10))
-        return "AGUARDAR", confianca_aguardar, "Padrões identificados, mas sem força ou clareza suficiente para uma entrada segura imediata. Aguarde mais confirmações. " + ", ".join(justificativas_finais), "warning"
+        return "AGUARDAR", confianca_aguardar, "Padrões potenciais identificados, mas sem força ou clareza suficiente para uma entrada segura imediata. Aguarde mais confirmações." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
     
-    # Caso padrão: não há padrões fortes
-    return "AGUARDAR", 10, "Aguardando mais dados ou padrões claros para análise. Cenário muito neutro. " + ", ".join(justificativas_finais), "warning"
+    # Caso padrão: não há padrões fortes ou potenciais
+    return "AGUARDAR", 10, "Aguardando mais dados ou padrões claros para análise. Cenário muito neutro." + (" Detalhes: " + ", ".join(justificativas_finais) if justificativas_finais else ""), "warning"
 
 
 # --- Mostrar Análises e Sugestões ---
